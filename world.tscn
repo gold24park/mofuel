@@ -1,0 +1,59 @@
+[gd_scene load_steps=7 format=3 uid="uid://bmff2e0pdwtdb"]
+
+[ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://table.tscn" id="1_table"]
+[ext_resource type="Script" uid="uid://c26hpuupjps6m" path="res://world.gd" id="1_tlwt5"]
+[ext_resource type="PackedScene" uid="uid://bruj7wfpfmu66" path="res://dice.tscn" id="2_dice"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_tlwt5"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_aqk2v"]
+sky_material = SubResource("ProceduralSkyMaterial_tlwt5")
+
+[sub_resource type="Environment" id="Environment_036b0"]
+background_mode = 1
+background_color = Color(1, 1, 1, 1)
+sky = SubResource("Sky_aqk2v")
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="World" type="Node3D"]
+script = ExtResource("1_tlwt5")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_036b0")
+
+[node name="Table" parent="." instance=ExtResource("1_table")]
+
+[node name="Dice" parent="." instance=ExtResource("2_dice")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
+gravity_scale = 2.0
+linear_damp = 0.0
+angular_damp = 0.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 2.3841858e-07, 1, 0, -1, 2.3841858e-07, 0, 30, 0)
+size = 42.921
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.86602527, -0.25000027, 0.43301278, -0.35355353, 0.30618584, 0.8838834, -0.35355356, -0.9185587, 0.17677626, 0, 17, 0)
+shadow_enabled = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ResultLabel" type="Label" parent="CanvasLayer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -24.5
+offset_top = 50.0
+offset_right = 24.5
+offset_bottom = 73.0
+grow_horizontal = 2
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 32
+text = "1"
+horizontal_alignment = 1
+
+[connection signal="roll_finished" from="Dice" to="." method="_on_dice_roll_finished"]
