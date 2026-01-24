@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="DiceTypeResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
+[ext_resource type="Script" path="res://globals/dice_effect_resource.gd" id="2"]
+
+[sub_resource type="Resource" id="wild_effect"]
+script = ExtResource("2")
+type = 4
+params = {}
+
+[resource]
+script = ExtResource("1")
+id = "wildcard"
+display_name = "와일드카드 주사위"
+description = "족보 판정 시 원하는 숫자로 사용 가능"
+color = Color(0.3, 0.9, 0.9, 1)
+rarity = 4
+effects = [SubResource("wild_effect")]

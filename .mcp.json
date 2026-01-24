@@ -1,0 +1,10 @@
+{
+    "mcpServers": {
+        "godot": {
+            "command": "node",
+            "args": [
+                "/Users/jieunpark/git_repo/godot-mcp/build/index.js"
+            ]
+        }
+    }
+}

@@ -1,0 +1,58 @@
+# Godot 4+ specific ignores
+.godot/
+
+# Godot-specific ignores
+*.translation
+
+# Imported textures and samples
+.import/
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# Export builds
+/android/
+/ios/
+/build/
+/export/
+*.apk
+*.aab
+*.ipa
+*.exe
+*.x86_64
+*.x86
+*.pck
+*.dmg
+
+# System/IDE files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# VSCode
+.vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Vim
+*.vim
+Session.vim
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Environment / Secrets
+.env
+.env.local
+*.local
