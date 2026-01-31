@@ -11,10 +11,10 @@ signal game_over(won: bool)
 
 enum Phase { SETUP, ROUND_START, ACTION, SCORING }
 
-var inventory: Array = []  # DiceInstance array
-var reserve: Array = []    # DiceInstance array
-var active_dice: Array = []  # DiceInstance array
-var active_values: Array = [0, 0, 0, 0, 0]
+var inventory: Array[DiceInstance] = []
+var reserve: Array[DiceInstance] = []
+var active_dice: Array[DiceInstance] = []
+var active_values: Array[int] = [0, 0, 0, 0, 0]
 
 var current_phase: int = Phase.SETUP
 var rerolls_remaining: int = 2
@@ -42,11 +42,14 @@ func _init_inventory():
 	current_round = 0
 	rerolls_remaining = 2
 
-	# 일반 주사위 10개
-	for i in range(10):
-		var dice = DiceRegistry.create_instance("normal")
-		if dice:
-			inventory.append(dice)
+	# 초기 인벤토리 구성
+	for entry in DiceTypes.STARTING_INVENTORY:
+		var type_id: String = entry[0]
+		var count: int = entry[1]
+		for i in range(count):
+			var dice = DiceRegistry.create_instance(type_id)
+			if dice:
+				inventory.append(dice)
 
 	inventory.shuffle()
 	inventory_changed.emit()
@@ -104,7 +107,7 @@ func roll_dice():
 	phase_changed.emit(current_phase)
 
 
-func on_dice_results(values: Array):
+func on_dice_results(values: Array[int]):
 	active_values = values
 	active_changed.emit()
 

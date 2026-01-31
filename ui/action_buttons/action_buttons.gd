@@ -8,7 +8,7 @@ signal end_turn_pressed
 @onready var replace_button: Button = $MarginContainer/HBoxContainer/ReplaceButton
 @onready var end_turn_button: Button = $MarginContainer/HBoxContainer/EndTurnButton
 
-var _kept_count: int = 0
+var _selected_count: int = 0
 
 
 func _ready():
@@ -23,32 +23,31 @@ func _ready():
 	_update_buttons()
 
 
-func set_kept_count(count: int):
-	_kept_count = count
+func set_selected_count(count: int):
+	_selected_count = count
 	_update_buttons()
 
 
 func _update_buttons():
 	var phase = GameState.current_phase
-	var unkept_count = 5 - _kept_count
 
 	reroll_button.visible = phase == GameState.Phase.ACTION
 	replace_button.visible = phase == GameState.Phase.ACTION
 	end_turn_button.visible = phase == GameState.Phase.ACTION
 
-	# 리롤: Keep되지 않은 주사위가 있고, 리롤 횟수가 남아있어야 함
-	reroll_button.disabled = not GameState.can_reroll() or unkept_count == 0
-	# Replace: Reserve가 있고, 주사위가 정확히 1개 Keep되어 있어야 함
-	replace_button.disabled = not GameState.can_replace() or _kept_count != 1
+	# 리롤: 선택된 주사위가 있고, 리롤 횟수가 남아있어야 함
+	reroll_button.disabled = not GameState.can_reroll() or _selected_count == 0
+	# Replace: Reserve가 있고, 선택된 주사위가 정확히 1개여야 함
+	replace_button.disabled = not GameState.can_replace() or _selected_count != 1
 
-	if unkept_count < 5:
-		reroll_button.text = "Reroll %d (%d)" % [unkept_count, GameState.rerolls_remaining]
+	if _selected_count > 0:
+		reroll_button.text = "Reroll %d (%d)" % [_selected_count, GameState.rerolls_remaining]
 	else:
 		reroll_button.text = "Reroll (%d)" % GameState.rerolls_remaining
 
 
 func _on_phase_changed(_phase):
-	_kept_count = 0
+	_selected_count = 0
 	_update_buttons()
 
 

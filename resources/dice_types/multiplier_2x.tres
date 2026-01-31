@@ -1,20 +1,15 @@
-[gd_resource type="Resource" script_class="DiceTypeResource" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://bxd7da0mhee6l"]
 
 [ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
-[ext_resource type="Script" path="res://globals/dice_effect_resource.gd" id="2"]
+[ext_resource type="Script" path="res://globals/effects/score_multiplier_effect.gd" id="2"]
 
 [sub_resource type="Resource" id="mult_effect"]
 script = ExtResource("2")
-type = 3
-params = {
-"multiplier": 2.0
-}
+multiplier = 2.0
 
 [resource]
 script = ExtResource("1")
 id = "multiplier_2x"
 display_name = "배수 주사위"
 description = "점수 계산 시 2배 적용"
-color = Color(0.6, 0.3, 0.9, 1)
-rarity = 3
 effects = [SubResource("mult_effect")]

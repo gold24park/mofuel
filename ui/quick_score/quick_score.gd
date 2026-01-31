@@ -86,13 +86,15 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 		0, 1, 2, 3, 4, 5:  # ONES through SIXES
 			var target: int = category.target_number
 			for i in range(values.size()):
-				if values[i] == target:
+				# 값이 일치하거나 와일드카드인 경우 포함
+				if values[i] == target or dice[i].is_wildcard():
 					indices.append(i)
 
 		6, 7, 11:  # THREE_OF_A_KIND, FOUR_OF_A_KIND, YACHT
 			var target_value: int = _get_most_common_value(values)
 			for i in range(values.size()):
-				if values[i] == target_value:
+				# 값이 일치하거나 와일드카드인 경우 포함
+				if values[i] == target_value or dice[i].is_wildcard():
 					indices.append(i)
 
 		8:  # FULL_HOUSE
@@ -104,7 +106,8 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 			# 스트레이트에 포함된 주사위
 			var straight_values := _get_straight_values(values, category.category_type == 10)
 			for i in range(values.size()):
-				if values[i] in straight_values:
+				# 값이 스트레이트에 포함되거나 와일드카드인 경우 포함
+				if values[i] in straight_values or dice[i].is_wildcard():
 					indices.append(i)
 
 		12:  # CHANCE

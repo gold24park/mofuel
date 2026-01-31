@@ -1,15 +1,17 @@
-[gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://db8o3co4sb8s2"]
+[gd_resource type="Resource" script_class="DiceTypeResource" format=3]
 
 [ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
 [ext_resource type="Script" path="res://globals/effects/face_map_effect.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/uv/dice_uv_odd.png" id="3"]
 
 [sub_resource type="Resource" id="face_map_effect"]
 script = ExtResource("2")
-face_map = [0, 6, 6, 6, 6, 6, 6]
+face_map = [0, 1, 1, 3, 3, 5, 5]
 
 [resource]
 script = ExtResource("1")
-id = "fixed_six"
-display_name = "고정 주사위"
-description = "항상 6이 나옵니다"
+id = "odd_only"
+display_name = "홀수 주사위"
+description = "1, 3, 5만 나옵니다"
+texture = ExtResource("3")
 effects = [SubResource("face_map_effect")]

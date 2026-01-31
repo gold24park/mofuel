@@ -36,8 +36,13 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     dice_registry.gd  # Dice type loader
     category_registry.gd  # Category loader
     scoring.gd        # Score calculation
-    dice_*.gd         # Dice type/effect/instance classes
+    dice_*.gd         # Dice type/instance classes
     category_*.gd     # Category/upgrade classes
+    /effects/         # Dice effect subclasses
+      bias_effect.gd
+      score_multiplier_effect.gd
+      wildcard_effect.gd       # trigger_values로 조건부/항상 와일드 통합
+      face_map_effect.gd       # 고정값, 짝수/홀수만 등 모두 표현 가능
 
   /entities/          # Reusable game entities
     /dice/            # 3D dice with physics
@@ -87,7 +92,8 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
 ### Dice Type System
 - Resource-based architecture for 100+ dice types
-- Effects: NORMAL, BIASED, FIXED, MULTIPLIER, WILDCARD
+- Effect subclasses: BiasEffect, ScoreMultiplierEffect, WildcardEffect, FaceMapEffect
+- Each effect is a separate class with typed @export properties
 - Extensible via .tres files in `/resources/dice_types/`
 
 ### Category Enhancement System
@@ -116,14 +122,30 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
 ### Code Style
 - **Private variables**: Prefix with `_` (e.g., `_replace_mode`, `_cached_values`)
-- **Typed arrays**: Use `Array[int]`, `Array[RigidBody3D]` instead of untyped `Array`
-- **@export variables**: Use for Inspector-tunable values instead of constants
+- **Typed arrays/dictionaries**: Use `Array[int]`, `Dictionary[String, Resource]` instead of untyped collections
+  ```gdscript
+  # Good - type-safe
+  var categories: Dictionary[String, CategoryResource] = {}
+  func get_all() -> Array[CategoryResource]:
+
+  # Avoid - no type safety
+  var categories: Dictionary = {}
+  func get_all() -> Array:
+  ```
+- **Typed local variables**: Use `:=` for type inference
+  ```gdscript
+  var upgrade := CategoryUpgrade.new()
+  var cat := CategoryRegistry.get_category(id)
+  ```
+- **@export variables**: Use for Inspector-tunable values instead of hardcoded constants
   ```gdscript
   # Good - tunable in Inspector
   @export var roll_height: float = 12.0
+  @export var multiplier_upgrade_step: float = 0.5
 
   # Avoid - requires code change
   const ROLL_HEIGHT: float = 12.0
+  extra_multiplier += 0.5  # magic number
   ```
 - **Helper functions**: Extract repeated logic into private helper functions
   ```gdscript
@@ -133,6 +155,57 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
               dice_manager.keep_dice(i)
   ```
 - **Region blocks**: Use `#region` / `#endregion` to organize code sections
+- **class_name**: Add `class_name` to classes that are referenced by other scripts for type safety
+
+### Type Safety & Null Handling
+- **Return types**: Always specify return types for public functions
+  ```gdscript
+  # Good
+  func get_upgrade(id: String) -> CategoryUpgrade:
+
+  # Avoid
+  func get_upgrade(id: String):
+  ```
+- **Assert for invariants**: Use `assert()` for conditions that must always be true
+  ```gdscript
+  func get_total_uses() -> int:
+      assert(category != null, "CategoryUpgrade not initialized")
+      return category.base_uses + extra_uses
+  ```
+- **Avoid magic numbers**: Extract to constants or @export variables
+  ```gdscript
+  # Good - self-documenting
+  return category_type <= CategoryType.SIXES
+
+  # Avoid - what does 5 mean?
+  return category_type <= 5
+  ```
+
+### DRY (Don't Repeat Yourself)
+- **Generic filter functions**: Use Callable for filtering logic
+  ```gdscript
+  func _filter_categories(predicate: Callable) -> Array[CategoryResource]:
+      var result: Array[CategoryResource] = []
+      for cat in categories.values():
+          if predicate.call(cat):
+              result.append(cat)
+      return result
+
+  func get_number_categories() -> Array[CategoryResource]:
+      return _filter_categories(func(cat): return cat.is_number_category())
+  ```
+- **Helper methods on Resources**: Add query methods to Resource classes
+  ```gdscript
+  # In CategoryResource
+  func is_number_category() -> bool:
+      return category_type <= CategoryType.SIXES
+  ```
+- **Factory helpers**: Extract object creation into private functions
+  ```gdscript
+  func _create_upgrade(cat: CategoryResource) -> CategoryUpgrade:
+      var upgrade := CategoryUpgrade.new()
+      return upgrade.init_with_category(cat)
+  ```
 
 ### Mobile Considerations
 - Touch input: Track first touch index only (`event.index == 0`) to avoid multi-touch glitches
@@ -163,5 +236,23 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 3. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
 
 ### New Effect Type
-1. Add to `DiceEffectResource.EffectType` enum
-2. Implement logic in `DiceInstance.roll()` or `apply_to_score()`
+1. Create new class in `/globals/effects/` extending `DiceEffectResource`
+2. Add @export properties for effect parameters
+3. Override relevant methods:
+   - `apply_to_roll(base_value: int) -> int` for roll modification
+   - `get_score_multiplier() -> float` for score modification
+   - `is_wildcard_value(value: int) -> bool` for wildcard behavior
+```gdscript
+# Example: globals/effects/lucky_seven_effect.gd
+class_name LuckySevenEffect
+extends DiceEffectResource
+
+@export var bonus_multiplier: float = 1.5
+
+func apply_to_roll(base_value: int) -> int:
+    # 7이 나올 확률 추가 (주사위는 1-6이므로 특수 처리)
+    return base_value
+
+func get_score_multiplier() -> float:
+    return bonus_multiplier
+```

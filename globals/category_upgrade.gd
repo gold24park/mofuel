@@ -1,19 +1,20 @@
+class_name CategoryUpgrade
 extends RefCounted
 
-var category = null  # CategoryResource
+var category: CategoryResource = null
 var extra_uses: int = 0
 var extra_multiplier: float = 0.0
 var times_used: int = 0
 
 
-func init_with_category(cat):
+func init_with_category(cat: CategoryResource) -> CategoryUpgrade:
+	assert(cat != null, "CategoryUpgrade: category cannot be null")
 	category = cat
 	return self
 
 
 func get_total_uses() -> int:
-	if category == null:
-		return 1
+	assert(category != null, "CategoryUpgrade not initialized")
 	return category.base_uses + extra_uses
 
 
@@ -22,8 +23,7 @@ func get_remaining_uses() -> int:
 
 
 func get_total_multiplier() -> float:
-	if category == null:
-		return 1.0
+	assert(category != null, "CategoryUpgrade not initialized")
 	return category.base_multiplier + extra_multiplier
 
 
@@ -40,14 +40,12 @@ func reset_uses() -> void:
 
 
 func can_upgrade_uses() -> bool:
-	if category == null:
-		return false
+	assert(category != null, "CategoryUpgrade not initialized")
 	return get_total_uses() < category.max_uses
 
 
 func can_upgrade_multiplier() -> bool:
-	if category == null:
-		return false
+	assert(category != null, "CategoryUpgrade not initialized")
 	return get_total_multiplier() < category.max_multiplier
 
 
@@ -60,6 +58,6 @@ func upgrade_uses() -> bool:
 
 func upgrade_multiplier() -> bool:
 	if can_upgrade_multiplier():
-		extra_multiplier += 0.5
+		extra_multiplier += category.multiplier_upgrade_step
 		return true
 	return false

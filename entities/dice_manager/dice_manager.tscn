@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://djq8m2fk7xc5l"]
+[gd_scene format=3 uid="uid://djq8m2fk7xc5l"]
 
-[ext_resource type="Script" path="res://entities/dice_manager/dice_manager.gd" id="1"]
+[ext_resource type="Script" uid="uid://cpxfaxp5yg8ni" path="res://entities/dice_manager/dice_manager.gd" id="1"]
 
-[node name="DiceManager" type="Node3D"]
+[node name="DiceManager" type="Node3D" unique_id=257002367]
 script = ExtResource("1")

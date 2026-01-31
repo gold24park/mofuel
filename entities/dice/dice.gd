@@ -2,25 +2,29 @@ extends RigidBody3D
 
 @export var dice_index: int = 0
 
-@onready var raycasts: Array = $Raycasts.get_children()
 @onready var dice_mesh: Node3D = $dice
 
 const OUTLINE_SHADER = preload("res://entities/dice/outline.gdshader")
 
-enum State { IDLE, ROLLING, MOVING_TO_DISPLAY }
+enum State {
+	IDLE,
+	ROLLING,
+	MOVING_TO_DISPLAY
+}
 
 const ROLL_TIMEOUT: float = 5.0  # 최대 굴리기 시간 (초)
 
 var current_state: State = State.IDLE
 var roll_strength = 20
 var is_selected: bool = false
-var dice_instance = null  # DiceInstance
+var dice_instance: DiceInstance = null
 var display_position: Vector3 = Vector3.ZERO
 var roll_start_position: Vector3 = Vector3.ZERO
 var final_value: int = 0
 var final_rotation: Basis = Basis.IDENTITY  # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
 var roll_start_time: float = 0.0
+var _used_burst_mask: bool = false  # 버스트 마스크 사용 여부
 
 # Breathing animation
 var is_breathing: bool = false
@@ -39,31 +43,49 @@ func _ready():
 
 
 func _process(delta: float) -> void:
-	# 굴리기 타임아웃 체크
-	if current_state == State.ROLLING:
-		if Time.get_ticks_msec() / 1000.0 - roll_start_time > ROLL_TIMEOUT:
-			_force_settle()
-			return
+	match current_state:
+		State.ROLLING:
+			_process_rolling()
+		State.MOVING_TO_DISPLAY:
+			_process_moving_to_display(delta)
 
-	if current_state == State.MOVING_TO_DISPLAY:
-		var target_y = 3.0 if is_selected else 1.0
-		var target_pos = Vector3(display_position.x, target_y, display_position.z)
+	_process_breathing(delta)
 
-		global_position = global_position.lerp(target_pos, delta * 10.0)
 
-		# 반듯한 회전으로 정렬
-		transform.basis = transform.basis.slerp(final_rotation, delta * 10.0)
+func _process_rolling() -> void:
+	var elapsed := Time.get_ticks_msec() / 1000.0 - roll_start_time
 
-		if global_position.distance_to(target_pos) < 0.05:
-			global_position = target_pos
-			transform.basis = final_rotation
-			# 입력을 위해 충돌 활성화 (Layer 4: 정렬된 주사위, 입력 전용)
-			# 굴리는 주사위(Layer 2)와 충돌하지 않음
-			collision_layer = 4
-			collision_mask = 0
-			current_state = State.IDLE
+	if elapsed > ROLL_TIMEOUT:
+		_force_settle()
 
-	# 숨쉬기 애니메이션
+	# 0.3초 후 주사위끼리 충돌 활성화 (버스트 시에만)
+	if _used_burst_mask and elapsed > 0.3:
+		collision_mask = CollisionLayers.ROLLING_MASK
+		_used_burst_mask = false
+
+	# 스케일 펀치 복구 (버스트 후)
+	if dice_mesh.scale != Vector3.ONE:
+		dice_mesh.scale = dice_mesh.scale.lerp(Vector3.ONE, 0.15)
+
+
+func _process_moving_to_display(delta: float) -> void:
+	var target_y = 3.0 if is_selected else 1.0
+	var target_pos = Vector3(display_position.x, target_y, display_position.z)
+
+	global_position = global_position.lerp(target_pos, delta * 10.0)
+
+	# 반듯한 회전으로 정렬
+	transform.basis = transform.basis.slerp(final_rotation, delta * 10.0)
+
+	if global_position.distance_to(target_pos) < 0.05:
+		global_position = target_pos
+		transform.basis = final_rotation
+		collision_layer = CollisionLayers.ALIGNED_DICE
+		collision_mask = 0
+		current_state = State.IDLE
+
+
+func _process_breathing(delta: float) -> void:
 	if is_breathing:
 		breath_time += delta * BREATH_SPEED
 		var scale_factor = lerpf(BREATH_SCALE_MIN, BREATH_SCALE_MAX, (sin(breath_time) + 1.0) / 2.0)
@@ -73,19 +95,45 @@ func _process(delta: float) -> void:
 
 
 # 주사위 모델 기준 반듯한 회전 계산
-# 기본 방향(Identity): 1이 위, 6이 아래
+# 기본 방향(Identity): 1이 위(+Y), 6이 아래(-Y)
 func _get_upright_rotation(top_face: int) -> Basis:
 	match top_face:
-		6: return Basis(Vector3.RIGHT, PI)           # X축 180° 회전
-		5: return Basis(Vector3.RIGHT, -PI / 2)      # X축 -90° 회전
-		4: return Basis(Vector3.FORWARD, -PI / 2)    # +X를 위로 (-Z축 기준 -90°)
-		3: return Basis(Vector3.FORWARD, PI / 2)     # -X를 위로 (-Z축 기준 +90°)
-		2: return Basis(Vector3.RIGHT, PI / 2)       # X축 90° 회전
+		6: return Basis(Vector3.RIGHT, PI)           # -Y → +Y (X축 180°)
+		2: return Basis(Vector3.RIGHT, -PI / 2)      # +Z → +Y (X축 -90°)
+		5: return Basis(Vector3.RIGHT, PI / 2)       # -Z → +Y (X축 90°)
+		3: return Basis(Vector3.FORWARD, -PI / 2)    # +X → +Y (Z축 -90°)
+		4: return Basis(Vector3.FORWARD, PI / 2)     # -X → +Y (Z축 90°)
 		1, _: return Basis.IDENTITY                   # 기본 방향
 
 
-func set_dice_instance(instance) -> void:
+# 현재 회전에서 윗면 계산 (회전 행렬 기반)
+func _get_top_face_from_rotation() -> int:
+	# 각 면의 로컬 법선 벡터 (모델 기준)
+	const FACE_NORMALS := {
+		1: Vector3.UP,       # +Y
+		6: Vector3.DOWN,     # -Y
+		2: Vector3.BACK,     # +Z
+		5: Vector3.FORWARD,  # -Z
+		3: Vector3.RIGHT,    # +X
+		4: Vector3.LEFT,     # -X
+	}
+
+	var best_face := 1
+	var best_dot := -INF
+
+	for face in FACE_NORMALS:
+		var world_normal: Vector3 = transform.basis * FACE_NORMALS[face]
+		var dot: float = world_normal.dot(Vector3.UP)
+		if dot > best_dot:
+			best_dot = dot
+			best_face = face
+
+	return best_face
+
+
+func set_dice_instance(instance: DiceInstance) -> void:
 	dice_instance = instance
+	_apply_visual()
 
 
 func setup(display_pos: Vector3, roll_pos: Vector3) -> void:
@@ -94,8 +142,7 @@ func setup(display_pos: Vector3, roll_pos: Vector3) -> void:
 	# 초기 위치는 디스플레이 위치
 	global_position = display_pos
 	freeze = true
-	# 초기 상태: 입력 전용 레이어
-	collision_layer = 4
+	collision_layer = CollisionLayers.ALIGNED_DICE
 	collision_mask = 0
 	final_value = 0  # 아직 굴리지 않음
 	final_rotation = Basis.IDENTITY
@@ -133,10 +180,8 @@ func _roll_directed(direction: Vector2, strength: float):
 	# 롤 시작 위치로 이동
 	global_position = roll_start_position
 
-	# 물리 및 충돌 활성화 (Layer 2: 굴리는 주사위)
-	# Mask: Layer 1(바닥) + Layer 2(다른 굴리는 주사위) + Layer 8(벽)
-	collision_layer = 2
-	collision_mask = 1 | 2 | 8
+	collision_layer = CollisionLayers.ROLLING_DICE
+	collision_mask = CollisionLayers.ROLLING_MASK
 	sleeping = false
 	freeze = false
 	linear_velocity = Vector3.ZERO
@@ -168,10 +213,8 @@ func _roll():
 	# 롤 시작 위치로 이동
 	global_position = roll_start_position
 
-	# 물리 및 충돌 활성화 (Layer 2: 굴리는 주사위)
-	# Mask: Layer 1(바닥) + Layer 2(다른 굴리는 주사위) + Layer 8(벽)
-	collision_layer = 2
-	collision_mask = 1 | 2 | 8
+	collision_layer = CollisionLayers.ROLLING_DICE
+	collision_mask = CollisionLayers.ROLLING_MASK
 	sleeping = false
 	freeze = false
 	linear_velocity = Vector3.ZERO
@@ -188,42 +231,79 @@ func _roll():
 	apply_central_impulse(throw_vector * roll_strength)
 
 
-func _on_sleeping_state_changed() -> void:
-	if not sleeping:
+#region Radial Burst
+func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float) -> void:
+	if current_state == State.ROLLING:
 		return
-	if current_state != State.ROLLING:
+
+	is_selected = false
+	if outline_mesh:
+		outline_mesh.visible = false
+
+	# 즉시 중앙에 위치
+	current_state = State.ROLLING
+	roll_start_time = Time.get_ticks_msec() / 1000.0
+	global_position = center
+
+	# 랜덤 회전
+	transform.basis = Basis(Vector3.RIGHT, randf_range(0, TAU)) * transform.basis
+	transform.basis = Basis(Vector3.UP, randf_range(0, TAU)) * transform.basis
+	transform.basis = Basis(Vector3.FORWARD, randf_range(0, TAU)) * transform.basis
+
+	# 물리 활성화 (버스트 중에는 주사위끼리 충돌 안 함)
+	collision_layer = CollisionLayers.ROLLING_DICE
+	collision_mask = CollisionLayers.BURST_MASK
+	_used_burst_mask = true
+	sleeping = false
+	freeze = false
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+
+	# 스케일 펀치 (팡! 효과)
+	dice_mesh.scale = Vector3.ONE * 1.5
+
+	# 버스트 임펄스 (강하게 방사형으로 퍼짐)
+	var dir := direction.normalized()
+	var impulse := dir * strength
+	impulse.y = -strength * 0.15
+	impulse += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
+	apply_central_impulse(impulse)
+
+	# 강한 회전
+	var spin_axis := dir.cross(Vector3.UP)
+	if spin_axis.length() < 0.1:
+		spin_axis = Vector3.RIGHT
+	angular_velocity = spin_axis.normalized() * strength * 0.7 + Vector3(
+		randf_range(-8, 8),
+		randf_range(-8, 8),
+		randf_range(-8, 8)
+	)
+#endregion
+
+
+func _on_sleeping_state_changed() -> void:
+	if not sleeping or current_state != State.ROLLING:
 		return
 
 	# 상태를 먼저 변경하여 중복 호출 방지
 	current_state = State.MOVING_TO_DISPLAY
 
-	for raycast in raycasts:
-		var rc = raycast as RayCast3D
-		rc.force_raycast_update()
-		if rc.is_colliding():
-			# opposite_side는 이 raycast가 충돌할 때 위를 향하는 면의 숫자
-			var physical_value = raycast.opposite_side
+	# 회전 행렬에서 윗면 계산
+	var physical_value := _get_top_face_from_rotation()
 
-			# DiceInstance를 통해 효과 적용
-			final_value = physical_value
-			print("DEBUG dice[%d]: raycast=%s, opposite_side=%d, physical=%d" % [dice_index, raycast.name, raycast.opposite_side, physical_value])
-			if dice_instance:
-				final_value = dice_instance.roll(physical_value)
-				print("DEBUG dice[%d]: current_value after roll=%d" % [dice_index, dice_instance.current_value])
+	# DiceInstance를 통해 효과 적용
+	final_value = physical_value
+	if dice_instance:
+		final_value = dice_instance.roll(physical_value)
 
-			# 반듯한 회전 계산 (해당 면이 위로 오도록)
-			final_rotation = _get_upright_rotation(physical_value)
+	# 반듯한 회전 계산 (해당 면이 위로 오도록)
+	final_rotation = _get_upright_rotation(physical_value)
 
-			# 물리 정지 및 충돌 비활성화
-			freeze = true
-			collision_layer = 0
-			collision_mask = 0
-			roll_finished.emit(dice_index, final_value)
-			return
-
-	# 정확한 면에 안착 실패 - 다시 굴리기
-	current_state = State.ROLLING
-	call_deferred("_roll")
+	# 물리 정지 및 충돌 비활성화
+	freeze = true
+	collision_layer = 0
+	collision_mask = 0
+	roll_finished.emit(dice_index, final_value)
 
 
 func _force_settle() -> void:
@@ -239,18 +319,8 @@ func _force_settle() -> void:
 	collision_layer = 0
 	collision_mask = 0
 
-	# 현재 상태에서 윗면 감지 시도
-	var physical_value = 1
-	for raycast in raycasts:
-		var rc = raycast as RayCast3D
-		rc.force_raycast_update()
-		if rc.is_colliding():
-			physical_value = raycast.opposite_side
-			break
-
-	# 감지 실패 시 랜덤 값
-	if physical_value == 0:
-		physical_value = randi_range(1, 6)
+	# 회전 행렬에서 윗면 계산
+	var physical_value := _get_top_face_from_rotation()
 
 	final_value = physical_value
 	if dice_instance:
@@ -293,10 +363,8 @@ static func _schedule_click_processing() -> void:
 
 func set_selected(selected: bool) -> void:
 	is_selected = selected
-	# 윤곽선 표시
 	if outline_mesh:
 		outline_mesh.visible = selected
-	# 선택 상태 변경 시 높이 조정을 위해 이동 시작
 	if current_state == State.IDLE:
 		current_state = State.MOVING_TO_DISPLAY
 
@@ -310,28 +378,63 @@ func stop_breathing() -> void:
 	is_breathing = false
 
 
-func _create_outline() -> void:
-	# dice 노드에서 MeshInstance3D 찾기
-	var mesh_instance: MeshInstance3D = null
-	for child in dice_mesh.get_children():
-		if child is MeshInstance3D:
-			mesh_instance = child
-			break
+func _get_mesh_instance() -> MeshInstance3D:
+	return _find_mesh_recursive(dice_mesh)
 
+
+func _find_mesh_recursive(node: Node) -> MeshInstance3D:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			return child
+		var found := _find_mesh_recursive(child)
+		if found:
+			return found
+	return null
+
+
+func _apply_visual() -> void:
+	if dice_instance == null or dice_instance.type == null:
+		return
+
+	var mesh_instance := _get_mesh_instance()
+	if mesh_instance == null:
+		return
+
+	var dice_type := dice_instance.type
+
+	# 커스텀 머티리얼이 있으면 그대로 사용
+	if dice_type.material:
+		mesh_instance.material_override = dice_type.material
+		return
+
+	# 텍스처만 있으면 기존 머티리얼 복제 후 텍스처 교체
+	if dice_type.texture:
+		var base_mat = mesh_instance.get_active_material(0)
+		if base_mat:
+			var new_mat := base_mat.duplicate() as StandardMaterial3D
+			new_mat.albedo_texture = dice_type.texture
+			mesh_instance.material_override = new_mat
+
+
+func _create_outline() -> void:
+	var mesh_instance := _get_mesh_instance()
 	if mesh_instance == null or mesh_instance.mesh == null:
 		return
 
-	# 윤곽선용 메쉬 생성
+	# 윤곽선용 메쉬 생성 - 스케일 방식으로 변경
 	outline_mesh = MeshInstance3D.new()
 	outline_mesh.mesh = mesh_instance.mesh
 
-	# 셰이더 머티리얼 생성
-	var material = ShaderMaterial.new()
-	material.shader = OUTLINE_SHADER
-	material.set_shader_parameter("outline_color", Color(1.0, 0.8, 0.0, 1.0))  # 노란색
-	material.set_shader_parameter("outline_width", 0.1)
+	# 간단한 단색 머티리얼 (셰이더 대신)
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 0.8, 0.0, 1.0)  # 노란색
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_FRONT  # 뒷면만 렌더링
 
 	outline_mesh.material_override = material
 	outline_mesh.visible = false
 
-	dice_mesh.add_child(outline_mesh)
+	# 메쉬와 같은 부모에 추가
+	mesh_instance.get_parent().add_child(outline_mesh)
+	outline_mesh.transform = mesh_instance.transform
+	outline_mesh.scale = Vector3(1.1, 1.1, 1.1)

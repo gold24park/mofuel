@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://c8m2k4l7xpqvr"]
+[gd_scene format=3 uid="uid://c8m2k4l7xpqvr"]
 
 [ext_resource type="Script" uid="uid://dqnnqwtb4yhr" path="res://scenes/game/game.gd" id="1_game"]
 [ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://entities/table/table.tscn" id="2_table"]
@@ -9,8 +9,10 @@
 [ext_resource type="PackedScene" uid="uid://cn8vj5d2ql7mx" path="res://ui/game_over/game_over.tscn" id="7_game_over"]
 [ext_resource type="PackedScene" uid="uid://dh7m2xlalp4qv" path="res://ui/upgrade_screen/upgrade_screen.tscn" id="8_upgrade_screen"]
 [ext_resource type="Shader" uid="uid://b30rplgnr3k2" path="res://shaders/pixelate.gdshader" id="9_pixelate"]
-[ext_resource type="PackedScene" path="res://ui/reserve_display/reserve_display.tscn" id="10_reserve_display"]
+[ext_resource type="PackedScene" uid="uid://bm7k2xp5ql8vn" path="res://ui/reserve_display/reserve_display.tscn" id="10_reserve_display"]
 [ext_resource type="PackedScene" uid="uid://bqkx2nxvthc6y" path="res://ui/quick_score/quick_score.tscn" id="11_quick_score"]
+[ext_resource type="PackedScene" path="res://ui/dice_labels/dice_labels.tscn" id="12_dice_labels"]
+[ext_resource type="PackedScene" path="res://ui/roll_button/roll_button.tscn" id="13_roll_button"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -31,7 +33,7 @@ shader = ExtResource("9_pixelate")
 shader_parameter/pixelate_size = 4.0
 shader_parameter/color_levels = 16.0
 
-[node name="Game" type="Control"]
+[node name="Game" type="Control" unique_id=1578359998]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -40,7 +42,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_game")
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="." unique_id=1498867438]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -49,32 +51,32 @@ grow_horizontal = 2
 grow_vertical = 2
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=1495077085]
 handle_input_locally = false
 physics_object_picking = true
 size = Vector2i(1152, 648)
 render_target_update_mode = 4
 
-[node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport" unique_id=423903647]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/World3D"]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/World3D" unique_id=372904548]
 environment = SubResource("Environment_env")
 
-[node name="Table" parent="SubViewportContainer/SubViewport/World3D" instance=ExtResource("2_table")]
+[node name="Table" parent="SubViewportContainer/SubViewport/World3D" unique_id=2050281813 instance=ExtResource("2_table")]
 
-[node name="DiceManager" parent="SubViewportContainer/SubViewport/World3D" instance=ExtResource("3_dice_manager")]
+[node name="DiceManager" parent="SubViewportContainer/SubViewport/World3D" unique_id=1544377139 instance=ExtResource("3_dice_manager")]
 
-[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/World3D"]
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1091647069]
 transform = Transform3D(1, 0, 0, 0, 2.3841858e-07, 1, 0, -1, 2.3841858e-07, 0, 30, 0)
 projection = 1
 current = true
 size = 16.98
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D"]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=2103781492]
 transform = Transform3D(0.86602527, -0.25000027, 0.43301278, -0.35355353, 0.30618584, 0.8838834, -0.35355356, -0.9185587, 0.17677626, 0, 17, 0)
 shadow_enabled = true
 
-[node name="PixelateEffect" type="ColorRect" parent="."]
+[node name="PixelateEffect" type="ColorRect" parent="." unique_id=443855031]
 material = SubResource("ShaderMaterial_pixelate")
 layout_mode = 1
 anchors_preset = 15
@@ -84,18 +86,28 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=956316046]
 
-[node name="HUD" parent="CanvasLayer" instance=ExtResource("4_hud")]
+[node name="HUD" parent="CanvasLayer" unique_id=909889082 instance=ExtResource("4_hud")]
 
-[node name="ActionButtons" parent="CanvasLayer" instance=ExtResource("5_action_buttons")]
+[node name="ActionButtons" parent="CanvasLayer" unique_id=485455935 instance=ExtResource("5_action_buttons")]
 
-[node name="ScoreCard" parent="CanvasLayer" instance=ExtResource("6_score_card")]
+[node name="ScoreCard" parent="CanvasLayer" unique_id=1394582195 instance=ExtResource("6_score_card")]
 
-[node name="GameOver" parent="CanvasLayer" instance=ExtResource("7_game_over")]
+[node name="GameOver" parent="CanvasLayer" unique_id=753122824 instance=ExtResource("7_game_over")]
 
-[node name="UpgradeScreen" parent="CanvasLayer" instance=ExtResource("8_upgrade_screen")]
+[node name="UpgradeScreen" parent="CanvasLayer" unique_id=1555253837 instance=ExtResource("8_upgrade_screen")]
 
-[node name="ReserveDisplay" parent="CanvasLayer" instance=ExtResource("10_reserve_display")]
+[node name="ReserveDisplay" parent="CanvasLayer" unique_id=1985327070 instance=ExtResource("10_reserve_display")]
 
-[node name="QuickScore" parent="CanvasLayer" instance=ExtResource("11_quick_score")]
+[node name="QuickScore" parent="CanvasLayer" unique_id=1626550740 instance=ExtResource("11_quick_score")]
+layout_mode = 3
+anchors_preset = 11
+offset_left = 0.0
+offset_top = 0.0
+offset_bottom = 0.0
+grow_vertical = 2
+
+[node name="DiceLabels" parent="CanvasLayer" unique_id=1200252564 instance=ExtResource("12_dice_labels")]
+
+[node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]

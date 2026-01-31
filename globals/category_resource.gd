@@ -27,3 +27,8 @@ enum CategoryType {
 @export var max_multiplier: float = 3.0  # 최대 배수
 @export var fixed_score: int = 0         # 고정 점수 (Full House, Straights, Yacht)
 @export var target_number: int = 0       # Ones~Sixes용 타겟 숫자
+@export var multiplier_upgrade_step: float = 0.5  # 배수 업그레이드 단위
+
+
+func is_number_category() -> bool:
+	return category_type <= CategoryType.SIXES
