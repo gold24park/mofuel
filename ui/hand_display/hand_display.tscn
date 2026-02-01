@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://bm7k2xp5ql8vn"]
 
-[ext_resource type="Script" uid="uid://cngiq1abum2at" path="res://ui/reserve_display/reserve_display.gd" id="1"]
+[ext_resource type="Script" uid="uid://cngiq1abum2at" path="res://ui/hand_display/hand_display.gd" id="1"]
 
-[node name="ReserveDisplay" type="Control" unique_id=43907696]
+[node name="HandDisplay" type="Control" unique_id=43907696]
 layout_mode = 3
 anchors_preset = 12
 anchor_top = 1.0

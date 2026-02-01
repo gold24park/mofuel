@@ -1,3 +1,4 @@
+class_name HandDisplay
 extends Control
 ## Hand 주사위 표시 (Swap 대상)
 

@@ -7,7 +7,7 @@ extends Control
 @onready var score_card = $CanvasLayer/ScoreCard
 @onready var game_over_screen = $CanvasLayer/GameOver
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
-@onready var hand_display = $CanvasLayer/ReserveDisplay  ## Hand 표시 (씬 노드명 유지)
+@onready var hand_display = $CanvasLayer/HandDisplay
 @onready var quick_score = $CanvasLayer/QuickScore
 @onready var dice_labels = $CanvasLayer/DiceLabels
 @onready var roll_button = $CanvasLayer/RollButton
