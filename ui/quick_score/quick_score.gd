@@ -86,36 +86,34 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 		0, 1, 2, 3, 4, 5:  # ONES through SIXES
 			var target: int = category.target_number
 			for i in range(values.size()):
-				# 값이 일치하거나 와일드카드인 경우 포함
-				if values[i] == target or dice[i].is_wildcard():
+				if values[i] == target or _is_wildcard(dice[i]):
 					indices.append(i)
 
 		6, 7, 11:  # THREE_OF_A_KIND, FOUR_OF_A_KIND, YACHT
 			var target_value: int = _get_most_common_value(values)
 			for i in range(values.size()):
-				# 값이 일치하거나 와일드카드인 경우 포함
-				if values[i] == target_value or dice[i].is_wildcard():
+				if values[i] == target_value or _is_wildcard(dice[i]):
 					indices.append(i)
 
 		8:  # FULL_HOUSE
-			# 모든 주사위가 관련됨
 			for i in range(values.size()):
 				indices.append(i)
 
 		9, 10:  # SMALL_STRAIGHT, LARGE_STRAIGHT
-			# 스트레이트에 포함된 주사위
 			var straight_values := _get_straight_values(values, category.category_type == 10)
 			for i in range(values.size()):
-				# 값이 스트레이트에 포함되거나 와일드카드인 경우 포함
-				if values[i] in straight_values or dice[i].is_wildcard():
+				if values[i] in straight_values or _is_wildcard(dice[i]):
 					indices.append(i)
 
 		12:  # CHANCE
-			# 모든 주사위
 			for i in range(values.size()):
 				indices.append(i)
 
 	return indices
+
+
+func _is_wildcard(d: DiceInstance) -> bool:
+	return d.type != null and d.type.is_wildcard_value(d.current_value)
 
 
 func _get_most_common_value(values: Array[int]) -> int:

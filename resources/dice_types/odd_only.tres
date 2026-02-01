@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="DiceTypeResource" format=3]
 
-[ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
-[ext_resource type="Script" path="res://globals/effects/face_map_effect.gd" id="2"]
-[ext_resource type="Texture2D" path="res://assets/uv/dice_uv_odd.png" id="3"]
+[ext_resource type="Script" uid="uid://x0wl6e0jnrlu" path="res://globals/dice_type_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://bxnou0r2hyoxy" path="res://globals/effects/face_map_effect.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://d0mbvoivcbnbo" path="res://assets/dice/uv/dice_uv_odd.png" id="3"]
 
 [sub_resource type="Resource" id="face_map_effect"]
 script = ExtResource("2")

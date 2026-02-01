@@ -2,20 +2,24 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0ohhkoldkmwb"
-path="res://.godot/imported/dice_uv_wild_6.png-df02720472a038818f68c6cdf367af7b.ctex"
+uid="uid://x70as4wtrt32"
+path.s3tc="res://.godot/imported/dice_dice_uv.png-c6c922bc4ef46d7b123d735a685fab11.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "94e9631420d96ebce1041e426ead95a0"
 }
 
 [deps]
 
-source_file="res://assets/uv/dice_uv_wild_6.png"
-dest_files=["res://.godot/imported/dice_uv_wild_6.png-df02720472a038818f68c6cdf367af7b.ctex"]
+source_file="res://assets/dice/dice_dice_uv.png"
+dest_files=["res://.godot/imported/dice_dice_uv.png-c6c922bc4ef46d7b123d735a685fab11.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -23,7 +27,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -37,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

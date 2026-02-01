@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://bm7k2xp5ql8vn"]
+[gd_scene format=3 uid="uid://bm7k2xp5ql8vn"]
 
-[ext_resource type="Script" path="res://ui/reserve_display/reserve_display.gd" id="1"]
+[ext_resource type="Script" uid="uid://cngiq1abum2at" path="res://ui/reserve_display/reserve_display.gd" id="1"]
 
-[node name="ReserveDisplay" type="Control"]
+[node name="ReserveDisplay" type="Control" unique_id=43907696]
 layout_mode = 3
 anchors_preset = 12
 anchor_top = 1.0
@@ -14,7 +14,7 @@ grow_horizontal = 2
 grow_vertical = 0
 script = ExtResource("1")
 
-[node name="ColorRect" type="ColorRect" parent="."]
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1555985522]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -23,7 +23,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.1, 0.1, 0.1, 0.6)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1946158332]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -31,6 +31,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer" unique_id=972792360]
 layout_mode = 2
 theme_override_constants/separation = 8

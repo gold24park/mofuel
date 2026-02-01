@@ -1,19 +1,25 @@
 [gd_scene format=3 uid="uid://bruj7wfpfmu66"]
 
 [ext_resource type="Script" uid="uid://bbnptrvvh2ccd" path="res://entities/dice/dice.gd" id="1_m4jp2"]
-[ext_resource type="PackedScene" uid="uid://dqvmy1ta6jjjt" path="res://entities/dice/dice.glb" id="2_qu4n6"]
+[ext_resource type="PackedScene" uid="uid://c1ivpo6h5pkeg" path="res://assets/dice/dice.glb" id="2_qu4n6"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_bounce"]
+friction = 0.8
+bounce = 0.25
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_xak8u"]
 size = Vector3(2, 2, 2)
 
 [node name="Dice" type="RigidBody3D" unique_id=1245429795]
-gravity_scale = 5.0
+mass = 2.0
+physics_material_override = SubResource("PhysicsMaterial_bounce")
+gravity_scale = 10.0
 freeze = true
-linear_damp = 1.0
-angular_damp = 2.0
+linear_damp = 0.5
+angular_damp = 1.5
 script = ExtResource("1_m4jp2")
 
-[node name="dice" parent="." unique_id=976952734 instance=ExtResource("2_qu4n6")]
+[node name="dice" parent="." unique_id=2017207105 instance=ExtResource("2_qu4n6")]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1772975542]
 shape = SubResource("BoxShape3D_xak8u")

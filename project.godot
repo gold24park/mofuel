@@ -26,6 +26,10 @@ CategoryRegistry="*res://globals/category_registry.gd"
 MetaState="*res://globals/meta_state.gd"
 GameState="*res://globals/game_state.gd"
 
+[physics]
+
+3d/physics_engine="GodotPhysics3D"
+
 [rendering]
 
 renderer/rendering_method="mobile"

@@ -44,20 +44,23 @@ func _update_display():
 
 	# Reserve 주사위 표시
 	for i in range(GameState.reserve.size()):
-		var dice_instance = GameState.reserve[i]
-		var preview = _create_dice_preview(dice_instance, i)
+		var dice_instance: DiceInstance = GameState.reserve[i]
+		var preview := _create_dice_preview(i)
 		container.add_child(preview)
+		preview.set_dice_instance(dice_instance)
 		dice_previews.append(preview)
 
-	_update_slots_visual()
 
-
-func _create_dice_preview(dice_instance, index: int) -> Control:
+func _create_dice_preview(index: int) -> Control:
 	var preview = DICE_PREVIEW.instantiate()
 	preview.custom_minimum_size = Vector2(40, 40)
 
+	if replace_mode:
+		preview.modulate = Color(1.2, 1.2, 1.0)
+
 	# 클릭 이벤트를 위한 컨테이너
-	var click_area = Control.new()
+	# TODO: 나중에 DicePreview Card로 만들어서 처리
+	var click_area := Control.new()
 	click_area.set_anchors_preset(Control.PRESET_FULL_RECT)
 	click_area.mouse_filter = Control.MOUSE_FILTER_STOP
 	click_area.gui_input.connect(func(event):
@@ -66,9 +69,6 @@ func _create_dice_preview(dice_instance, index: int) -> Control:
 				dice_selected.emit(index)
 	)
 	preview.add_child(click_area)
-
-	# DiceInstance 전달
-	preview.call_deferred("set_dice_instance", dice_instance)
 
 	return preview
 

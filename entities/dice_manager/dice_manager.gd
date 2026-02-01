@@ -5,15 +5,21 @@ const DICE_COUNT: int = 5
 
 ## 위치 설정 (에디터에서 조정 가능)
 @export_group("Positions")
-@export var roll_height: float = 12.0
+@export var roll_height: float = 25.0
 @export var display_height: float = 1.0
 @export var display_z: float = 0.0
 @export var dice_spacing: float = 3.0
 
 ## 방사형 버스트 설정
 @export_group("Radial Burst")
-@export var burst_height: float = 6.0
+@export var burst_height: float = 20.0
 @export var burst_strength: float = 28.0
+
+## 롤 속도 설정
+@export_group("Roll Speed")
+@export var roll_time_scale: float = 2.0
+
+const BASE_PHYSICS_TICKS: int = 60
 
 ## 주사위 노드 (타입 명시)
 var dice_nodes: Array[RigidBody3D] = []
@@ -99,6 +105,7 @@ func reroll_selected_radial_burst() -> void:
 func _roll_dice_radial_burst(indices: Array[int]) -> void:
 	_rolling_indices = indices.duplicate()
 	_pending_results.clear()
+	_set_fast_physics(true)
 
 	var center := Vector3(0, burst_height, 0)
 	var angle_step := TAU / indices.size()
@@ -117,9 +124,19 @@ func _roll_dice_radial_burst(indices: Array[int]) -> void:
 
 
 #region 롤 내부 구현
+func _set_fast_physics(enabled: bool) -> void:
+	if enabled:
+		Engine.time_scale = roll_time_scale
+		Engine.physics_ticks_per_second = int(BASE_PHYSICS_TICKS * roll_time_scale)
+	else:
+		Engine.time_scale = 1.0
+		Engine.physics_ticks_per_second = BASE_PHYSICS_TICKS
+
+
 func _roll_dice(indices: Array[int], direction: Vector2 = Vector2.ZERO, strength: float = 0.0) -> void:
 	_rolling_indices = indices.duplicate()
 	_pending_results.clear()
+	_set_fast_physics(true)
 
 	var use_direction := direction != Vector2.ZERO and strength > 0.0
 
@@ -136,6 +153,7 @@ func _on_dice_finished(dice_index: int, value: int) -> void:
 	_cached_values[dice_index] = value
 
 	if _pending_results.size() == _rolling_indices.size():
+		_set_fast_physics(false)
 		_rolling_indices.clear()
 		all_dice_finished.emit(_cached_values.duplicate())
 #endregion

@@ -22,7 +22,7 @@ static func _get_effective_values(dice: Array, category) -> Array:
 
 	# 일반 값과 와일드카드 분리
 	for d in dice:
-		if d.is_wildcard():
+		if d.type and d.type.is_wildcard_value(d.current_value):
 			wildcards.append(d)
 		else:
 			values.append(d.current_value)

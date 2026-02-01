@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://1bdeu3kvc4ss"
-path="res://.godot/imported/dice_uv_even.png-4a249598bf810e116756fe7660d5c5c6.ctex"
+path="res://.godot/imported/dice_uv_even.png-7506bb1eb75bb91cd88e21f2088ded74.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/uv/dice_uv_even.png"
-dest_files=["res://.godot/imported/dice_uv_even.png-4a249598bf810e116756fe7660d5c5c6.ctex"]
+source_file="res://assets/dice/uv/dice_uv_even.png"
+dest_files=["res://.godot/imported/dice_uv_even.png-7506bb1eb75bb91cd88e21f2088ded74.ctex"]
 
 [params]
 

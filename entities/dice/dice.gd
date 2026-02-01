@@ -202,8 +202,13 @@ func _roll_directed(direction: Vector2, strength: float):
 	throw_vector.z += randf_range(-0.2, 0.2)
 	throw_vector = throw_vector.normalized()
 
+	# 높은 곳에서 떨어뜨리는 효과: 수평 힘은 약하게, 아래 방향으로 던짐
+	var horizontal_strength: float = strength * 0.3
+	var downward_speed: float = strength * 0.8
+
 	angular_velocity = throw_vector * strength / 2
-	apply_central_impulse(throw_vector * strength)
+	linear_velocity = Vector3(0, -downward_speed, 0)  # 아래로 떨어지는 초기 속도
+	apply_central_impulse(throw_vector * horizontal_strength)  # 수평으로 약간 퍼짐
 
 
 func _roll():
@@ -225,10 +230,14 @@ func _roll():
 	transform.basis = Basis(Vector3.UP, randf_range(0, 2 * PI)) * transform.basis
 	transform.basis = Basis(Vector3.FORWARD, randf_range(0, 2 * PI)) * transform.basis
 
-	# Random throw impulse
+	# Random throw impulse - 높은 곳에서 떨어뜨리는 효과
 	var throw_vector = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+	var horizontal_strength: float = roll_strength * 0.3
+	var downward_speed: float = roll_strength * 0.8
+
 	angular_velocity = throw_vector * roll_strength / 2
-	apply_central_impulse(throw_vector * roll_strength)
+	linear_velocity = Vector3(0, -downward_speed, 0)  # 아래로 떨어지는 초기 속도
+	apply_central_impulse(throw_vector * horizontal_strength)  # 수평으로 약간 퍼짐
 
 
 #region Radial Burst
@@ -262,10 +271,14 @@ func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float
 	# 스케일 펀치 (팡! 효과)
 	dice_mesh.scale = Vector3.ONE * 1.5
 
-	# 버스트 임펄스 (강하게 방사형으로 퍼짐)
-	var dir := direction.normalized()
-	var impulse := dir * strength
-	impulse.y = -strength * 0.15
+	# 버스트 임펄스 - 높은 곳에서 떨어뜨리면서 퍼짐
+	var dir: Vector3 = direction.normalized()
+	var horizontal_strength: float = strength * 0.4
+	var downward_speed: float = strength * 0.7
+
+	linear_velocity = Vector3(0, -downward_speed, 0)  # 아래로 떨어지는 초기 속도
+
+	var impulse := dir * horizontal_strength
 	impulse += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
 	apply_central_impulse(impulse)
 
@@ -307,8 +320,6 @@ func _on_sleeping_state_changed() -> void:
 
 
 func _force_settle() -> void:
-	# 타임아웃으로 강제 정착
-	print("DEBUG dice[%d]: Force settling due to timeout" % dice_index)
 
 	current_state = State.MOVING_TO_DISPLAY
 
@@ -395,25 +406,7 @@ func _find_mesh_recursive(node: Node) -> MeshInstance3D:
 func _apply_visual() -> void:
 	if dice_instance == null or dice_instance.type == null:
 		return
-
-	var mesh_instance := _get_mesh_instance()
-	if mesh_instance == null:
-		return
-
-	var dice_type := dice_instance.type
-
-	# 커스텀 머티리얼이 있으면 그대로 사용
-	if dice_type.material:
-		mesh_instance.material_override = dice_type.material
-		return
-
-	# 텍스처만 있으면 기존 머티리얼 복제 후 텍스처 교체
-	if dice_type.texture:
-		var base_mat = mesh_instance.get_active_material(0)
-		if base_mat:
-			var new_mat := base_mat.duplicate() as StandardMaterial3D
-			new_mat.albedo_texture = dice_type.texture
-			mesh_instance.material_override = new_mat
+	dice_instance.type.apply_visual(_get_mesh_instance())
 
 
 func _create_outline() -> void:

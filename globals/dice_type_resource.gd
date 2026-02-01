@@ -61,3 +61,21 @@ func get_display_text(value: int) -> String:
 	# 일반 값
 	return str(value)
 #endregion
+
+
+#region Visual
+func apply_visual(mesh_instance: MeshInstance3D) -> void:
+	if mesh_instance == null:
+		return
+	# 커스텀 머티리얼이 있으면 그대로 사용
+	if material:
+		mesh_instance.material_override = material
+		return
+	# 텍스처만 있으면 기존 머티리얼 복제 후 텍스처 교체
+	if texture:
+		var base_mat := mesh_instance.get_active_material(0)
+		if base_mat:
+			var new_mat := base_mat.duplicate() as StandardMaterial3D
+			new_mat.albedo_texture = texture
+			mesh_instance.material_override = new_mat
+#endregion

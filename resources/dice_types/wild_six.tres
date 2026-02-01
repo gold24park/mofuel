@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://c7x1bftdty7cc"]
 
-[ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
-[ext_resource type="Script" path="res://globals/effects/wildcard_effect.gd" id="2"]
-[ext_resource type="Texture2D" uid="uid://b0ohhkoldkmwb" path="res://assets/uv/dice_uv_wild_6.png" id="3"]
+[ext_resource type="Script" uid="uid://x0wl6e0jnrlu" path="res://globals/dice_type_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://b65day3qvkurg" path="res://globals/effects/wildcard_effect.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://b0ohhkoldkmwb" path="res://assets/dice/uv/dice_uv_wild_6.png" id="3"]
 
 [sub_resource type="Resource" id="wild_effect"]
 script = ExtResource("2")
