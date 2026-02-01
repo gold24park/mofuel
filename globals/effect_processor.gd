@@ -32,7 +32,7 @@ static func process_trigger(
 		if dice == null:
 			continue
 
-		for effect in dice.type.effects:
+		for effect: DiceEffectResource in dice.type.effects:
 			# 트리거 타입 확인
 			if not _should_trigger(effect, trigger, i, triggering_index):
 				continue
@@ -48,7 +48,7 @@ static func process_trigger(
 					continue
 
 			# 타겟 인덱스 계산
-			var targets := _get_target_indices(effect, ctx)
+			var targets := effect.get_target_indices(ctx)
 			if targets.is_empty():
 				continue
 
@@ -77,8 +77,8 @@ static func process_trigger(
 		# 각 타겟에 결과 추가 (_get_target_indices가 유효한 인덱스만 반환)
 		for target_idx in pe.target_indices:
 			assert(target_idx >= 0 and target_idx < all_dice.size(),
-				"Invalid target_idx %d - bug in _get_target_indices" % target_idx)
-			var target_result := _copy_result(result)
+				"Invalid target_idx %d - bug in get_target_indices" % target_idx)
+			var target_result: EffectResult = result.duplicate()
 			target_result.target_index = target_idx
 			results[target_idx].append(target_result)
 
@@ -103,49 +103,6 @@ static func _should_trigger(
 			return false
 
 	return true
-
-
-## 효과 타겟 인덱스 계산
-static func _get_target_indices(effect: DiceEffectResource, ctx: EffectContext) -> Array[int]:
-	match effect.target:
-		DiceEffectResource.Target.SELF:
-			return [ctx.source_index] as Array[int]
-
-		DiceEffectResource.Target.ADJACENT:
-			return ctx.get_adjacent_indices()
-
-		DiceEffectResource.Target.ALL_DICE:
-			var indices: Array[int] = []
-			for i in range(ctx.all_dice.size()):
-				indices.append(i)
-			return indices
-
-		DiceEffectResource.Target.MATCHING_VALUE:
-			return ctx.get_matching_value_indices()
-
-		DiceEffectResource.Target.MATCHING_GROUP:
-			if effect.has_method("get_target_group"):
-				var group: String = effect.get_target_group()
-				return ctx.get_matching_group_indices(group)
-			return [] as Array[int]
-
-	return [] as Array[int]
-
-
-## 결과 복사 (각 타겟에 별도 인스턴스 필요)
-static func _copy_result(original) -> EffectResult:
-	var copy := EffectResult.new()
-	copy.value_bonus = original.value_bonus
-	copy.value_multiplier = original.value_multiplier
-	copy.permanent_bonus = original.permanent_bonus
-	copy.permanent_multiplier = original.permanent_multiplier
-	copy.is_wildcard = original.is_wildcard
-	copy.modified_roll_value = original.modified_roll_value
-	copy.priority = original.priority
-	copy.source_index = original.source_index
-	copy.source_name = original.source_name
-	copy.effect_name = original.effect_name
-	return copy
 
 
 ## 결과 배열을 단일 병합 결과로 변환

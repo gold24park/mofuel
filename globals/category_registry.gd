@@ -23,11 +23,9 @@ func _load_all_categories() -> void:
 			var res := load(path + file_name) as CategoryResource
 			if res != null:
 				categories[res.id] = res
-				print("CategoryRegistry: Loaded category: ", res.id)
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
-	print("CategoryRegistry: Loaded ", categories.size(), " categories")
 
 
 func get_category(id: String) -> CategoryResource:

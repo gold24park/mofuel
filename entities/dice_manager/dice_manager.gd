@@ -87,18 +87,6 @@ func set_dice_instances(instances: Array) -> void:
 
 
 #region 롤 API
-func roll_all_with_direction(direction: Vector2, strength: float) -> void:
-	_reset_state()
-	_roll_dice(_get_all_indices(), direction, strength)
-
-
-func reroll_selected_with_direction(direction: Vector2, strength: float) -> void:
-	var indices := _selected_indices.duplicate()
-	if indices.size() > 0:
-		_roll_dice(indices, direction, strength)
-	clear_selection()
-
-
 func roll_all_radial_burst() -> void:
 	_reset_state()
 	_roll_dice_radial_burst(_get_all_indices())
@@ -139,21 +127,6 @@ func _set_fast_physics(enabled: bool) -> void:
 	else:
 		Engine.time_scale = 1.0
 		Engine.physics_ticks_per_second = BASE_PHYSICS_TICKS
-
-
-func _roll_dice(indices: Array[int], direction: Vector2 = Vector2.ZERO, strength: float = 0.0) -> void:
-	_rolling_indices = indices.duplicate()
-	_pending_results.clear()
-	_set_fast_physics(true)
-
-	var use_direction := direction != Vector2.ZERO and strength > 0.0
-
-	# 인덱스는 _selected_indices 또는 _get_all_indices에서 보장
-	for i in indices:
-		if use_direction:
-			dice_nodes[i].roll_dice_with_direction(direction, strength)
-		else:
-			dice_nodes[i].roll_dice()
 
 
 func _on_dice_finished(dice_index: int, value: int) -> void:
@@ -256,6 +229,10 @@ func _on_dice_clicked(dice_index: int) -> void:
 	assert(dice_index >= 0 and dice_index < DICE_COUNT,
 		"Invalid dice_index from click: %d" % dice_index)
 
+	# 전환 애니메이션 중에는 선택 불가
+	if GameState.is_transitioning:
+		return
+
 	# ROUND_START (Swap용) 또는 ACTION (Reroll용)에서만 선택 가능
 	var phase := GameState.current_phase
 	if phase != GameState.Phase.ROUND_START and phase != GameState.Phase.ACTION:
@@ -286,23 +263,6 @@ func get_selected_indices() -> Array[int]:
 
 func get_selected_count() -> int:
 	return _selected_indices.size()
-#endregion
-
-
-#region Single Dice Roll (Replace 후 사용)
-func roll_single_dice(index: int) -> void:
-	if index < 0 or index >= DICE_COUNT:
-		return
-
-	_rolling_indices = [index]
-	_pending_results.clear()
-	_set_fast_physics(true)
-
-	# 해당 주사위만 방사형 버스트로 굴림
-	var center := Vector3(0, burst_height, 0)
-	var angle := randf() * TAU
-	var direction := Vector3(cos(angle), 0, sin(angle))
-	dice_nodes[index].roll_dice_radial_burst(center, direction, burst_strength)
 #endregion
 
 
@@ -345,11 +305,6 @@ func stop_all_breathing() -> void:
 
 
 #region 라운드 전환 애니메이션
-## Active → 화면 하단 중앙으로 이동 (라운드 종료 시)
-func animate_dice_to_hand() -> void:
-	await animate_dice_to_hand_with_callback(func(_i): pass)
-
-
 ## Active → 화면 하단 중앙으로 이동 + 콜백 (라운드 종료 시)
 func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 	var center := Vector3(0, hand_height, hand_z)
@@ -376,11 +331,6 @@ func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 
 	# 모든 주사위 내려간 후 잠시 대기
 	await get_tree().create_timer(0.1).timeout
-
-
-## 화면 아래 중앙 → Active 위치로 상승 (라운드 시작 시)
-func animate_dice_to_active() -> void:
-	await animate_dice_to_active_with_callback(func(_i): pass)
 
 
 ## 화면 아래 중앙 → Active 위치로 상승 + 콜백 (라운드 시작 시)

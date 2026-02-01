@@ -61,3 +61,20 @@ func has_effect() -> bool:
 	return value_bonus != 0 or value_multiplier != 1.0 or \
 		   permanent_bonus != 0 or permanent_multiplier != 1.0 or \
 		   is_wildcard or modified_roll_value >= 0
+
+
+## 복사본 생성
+func duplicate() -> EffectResult:
+	var copy := EffectResult.new()
+	copy.value_bonus = value_bonus
+	copy.value_multiplier = value_multiplier
+	copy.permanent_bonus = permanent_bonus
+	copy.permanent_multiplier = permanent_multiplier
+	copy.is_wildcard = is_wildcard
+	copy.modified_roll_value = modified_roll_value
+	copy.priority = priority
+	copy.source_index = source_index
+	copy.target_index = target_index
+	copy.source_name = source_name
+	copy.effect_name = effect_name
+	return copy

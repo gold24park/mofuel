@@ -13,6 +13,7 @@ const PULSE_MAX: float = 1.08
 func _ready():
 	button.pressed.connect(_on_button_pressed)
 	GameState.phase_changed.connect(_on_phase_changed)
+	GameState.transitioning_changed.connect(_on_transitioning_changed)
 	_update_visibility()
 
 
@@ -27,8 +28,13 @@ func _on_phase_changed(_phase: int) -> void:
 	_update_visibility()
 
 
+func _on_transitioning_changed(_is_transitioning: bool) -> void:
+	_update_visibility()
+
+
 func _update_visibility() -> void:
-	var should_show := GameState.current_phase == GameState.Phase.ROUND_START
+	# ROUND_START이고 전환 애니메이션 중이 아닐 때만 표시
+	var should_show := GameState.current_phase == GameState.Phase.ROUND_START and not GameState.is_transitioning
 	visible = should_show
 	if should_show:
 		_pulse_time = 0.0

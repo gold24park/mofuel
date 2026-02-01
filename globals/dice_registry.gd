@@ -25,11 +25,9 @@ func _load_all_dice_types():
 			var res = load(path + file_name)
 			if res is DiceTypeResource:
 				dice_types[res.id] = res
-				print("DiceRegistry: Loaded dice type: ", res.id)
 		file_name = dir.get_next()
 
 	dir.list_dir_end()
-	print("DiceRegistry: Loaded ", dice_types.size(), " dice types")
 
 
 func get_dice_type(id: String) -> DiceTypeResource:

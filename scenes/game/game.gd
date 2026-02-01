@@ -1,7 +1,5 @@
 extends Control
 
-const SwipeDetector = preload("res://scenes/game/components/swipe_detector.gd")
-
 @onready var dice_manager = $SubViewportContainer/SubViewport/World3D/DiceManager
 @onready var camera_3d = $SubViewportContainer/SubViewport/World3D/Camera3D
 @onready var hud = $CanvasLayer/HUD
@@ -15,7 +13,6 @@ const SwipeDetector = preload("res://scenes/game/components/swipe_detector.gd")
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
 
-var _swipe_detector: Node
 var _swap_mode: bool = false
 var _swap_active_index: int = -1
 var _is_first_round: bool = true
@@ -23,11 +20,6 @@ var _prev_active_dice: Array = []  ## 이전 라운드의 active dice (애니메
 
 
 func _ready():
-	# SwipeDetector 생성 및 연결
-	_swipe_detector = SwipeDetector.new()
-	add_child(_swipe_detector)
-	_swipe_detector.swiped.connect(_on_swipe_detected)
-
 	# 시그널 연결
 	dice_manager.all_dice_finished.connect(_on_all_dice_finished)
 	dice_manager.selection_changed.connect(_on_selection_changed)
@@ -76,7 +68,6 @@ func _on_swap_pressed():
 
 	_swap_mode = true
 	_swap_active_index = selected[0]
-	_swipe_detector.set_enabled(false)
 	hand_display.enter_replace_mode()  # 메서드명 유지
 	action_buttons.visible = false
 
@@ -100,17 +91,8 @@ func _on_hand_dice_selected(hand_index: int):
 func _exit_swap_mode():
 	_swap_mode = false
 	_swap_active_index = -1
-	_swipe_detector.set_enabled(true)
 	hand_display.exit_replace_mode()  # 메서드명 유지
 	action_buttons.visible = true
-
-
-func _input(event):
-	# ESC로 Swap 모드 취소
-	if _swap_mode and event.is_action_pressed("ui_cancel"):
-		_exit_swap_mode()
-		get_viewport().set_input_as_handled()
-#endregion
 
 
 #region Roll Handling
@@ -120,11 +102,6 @@ func _on_roll_button_pressed() -> void:
 		dice_manager.clear_selection()
 		GameState.roll_dice()
 		dice_manager.roll_all_radial_burst()
-
-
-func _on_swipe_detected(_direction: Vector2, _strength: float) -> void:
-	# 스와이프 비활성화 - 버튼만 사용
-	pass
 
 
 func _reroll_selected_dice_radial() -> void:
@@ -202,7 +179,7 @@ func _on_upgrade_continue():
 #region 라운드 전환 애니메이션
 func _play_round_transition() -> void:
 	GameState.is_transitioning = true
-	roll_button.visible = false
+	dice_labels.hide_all()  # 새 라운드 시작 시 라벨 숨김 (굴리기 전)
 	hand_display.enter_manual_mode()
 
 	# 1. Round End: Active -> Hand (Return)
@@ -228,7 +205,6 @@ func _play_round_transition() -> void:
 	hand_display.exit_manual_mode()
 	_is_first_round = false
 	GameState.is_transitioning = false
-	roll_button.visible = true
 	dice_manager.clear_selection()
 
 

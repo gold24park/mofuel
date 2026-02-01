@@ -9,13 +9,13 @@ signal hand_changed()
 signal active_changed()
 signal game_over(won: bool)
 signal show_scoring_options(dice: Array)  ## UI에 스코어링 옵션 표시 요청
+signal transitioning_changed(is_transitioning: bool)  ## 전환 애니메이션 상태 변경
 
 enum Phase { SETUP, ROUND_START, ACTION, SCORING }
 
 var inventory: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []  ## 매 라운드 Active 선택 풀
 var active_dice: Array[DiceInstance] = []
-var active_values: Array[int] = [0, 0, 0, 0, 0]
 
 var current_phase: int = Phase.SETUP
 var rerolls_remaining: int = 2
@@ -24,11 +24,11 @@ var target_score: int = 100
 var current_round: int = 0
 var max_rounds: int = 5
 var _swap_used: bool = false  ## 라운드당 1회 Swap 사용 여부
-var is_transitioning: bool = false  ## 라운드 전환 중 입력 차단
-
-
-func _ready():
-	pass
+var is_transitioning: bool = false:  ## 라운드 전환 중 입력 차단
+	set(value):
+		if is_transitioning != value:
+			is_transitioning = value
+			transitioning_changed.emit(value)
 
 
 func start_new_game():
@@ -40,7 +40,6 @@ func _init_inventory():
 	inventory.clear()
 	hand.clear()
 	active_dice.clear()
-	active_values = [0, 0, 0, 0, 0]
 	total_score = 0
 	current_round = 0
 	rerolls_remaining = 2
@@ -157,7 +156,6 @@ func roll_dice():
 
 
 func on_dice_results(values: Array[int]):
-	active_values = values
 	active_changed.emit()
 
 	# 게임 규칙: 리롤 불가 시 자동으로 스코어링 단계로 전환
@@ -213,10 +211,6 @@ func record_score(category_id: String, score: int):
 
 
 #region Getters
-func get_active_dice_count() -> int:
-	return active_dice.size()
-
-
 func get_hand_count() -> int:
 	return hand.size()
 

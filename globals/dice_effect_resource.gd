@@ -37,12 +37,6 @@ enum Target {
 ## 효과 평가 - 서브클래스에서 오버라이드
 func evaluate(context) -> EffectResult:
 	var result := EffectResult.new()
-
-	# 조건 확인
-	if condition and condition.has_method("evaluate"):
-		if not condition.evaluate(context.source_dice, context.source_index):
-			return result
-
 	return result
 
 

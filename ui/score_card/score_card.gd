@@ -91,13 +91,6 @@ func _on_active_changed():
 
 
 func _update_scores():
-	# DEBUG: 실제 current_value 확인
-	var debug_values = []
-	for d in GameState.active_dice:
-		debug_values.append(d.current_value)
-	print("DEBUG active_dice current_values: ", debug_values)
-	print("DEBUG active_values: ", GameState.active_values)
-
 	current_scores = Scoring.calculate_all_scores(GameState.active_dice)
 
 	for cat_id in category_buttons:
