@@ -2,7 +2,7 @@ extends Control
 
 @onready var round_label: Label = $MarginContainer/HBoxContainer/RoundLabel
 @onready var inventory_label: Label = $MarginContainer/HBoxContainer/InventoryLabel
-@onready var reserve_label: Label = $MarginContainer/HBoxContainer/ReserveLabel
+@onready var hand_label: Label = $MarginContainer/HBoxContainer/ReserveLabel  ## 노드명 유지
 @onready var score_label: Label = $MarginContainer/HBoxContainer/ScoreLabel
 @onready var rerolls_label: Label = $MarginContainer/HBoxContainer/RerollsLabel
 
@@ -10,7 +10,7 @@ extends Control
 func _ready():
 	GameState.round_changed.connect(_on_round_changed)
 	GameState.inventory_changed.connect(_on_inventory_changed)
-	GameState.reserve_changed.connect(_on_reserve_changed)
+	GameState.hand_changed.connect(_on_hand_changed)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.rerolls_changed.connect(_on_rerolls_changed)
 
@@ -20,7 +20,7 @@ func _ready():
 func _update_all():
 	_on_round_changed(GameState.current_round)
 	_on_inventory_changed()
-	_on_reserve_changed()
+	_on_hand_changed()
 	_on_score_changed(GameState.total_score)
 	_on_rerolls_changed(GameState.rerolls_remaining)
 
@@ -33,8 +33,8 @@ func _on_inventory_changed():
 	inventory_label.text = "Inventory: %d" % GameState.get_inventory_count()
 
 
-func _on_reserve_changed():
-	reserve_label.text = "Reserve: %d" % GameState.get_reserve_count()
+func _on_hand_changed():
+	hand_label.text = "Hand: %d" % GameState.get_hand_count()
 
 
 func _on_score_changed(score: int):

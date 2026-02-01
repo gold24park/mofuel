@@ -113,7 +113,7 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 
 
 func _is_wildcard(d: DiceInstance) -> bool:
-	return d.type != null and d.type.is_wildcard_value(d.current_value)
+	return d.is_wildcard()
 
 
 func _get_most_common_value(values: Array[int]) -> int:

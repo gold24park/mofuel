@@ -3,9 +3,36 @@ extends RefCounted
 
 
 static func calculate_score(category, dice: Array) -> int:
+	# ON_SCORE 효과 처리
+	_process_score_effects(dice)
+
 	var values = _get_effective_values(dice, category)
 	var base_score = _calculate_base_score(category, values, dice)
-	return base_score
+
+	# 영구 보너스/배수 적용
+	var permanent_bonus := 0
+	var permanent_multiplier := 1.0
+	for d in dice:
+		for result in d.score_effects:
+			permanent_bonus += result.permanent_bonus
+			permanent_multiplier *= result.permanent_multiplier
+
+	return int((base_score + permanent_bonus) * permanent_multiplier)
+
+
+## ON_SCORE 효과 처리
+static func _process_score_effects(dice: Array) -> void:
+	var results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_SCORE,
+		dice
+	)
+
+	# 각 주사위에 결과 할당
+	for i in range(dice.size()):
+		dice[i].score_effects.clear()
+		if results.has(i):
+			for result in results[i]:
+				dice[i].score_effects.append(result)
 
 
 static func calculate_score_with_upgrade(category, dice: Array) -> int:
@@ -22,7 +49,7 @@ static func _get_effective_values(dice: Array, category) -> Array:
 
 	# 일반 값과 와일드카드 분리
 	for d in dice:
-		if d.type and d.type.is_wildcard_value(d.current_value):
+		if d.is_wildcard():
 			wildcards.append(d)
 		else:
 			values.append(d.current_value)
@@ -119,36 +146,36 @@ static func _calculate_base_score(category, values: Array, dice: Array) -> int:
 
 		6:  # THREE_OF_A_KIND
 			if _has_n_of_a_kind(values, 3):
-				return _calculate_sum_with_multipliers(values, dice)
+				return _calculate_sum_with_effects(values, dice)
 			return 0
 
 		7:  # FOUR_OF_A_KIND
 			if _has_n_of_a_kind(values, 4):
-				return _calculate_sum_with_multipliers(values, dice)
+				return _calculate_sum_with_effects(values, dice)
 			return 0
 
 		8:  # FULL_HOUSE
 			if _is_full_house(values):
-				return _apply_fixed_score_with_multipliers(category.fixed_score, dice)
+				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
 		9:  # SMALL_STRAIGHT
 			if _is_small_straight(values):
-				return _apply_fixed_score_with_multipliers(category.fixed_score, dice)
+				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
 		10:  # LARGE_STRAIGHT
 			if _is_large_straight(values):
-				return _apply_fixed_score_with_multipliers(category.fixed_score, dice)
+				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
 		11:  # YACHT
 			if _has_n_of_a_kind(values, 5):
-				return _apply_fixed_score_with_multipliers(category.fixed_score, dice)
+				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
 		12:  # CHANCE
-			return _calculate_sum_with_multipliers(values, dice)
+			return _calculate_sum_with_effects(values, dice)
 
 	return 0
 
@@ -157,27 +184,24 @@ static func _calculate_number_score(target: int, values: Array, dice: Array) -> 
 	var score = 0
 	for i in range(values.size()):
 		if values[i] == target:
-			var base = target
 			if i < dice.size():
-				base = dice[i].apply_to_score(base)
-			score += base
+				score += dice[i].get_scoring_value()
+			else:
+				score += target
 	return score
 
 
-static func _calculate_sum_with_multipliers(values: Array, dice: Array) -> int:
+static func _calculate_sum_with_effects(_values: Array, dice: Array) -> int:
 	var score = 0
-	for i in range(values.size()):
-		var base = values[i]
-		if i < dice.size():
-			base = dice[i].apply_to_score(base)
-		score += base
+	for i in range(dice.size()):
+		score += dice[i].get_scoring_value()
 	return score
 
 
-static func _apply_fixed_score_with_multipliers(fixed_score: int, dice: Array) -> int:
-	var total_multiplier = 1.0
+static func _apply_fixed_score_with_effects(fixed_score: int, dice: Array) -> int:
+	var total_multiplier := 1.0
 	for d in dice:
-		total_multiplier *= d.get_score_multiplier()
+		total_multiplier *= d.get_total_score_multiplier()
 	return int(fixed_score * total_multiplier)
 
 

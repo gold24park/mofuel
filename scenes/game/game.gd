@@ -9,14 +9,17 @@ const SwipeDetector = preload("res://scenes/game/components/swipe_detector.gd")
 @onready var score_card = $CanvasLayer/ScoreCard
 @onready var game_over_screen = $CanvasLayer/GameOver
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
-@onready var reserve_display = $CanvasLayer/ReserveDisplay
+@onready var hand_display = $CanvasLayer/ReserveDisplay  ## Hand 표시 (씬 노드명 유지)
 @onready var quick_score = $CanvasLayer/QuickScore
 @onready var dice_labels = $CanvasLayer/DiceLabels
 @onready var roll_button = $CanvasLayer/RollButton
+@onready var inventory_deck = $CanvasLayer/InventoryDeck
 
 var _swipe_detector: Node
-var _replace_mode: bool = false
-var _replace_active_index: int = -1
+var _swap_mode: bool = false
+var _swap_active_index: int = -1
+var _is_first_round: bool = true
+var _prev_active_dice: Array = []  ## 이전 라운드의 active dice (애니메이션용)
 
 
 func _ready():
@@ -29,25 +32,30 @@ func _ready():
 	dice_manager.all_dice_finished.connect(_on_all_dice_finished)
 	dice_manager.selection_changed.connect(_on_selection_changed)
 	action_buttons.reroll_pressed.connect(_on_reroll_pressed)
-	action_buttons.replace_pressed.connect(_on_replace_pressed)
+	action_buttons.swap_pressed.connect(_on_swap_pressed)
 	action_buttons.end_turn_pressed.connect(_on_end_turn_pressed)
 	score_card.category_selected.connect(_on_category_selected)
 	game_over_screen.restart_pressed.connect(_on_restart_pressed)
 	game_over_screen.upgrade_pressed.connect(_on_upgrade_pressed)
 	upgrade_screen.continue_pressed.connect(_on_upgrade_continue)
-	reserve_display.dice_selected.connect(_on_reserve_dice_selected)
+	hand_display.dice_selected.connect(_on_hand_dice_selected)
 	quick_score.score_selected.connect(_on_quick_score_selected)
 	quick_score.option_hovered.connect(_on_quick_score_hovered)
 	quick_score.option_unhovered.connect(_on_quick_score_unhovered)
 	roll_button.roll_pressed.connect(_on_roll_button_pressed)
+
+	# GameState 시그널 연결
+	GameState.show_scoring_options.connect(_on_show_scoring_options)
+	GameState.round_changed.connect(_on_round_changed)
 
 	# 게임 시작
 	_start_game()
 
 
 func _start_game():
+	_is_first_round = true
 	GameState.start_new_game()
-	_sync_dice_instances()
+	# 첫 라운드는 _on_round_changed에서 애니메이션과 함께 처리
 
 
 func _sync_dice_instances():
@@ -59,52 +67,57 @@ func _on_reroll_pressed():
 	_reroll_selected_dice_radial()
 
 
-func _on_replace_pressed():
-	# Replace 모드 진입: Reserve에서 주사위 선택 대기
-	# 선택된 주사위가 정확히 1개여야 함
-	var selected = dice_manager.get_selected_indices()
-	if selected.size() != 1 or GameState.get_reserve_count() == 0:
+#region Swap (첫 굴림 전 1회)
+func _on_swap_pressed():
+	# Swap 모드 진입: Hand에서 주사위 선택 대기
+	var selected: Array[int] = dice_manager.get_selected_indices()
+	if selected.size() != 1 or not GameState.can_swap():
 		return
 
-	_replace_mode = true
-	_replace_active_index = selected[0]
+	_swap_mode = true
+	_swap_active_index = selected[0]
 	_swipe_detector.set_enabled(false)
-	reserve_display.enter_replace_mode()
+	hand_display.enter_replace_mode()  # 메서드명 유지
 	action_buttons.visible = false
 
 
-func _on_reserve_dice_selected(reserve_index: int):
-	if not _replace_mode:
+func _on_hand_dice_selected(hand_index: int):
+	if not _swap_mode:
 		return
 
-	# Replace 실행
-	GameState.replace_dice(_replace_active_index, reserve_index)
+	# Swap 실행
+	if not GameState.swap_dice(_swap_active_index, hand_index):
+		_exit_swap_mode()
+		return
+
 	_sync_dice_instances()
 	dice_manager.clear_selection()
 
-	# Replace 모드 종료
-	_exit_replace_mode()
+	# Swap 모드 종료
+	_exit_swap_mode()
 
 
-func _exit_replace_mode():
-	_replace_mode = false
-	_replace_active_index = -1
+func _exit_swap_mode():
+	_swap_mode = false
+	_swap_active_index = -1
 	_swipe_detector.set_enabled(true)
-	reserve_display.exit_replace_mode()
+	hand_display.exit_replace_mode()  # 메서드명 유지
 	action_buttons.visible = true
 
 
 func _input(event):
-	# ESC로 Replace 모드 취소
-	if _replace_mode and event.is_action_pressed("ui_cancel"):
-		_exit_replace_mode()
+	# ESC로 Swap 모드 취소
+	if _swap_mode and event.is_action_pressed("ui_cancel"):
+		_exit_swap_mode()
 		get_viewport().set_input_as_handled()
+#endregion
 
 
 #region Roll Handling
 func _on_roll_button_pressed() -> void:
 	if GameState.current_phase == GameState.Phase.ROUND_START:
 		dice_labels.hide_all()
+		dice_manager.clear_selection()
 		GameState.roll_dice()
 		dice_manager.roll_all_radial_burst()
 
@@ -138,19 +151,10 @@ func _on_all_dice_finished(values: Array):
 	# 모든 주사위 라벨 표시
 	for i in range(5):
 		dice_labels.show_label(i)
-	_check_auto_end_turn()
 
 
-func _check_auto_end_turn() -> void:
-	if GameState.current_phase != GameState.Phase.ACTION:
-		return
-
-	if GameState.can_reroll():
-		# 리롤 가능 - 빠른 점수 선택 옵션 표시
-		quick_score.show_options(GameState.active_dice)
-	else:
-		# 리롤 불가 - 자동으로 스코어링
-		GameState.end_turn()
+func _on_show_scoring_options(dice: Array) -> void:
+	quick_score.show_options(dice)
 
 
 func _on_selection_changed(selected_indices: Array):
@@ -159,11 +163,13 @@ func _on_selection_changed(selected_indices: Array):
 
 func _on_category_selected(category_id: String, score: int):
 	quick_score.hide_options()
+	_prev_active_dice = GameState.active_dice.duplicate()  ## 애니메이션용 저장
 	GameState.record_score(category_id, score)
 
 
 func _on_quick_score_selected(category_id: String, score: int):
 	dice_manager.stop_all_breathing()
+	_prev_active_dice = GameState.active_dice.duplicate()  ## 애니메이션용 저장
 	GameState.record_score(category_id, score)
 
 
@@ -176,6 +182,11 @@ func _on_quick_score_unhovered() -> void:
 	dice_manager.stop_all_breathing()
 
 
+func _on_round_changed(_round_num: int):
+	# 애니메이션 시퀀스 실행
+	_play_round_transition()
+
+
 func _on_restart_pressed():
 	_start_game()
 
@@ -186,3 +197,66 @@ func _on_upgrade_pressed():
 
 func _on_upgrade_continue():
 	_start_game()
+
+
+#region 라운드 전환 애니메이션
+func _play_round_transition() -> void:
+	GameState.is_transitioning = true
+	roll_button.visible = false
+	hand_display.enter_manual_mode()
+
+	# 1. Round End: Active -> Hand (Return)
+	if not _is_first_round:
+		await _animate_return_to_hand()
+
+	# 2. Draw Phase: Inventory -> Hand
+	if GameState.get_inventory_count() > 0:
+		await _animate_inventory_draw()
+
+	# 3. Preparation: Sync Data for New Round
+	_sync_dice_instances()
+	dice_manager.set_dice_to_hand_position()
+	
+	# Hand UI 새로고침 (데이터 동기화 후 실제 Hand 상태 반영)
+	hand_display.exit_manual_mode()
+	hand_display.enter_manual_mode()
+
+	# 4. New Round: Hand -> Active (Rise)
+	await _animate_rise_to_active()
+
+	# 5. Cleanup
+	hand_display.exit_manual_mode()
+	_is_first_round = false
+	GameState.is_transitioning = false
+	roll_button.visible = true
+	dice_manager.clear_selection()
+
+
+func _animate_return_to_hand() -> void:
+	# 5개의 임시 슬롯 추가 (이전 active dice)
+	hand_display.prepare_incoming_slots(5, _prev_active_dice)
+
+	# 3D 주사위가 Hand로 내려가면서 임시 슬롯이 하나씩 나타남
+	await dice_manager.animate_dice_to_hand_with_callback(
+		func(index: int):
+			hand_display.animate_temp_slot_appear(index)
+	)
+
+
+func _animate_inventory_draw() -> void:
+	var hand_target: Vector2 = hand_display.get_global_rect().get_center()
+	await inventory_deck.animate_draw(hand_target)
+
+
+func _animate_rise_to_active() -> void:
+	# 5개의 outgoing 슬롯 추가 (새 active dice)
+	hand_display.prepare_outgoing_slots(5, GameState.active_dice)
+
+	# Active 위치로 상승 애니메이션 (임시 슬롯이 하나씩 사라짐)
+	var slot_index := [4]  # 마지막 슬롯부터 사라지게
+	await dice_manager.animate_dice_to_active_with_callback(
+		func(_index: int):
+			hand_display.animate_temp_slot_disappear(slot_index[0])
+			slot_index[0] -= 1
+	)
+#endregion

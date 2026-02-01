@@ -9,6 +9,13 @@ const DICE_COUNT: int = 5
 @export var display_height: float = 1.0
 @export var display_z: float = 0.0
 @export var dice_spacing: float = 3.0
+@export var hand_height: float = 1.0  ## Hand 영역 높이
+@export var hand_z: float = 12.0  ## 화면 하단 (카메라 기준 아래쪽)
+
+## 애니메이션 설정
+@export_group("Animation")
+@export var transition_duration: float = 0.4
+@export var stagger_delay: float = 0.05  ## 각 주사위 간 딜레이
 
 ## 방사형 버스트 설정
 @export_group("Radial Burst")
@@ -34,6 +41,8 @@ var _selected_indices: Array[int] = []
 
 signal all_dice_finished(values: Array[int])
 signal selection_changed(indices: Array[int])
+signal effects_applied(effect_data: Array[Dictionary])  ## UI 연출용 (from, to, name)
+signal round_transition_finished
 
 
 func _ready() -> void:
@@ -112,14 +121,13 @@ func _roll_dice_radial_burst(indices: Array[int]) -> void:
 
 	for i in range(indices.size()):
 		var idx := indices[i]
-		if idx >= 0 and idx < dice_nodes.size():
-			# 각 주사위마다 방사형 방향 계산
-			var base_angle := angle_step * i
-			var random_offset := randf_range(-0.15, 0.15)  # 약간의 랜덤
-			var angle := base_angle + random_offset
+		# 각 주사위마다 방사형 방향 계산 (인덱스는 _selected_indices 또는 _get_all_indices에서 보장)
+		var base_angle := angle_step * i
+		var random_offset := randf_range(-0.15, 0.15)  # 약간의 랜덤
+		var angle := base_angle + random_offset
 
-			var direction := Vector3(cos(angle), 0, sin(angle))
-			dice_nodes[idx].roll_dice_radial_burst(center, direction, burst_strength)
+		var direction := Vector3(cos(angle), 0, sin(angle))
+		dice_nodes[idx].roll_dice_radial_burst(center, direction, burst_strength)
 #endregion
 
 
@@ -140,12 +148,12 @@ func _roll_dice(indices: Array[int], direction: Vector2 = Vector2.ZERO, strength
 
 	var use_direction := direction != Vector2.ZERO and strength > 0.0
 
+	# 인덱스는 _selected_indices 또는 _get_all_indices에서 보장
 	for i in indices:
-		if i >= 0 and i < dice_nodes.size():
-			if use_direction:
-				dice_nodes[i].roll_dice_with_direction(direction, strength)
-			else:
-				dice_nodes[i].roll_dice()
+		if use_direction:
+			dice_nodes[i].roll_dice_with_direction(direction, strength)
+		else:
+			dice_nodes[i].roll_dice()
 
 
 func _on_dice_finished(dice_index: int, value: int) -> void:
@@ -154,14 +162,103 @@ func _on_dice_finished(dice_index: int, value: int) -> void:
 
 	if _pending_results.size() == _rolling_indices.size():
 		_set_fast_physics(false)
+
+		# ON_ROLL 효과 처리
+		_process_roll_effects()
+
+		# ON_ADJACENT_ROLL 효과 처리 (각 굴린 주사위에 대해)
+		for rolled_idx in _rolling_indices:
+			_process_adjacent_roll_effects(rolled_idx)
+
 		_rolling_indices.clear()
 		all_dice_finished.emit(_cached_values.duplicate())
+
+
+## ON_ROLL 효과 처리
+func _process_roll_effects() -> void:
+	var all_dice := _get_all_dice_instances()
+	if all_dice.is_empty():
+		return
+
+	var results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_ROLL,
+		all_dice
+	)
+
+	# 각 주사위에 결과 할당 및 적용
+	var effect_data: Array[Dictionary] = []
+	for i in range(all_dice.size()):
+		all_dice[i].roll_effects.clear()
+		if results.has(i):
+			for result in results[i]:
+				all_dice[i].add_roll_effect(result)
+				# 시각적 피드백 데이터 수집
+				if result.source_index >= 0 and result.source_index != i:
+					effect_data.append({
+						"from": result.source_index,
+						"to": i,
+						"name": result.effect_name
+					})
+		all_dice[i].apply_roll_effects_from_results()
+
+	if not effect_data.is_empty():
+		effects_applied.emit(effect_data)
+
+
+## ON_ADJACENT_ROLL 효과 처리
+func _process_adjacent_roll_effects(triggering_index: int) -> void:
+	var all_dice := _get_all_dice_instances()
+	if all_dice.is_empty():
+		return
+
+	var results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_ADJACENT_ROLL,
+		all_dice,
+		triggering_index
+	)
+
+	# 기존 roll_effects에 병합
+	var effect_data: Array[Dictionary] = []
+	for i in range(all_dice.size()):
+		if results.has(i):
+			for result in results[i]:
+				all_dice[i].add_roll_effect(result)
+				if result.source_index >= 0:
+					effect_data.append({
+						"from": result.source_index,
+						"to": i,
+						"name": result.effect_name,
+						"trigger": "adjacent_roll"
+					})
+
+	if not effect_data.is_empty():
+		effects_applied.emit(effect_data)
+
+
+## 모든 주사위 인스턴스 반환
+func _get_all_dice_instances() -> Array:
+	var instances: Array = []
+	for node in dice_nodes:
+		if node.has_method("get_dice_instance"):
+			var instance = node.get_dice_instance()
+			if instance:
+				instances.append(instance)
+		elif "dice_instance" in node:
+			if node.dice_instance:
+				instances.append(node.dice_instance)
+	return instances
 #endregion
 
 
 #region 선택 관리
 func _on_dice_clicked(dice_index: int) -> void:
-	if GameState.current_phase != GameState.Phase.ACTION:
+	# Validate at entry point (dice signals should always send valid indices)
+	assert(dice_index >= 0 and dice_index < DICE_COUNT,
+		"Invalid dice_index from click: %d" % dice_index)
+
+	# ROUND_START (Swap용) 또는 ACTION (Reroll용)에서만 선택 가능
+	var phase := GameState.current_phase
+	if phase != GameState.Phase.ROUND_START and phase != GameState.Phase.ACTION:
 		return
 
 	# 선택 토글
@@ -176,9 +273,9 @@ func _on_dice_clicked(dice_index: int) -> void:
 
 
 func clear_selection() -> void:
+	# _selected_indices는 _on_dice_clicked에서 검증됨
 	for idx in _selected_indices:
-		if idx >= 0 and idx < dice_nodes.size():
-			dice_nodes[idx].set_selected(false)
+		dice_nodes[idx].set_selected(false)
 	_selected_indices.clear()
 	selection_changed.emit([])
 
@@ -189,6 +286,23 @@ func get_selected_indices() -> Array[int]:
 
 func get_selected_count() -> int:
 	return _selected_indices.size()
+#endregion
+
+
+#region Single Dice Roll (Replace 후 사용)
+func roll_single_dice(index: int) -> void:
+	if index < 0 or index >= DICE_COUNT:
+		return
+
+	_rolling_indices = [index]
+	_pending_results.clear()
+	_set_fast_physics(true)
+
+	# 해당 주사위만 방사형 버스트로 굴림
+	var center := Vector3(0, burst_height, 0)
+	var angle := randf() * TAU
+	var direction := Vector3(cos(angle), 0, sin(angle))
+	dice_nodes[index].roll_dice_radial_burst(center, direction, burst_strength)
 #endregion
 
 
@@ -215,13 +329,86 @@ func _get_all_indices() -> Array[int]:
 	return indices
 
 
+## External API - indices should be validated by caller but we guard defensively
 func start_breathing(indices: Array) -> void:
 	for i in indices:
-		if i >= 0 and i < dice_nodes.size():
-			dice_nodes[i].start_breathing()
+		if not Guard.verify(i >= 0 and i < dice_nodes.size(),
+				"Invalid breathing index %d" % i):
+			continue
+		dice_nodes[i].start_breathing()
 
 
 func stop_all_breathing() -> void:
 	for die in dice_nodes:
 		die.stop_breathing()
+#endregion
+
+
+#region 라운드 전환 애니메이션
+## Active → 화면 하단 중앙으로 이동 (라운드 종료 시)
+func animate_dice_to_hand() -> void:
+	await animate_dice_to_hand_with_callback(func(_i): pass)
+
+
+## Active → 화면 하단 중앙으로 이동 + 콜백 (라운드 종료 시)
+func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
+	var center := Vector3(0, hand_height, hand_z)
+
+	for i in range(dice_nodes.size()):
+		var die := dice_nodes[i]
+		var tween := create_tween()
+		tween.set_ease(Tween.EASE_IN)
+		tween.set_trans(Tween.TRANS_QUAD)
+		tween.set_parallel(true)
+
+		# 위치 이동 (중앙으로)
+		tween.tween_property(die, "global_position", center, transition_duration)
+		# 회전 (랜덤 방향으로 1~2바퀴)
+		var random_rotation := Vector3(
+			randf_range(-TAU, TAU) * 2,
+			randf_range(-TAU, TAU),
+			randf_range(-TAU, TAU) * 2
+		)
+		tween.tween_property(die, "rotation", die.rotation + random_rotation, transition_duration)
+
+		await tween.finished
+		on_each_finished.call(i)
+
+	# 모든 주사위 내려간 후 잠시 대기
+	await get_tree().create_timer(0.1).timeout
+
+
+## 화면 아래 중앙 → Active 위치로 상승 (라운드 시작 시)
+func animate_dice_to_active() -> void:
+	await animate_dice_to_active_with_callback(func(_i): pass)
+
+
+## 화면 아래 중앙 → Active 위치로 상승 + 콜백 (라운드 시작 시)
+func animate_dice_to_active_with_callback(on_each_finished: Callable) -> void:
+	for i in range(dice_nodes.size()):
+		var die := dice_nodes[i]
+		var target := _get_display_position(i)
+		var tween := create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.set_parallel(true)
+
+		# 위치 이동
+		tween.tween_property(die, "global_position", target, transition_duration)
+		# 회전 (Vector.UP 방향으로 정렬)
+		tween.tween_property(die, "rotation", Vector3.ZERO, transition_duration)
+
+		await tween.finished
+		on_each_finished.call(i)
+
+	round_transition_finished.emit()
+
+
+## 모든 주사위를 화면 하단 중앙으로 즉시 이동 (초기 위치 설정용)
+func set_dice_to_hand_position() -> void:
+	var center := Vector3(0, hand_height, hand_z)
+	for i in range(dice_nodes.size()):
+		var die := dice_nodes[i]
+		die.global_position = center
+		die.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
 #endregion

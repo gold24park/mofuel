@@ -5,5 +5,14 @@ extends DiceEffectResource
 @export var multiplier: float = 2.0
 
 
-func get_score_multiplier() -> float:
-	return multiplier
+func _init() -> void:
+	trigger = Trigger.ON_SCORE
+	target = Target.SELF
+	priority = 300  # 배수는 나중에 적용
+	effect_name = "점수 배수"
+
+
+func evaluate(_context) -> EffectResult:
+	var result := EffectResult.new()
+	result.value_multiplier = multiplier
+	return result

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**mofuel** is a Godot 4.5 mobile game project featuring a Yacht-like dice game with physics simulation and meta-progression.
+**mofuel** is a Godot 4.6 mobile game project featuring a Yacht-like dice game with physics simulation and meta-progression.
 
 ## Development Commands
 
@@ -38,11 +38,19 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     scoring.gd        # Score calculation
     dice_*.gd         # Dice type/instance classes
     category_*.gd     # Category/upgrade classes
-    /effects/         # Dice effect subclasses
+    effect_context.gd     # 효과 실행 컨텍스트
+    effect_result.gd      # 효과 결과 (시각적 피드백 포함)
+    effect_processor.gd   # 수집→정렬→적용 파이프라인
+    effect_condition.gd   # 조건부 효과 (Resource)
+    composite_condition.gd # AND/OR 복합 조건
+    /effects/             # Dice effect subclasses
       bias_effect.gd
       score_multiplier_effect.gd
-      wildcard_effect.gd       # trigger_values로 조건부/항상 와일드 통합
-      face_map_effect.gd       # 고정값, 짝수/홀수만 등 모두 표현 가능
+      wildcard_effect.gd           # trigger_values로 조건부/항상 와일드 통합
+      face_map_effect.gd           # 고정값, 짝수/홀수만 등 모두 표현 가능
+      adjacent_bonus_effect.gd     # 인접 주사위 보너스
+      group_bonus_effect.gd        # 그룹 태그 매칭 보너스
+      on_adjacent_roll_effect.gd   # 인접 굴림 반응 효과
 
   /entities/          # Reusable game entities
     /dice/            # 3D dice with physics
@@ -56,8 +64,8 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
   /ui/                # UI components
     /hud/             # Top status bar
-    /action_buttons/  # Reroll, Replace, End Turn buttons
-    /reserve_display/ # Reserve dice display (bottom center)
+    /action_buttons/  # Reroll, Swap, End Turn buttons
+    /reserve_display/ # Hand dice display (bottom center)
     /quick_score/     # Fast scoring options (right side after roll)
     /score_card/      # Category selection (full scorecard)
     /game_over/       # Win/lose screen
@@ -69,21 +77,23 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 
 ### Game Flow
-1. **Setup**: Draw 7 dice to Reserve, place 5 in Active
-2. **Round Start**: Swipe to roll all 5 dice (direction/speed affects throw)
-3. **Action**:
+1. **Game Start**: Inventory에서 Hand로 주사위 드로우 (초기 7개)
+2. **Round Start**: Hand에서 랜덤하게 5개를 Active로 뽑아옴
+3. **Roll**: Swipe to roll all 5 dice (direction/speed affects throw)
+4. **Action**:
    - Click dice to Keep (moves to top, locked for round)
    - Swipe to reroll unkept dice (2 rerolls max)
    - Quick Score panel appears on right for fast category selection
-   - Replace option available (swap kept dice with Reserve)
-4. **Scoring**: Select category from Quick Score or Score Card
-5. **Win/Lose**: 100 points in 5 rounds to win
+   - Swap option available (swap 1 active dice with Hand)
+5. **Scoring**: Select category from Quick Score or Score Card
+6. **Round End**: Active 5개가 Hand로 돌아감, Inventory에서 1개 드로우
+7. **Win/Lose**: 100 points in 5 rounds to win
 
-### Replace Mechanic
-- Select exactly 1 active dice → Replace button enabled (if Reserve > 0)
-- Press Replace → enters replace mode (action buttons hidden)
-- Click a dice from Reserve display → selected active dice is discarded, reserve dice takes its place
-- ESC to cancel replace mode
+### Swap Mechanic
+- Select exactly 1 active dice → Swap button enabled (if Hand > 0)
+- Press Swap → enters swap mode (action buttons hidden)
+- Click a dice from Hand display → selected active dice goes to Hand, Hand dice takes its place
+- ESC to cancel swap mode
 
 ### State Management
 - **GameState**: Autoload singleton for match state
@@ -101,7 +111,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 - Multiplier upgrade: Increase score multiplier
 - Persists between matches via MetaState
 
-## Godot 4.5 Conventions
+## Godot 4.6 Conventions
 
 - **GDScript style:** Use snake_case for functions/variables, PascalCase for classes
 - **Scene files:** `.tscn` (text-based scene format)
@@ -181,6 +191,49 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
   return category_type <= 5
   ```
 
+### Sanitize on Init
+데이터 유효성 검사를 사용 시점이 아닌 설정 시점에 수행하여 반복적인 방어적 코드 제거.
+
+- **설정 시점에 검증**: 생성자, 세터, 팩토리 메서드에서 검증 - 사용 시점 아님
+  ```gdscript
+  # Good - 생성 시 한 번만
+  static func create(index: int, all_dice: Array) -> Context:
+      assert(index >= 0 and index < all_dice.size(),
+          "index out of bounds")
+      # ...
+
+  # Avoid - 매번 사용할 때
+  func process() -> void:
+      if index >= 0 and index < all_dice.size():  # 불필요한 반복 검사
+          do_something()
+  ```
+- **불변성은 assert + 세터**: 구조적으로 보장되는 조건 (배열 크기, 범위 등)
+  ```gdscript
+  # @export 변수에 세터로 검증 (.tres 로딩 시에도 동작)
+  @export var face_map: Array[int] = [0, 1, 2, 3, 4, 5, 6]:
+      set(value):
+          face_map = value
+          assert(face_map.size() == 7, "face_map must have exactly 7 elements")
+          for i in range(1, 7):
+              assert(face_map[i] >= 1 and face_map[i] <= 6,
+                  "face_map[%d] must be 1-6" % i)
+  ```
+- **외부 입력은 Guard.verify**: UI, 파일, API에서 오는 데이터
+  ```gdscript
+  # 외부에서 호출되는 API
+  func start_breathing(indices: Array) -> void:
+      for i in indices:
+          if not Guard.verify(i >= 0 and i < dice_nodes.size(),
+                  "Invalid index %d" % i):
+              continue
+          dice_nodes[i].start_breathing()
+  ```
+- **데이터 계약 문서화**: 불변성을 주석으로 명시
+  ```gdscript
+  ## face_map must have exactly 7 elements (index 0 unused, 1-6 for dice faces)
+  @export var face_map: Array[int] = [0, 1, 2, 3, 4, 5, 6]
+  ```
+
 ### DRY (Don't Repeat Yourself)
 - **Generic filter functions**: Use Callable for filtering logic
   ```gdscript
@@ -223,6 +276,95 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
   signal mouse_released(position: Vector2)
   ```
 
+## Effect System (LbaL-Style)
+
+슬롯머신 로그라이크 게임 "Luck be a Landlord"에서 영감을 받은 효과 시스템.
+주사위가 일렬로 정렬되어 인접 시너지를 발생시키는 구조.
+
+### Core Classes
+
+| 클래스 | 역할 |
+|--------|------|
+| `DiceEffectResource` | 효과 베이스 클래스 (Trigger, Target enum 정의) |
+| `EffectContext` | 효과 실행 시 컨텍스트 (source_dice, all_dice 등) |
+| `EffectResult` | 효과 결과 + 시각적 피드백 정보 |
+| `EffectProcessor` | 수집→정렬→적용 파이프라인 |
+| `EffectCondition` | Resource 기반 조건 (Inspector에서 편집) |
+
+### Triggers (발동 시점)
+
+```gdscript
+enum Trigger {
+    ON_ROLL,          # 주사위 굴림 완료 후
+    ON_KEEP,          # 주사위 킵(잠금) 시
+    ON_SCORE,         # 점수 계산 시
+    ON_ADJACENT_ROLL, # 인접 주사위가 굴려졌을 때
+}
+```
+
+### Targets (효과 적용 대상)
+
+```gdscript
+enum Target {
+    SELF,           # 자신에게만 적용
+    ADJACENT,       # 좌/우 인접 주사위에 적용
+    ALL_DICE,       # 모든 활성 주사위에 적용
+    MATCHING_VALUE, # 같은 눈의 주사위에 적용
+    MATCHING_GROUP, # 같은 그룹 태그의 주사위에 적용
+}
+```
+
+### Adjacency System
+
+5개 주사위 배치에서 인접 관계:
+```
+[0] - [1] - [2] - [3] - [4]
+ └─────┘   └─────┘   └─────┘
+ adjacent  adjacent  adjacent
+```
+
+### Multi-Layer Scoring
+
+```
+final_score = (base_value + value_bonus) × value_multiplier
+              × permanent_multiplier + permanent_bonus
+```
+
+| 변수 | 지속성 | 설명 |
+|------|--------|------|
+| `value_bonus` | 라운드 | 임시 가산 |
+| `value_multiplier` | 라운드 | 임시 배수 |
+| `permanent_bonus` | 영구 | 게임 전체 가산 |
+| `permanent_multiplier` | 영구 | 게임 전체 배수 |
+
+### Visual Feedback
+
+`EffectResult`에 출처 정보 포함:
+```gdscript
+result.source_index  # 효과 발생 주사위 인덱스
+result.source_name   # 주사위 이름 (툴팁용)
+result.effect_name   # 효과 이름
+
+# DiceManager에서 시그널 발생
+signal effects_applied(effect_data: Array[Dictionary])
+# effect_data: [{from: 1, to: 2, name: "인접 보너스"}, ...]
+```
+
+### Group/Tag System
+
+```gdscript
+# DiceTypeResource
+@export var groups: Array[String] = ["gem", "valuable"]
+
+func has_group(group: String) -> bool:
+    return group in groups
+```
+
+### Reference
+
+- 로컬 문서: `docs/luckbe_a_landload_modding_docs/`
+- 원본 위키: https://github.com/TrampolineTales/LBAL-Modding-Docs/wiki
+
 ## Adding New Content
 
 ### New Dice Type
@@ -236,23 +378,41 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 3. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
 
 ### New Effect Type
+
 1. Create new class in `/globals/effects/` extending `DiceEffectResource`
-2. Add @export properties for effect parameters
-3. Override relevant methods:
-   - `apply_to_roll(base_value: int) -> int` for roll modification
-   - `get_score_multiplier() -> float` for score modification
-   - `is_wildcard_value(value: int) -> bool` for wildcard behavior
+2. Set trigger, target, priority in `_init()`
+3. Override `evaluate(context) -> EffectResult`
+
 ```gdscript
-# Example: globals/effects/lucky_seven_effect.gd
-class_name LuckySevenEffect
+# Example: globals/effects/adjacent_bonus_effect.gd
+class_name AdjacentBonusEffect
 extends DiceEffectResource
 
-@export var bonus_multiplier: float = 1.5
+@export_group("Bonus Settings")
+@export var bonus_value: int = 1
+@export var bonus_multiplier: float = 1.0
 
-func apply_to_roll(base_value: int) -> int:
-    # 7이 나올 확률 추가 (주사위는 1-6이므로 특수 처리)
-    return base_value
+func _init() -> void:
+    trigger = Trigger.ON_SCORE
+    target = Target.ADJACENT
+    priority = 200
+    effect_name = "인접 보너스"
 
-func get_score_multiplier() -> float:
-    return bonus_multiplier
+func evaluate(context) -> EffectResult:
+    var result := EffectResult.new()
+    result.value_bonus = bonus_value
+    result.value_multiplier = bonus_multiplier
+    return result
 ```
+
+### Built-in Effects
+
+| 효과 | 트리거 | 설명 |
+|------|--------|------|
+| `BiasEffect` | ON_ROLL | 특정 값들이 더 자주 나오도록 확률 조작 |
+| `FaceMapEffect` | ON_ROLL | 물리적 면 값을 다른 값으로 매핑 |
+| `ScoreMultiplierEffect` | ON_SCORE | 점수에 배수 적용 |
+| `WildcardEffect` | ON_SCORE | 특정 값일 때 와일드카드로 사용 |
+| `AdjacentBonusEffect` | ON_SCORE | 인접 주사위에 보너스 부여 |
+| `GroupBonusEffect` | ON_SCORE | 같은 그룹 주사위에 보너스 부여 |
+| `OnAdjacentRollEffect` | ON_ADJACENT_ROLL | 인접 주사위 굴림 시 자신에게 보너스 |

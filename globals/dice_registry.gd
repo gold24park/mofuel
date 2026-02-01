@@ -1,13 +1,12 @@
 extends Node
 
-const DiceTypeResourceScript = preload("res://globals/dice_type_resource.gd")
-const DiceInstanceScript = preload("res://globals/dice_instance.gd")
-
 var dice_types: Dictionary = {}  # id -> DiceTypeResource
+var _error_type: DiceTypeResource = null
 
 
 func _ready():
 	_load_all_dice_types()
+	_error_type = dice_types.get("_error")
 
 
 func _load_all_dice_types():
@@ -24,7 +23,7 @@ func _load_all_dice_types():
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.ends_with(".tres"):
 			var res = load(path + file_name)
-			if res != null and res.get_script() == DiceTypeResourceScript:
+			if res is DiceTypeResource:
 				dice_types[res.id] = res
 				print("DiceRegistry: Loaded dice type: ", res.id)
 		file_name = dir.get_next()
@@ -33,11 +32,11 @@ func _load_all_dice_types():
 	print("DiceRegistry: Loaded ", dice_types.size(), " dice types")
 
 
-func get_dice_type(id: String) -> Resource:
+func get_dice_type(id: String) -> DiceTypeResource:
 	if dice_types.has(id):
 		return dice_types[id]
-	push_warning("DiceRegistry: Unknown dice type: " + id)
-	return null
+	push_error("DiceRegistry: Unknown dice type: " + id)
+	return _error_type
 
 
 func get_all_types() -> Array:
@@ -55,9 +54,14 @@ func get_all_by_rarity(target_rarity: int) -> Array:
 	return result
 
 
-func create_instance(type_id: String):
-	var dice_type = get_dice_type(type_id)
-	if dice_type:
-		var instance = DiceInstanceScript.new()
-		return instance.init_with_type(dice_type)
-	return null
+func create_instance(type_id: String) -> DiceInstance:
+	var dice_type := get_dice_type(type_id)
+	# get_dice_type은 실패 시 _error_type 반환
+	# _error_type도 null이면 (error.tres 로드 실패) 치명적 오류
+	assert(dice_type != null, "DiceRegistry: Both requested type and error type are null")
+	return DiceInstance.new(dice_type)
+
+
+## 에러 주사위인지 확인 (디버깅/UI용)
+func is_error_dice(instance: DiceInstance) -> bool:
+	return instance != null and instance.type == _error_type

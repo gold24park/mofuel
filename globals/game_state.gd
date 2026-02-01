@@ -5,14 +5,15 @@ signal score_changed(score: int)
 signal round_changed(round_num: int)
 signal rerolls_changed(remaining: int)
 signal inventory_changed()
-signal reserve_changed()
+signal hand_changed()
 signal active_changed()
 signal game_over(won: bool)
+signal show_scoring_options(dice: Array)  ## UI에 스코어링 옵션 표시 요청
 
 enum Phase { SETUP, ROUND_START, ACTION, SCORING }
 
 var inventory: Array[DiceInstance] = []
-var reserve: Array[DiceInstance] = []
+var hand: Array[DiceInstance] = []  ## 매 라운드 Active 선택 풀
 var active_dice: Array[DiceInstance] = []
 var active_values: Array[int] = [0, 0, 0, 0, 0]
 
@@ -22,6 +23,8 @@ var total_score: int = 0
 var target_score: int = 100
 var current_round: int = 0
 var max_rounds: int = 5
+var _swap_used: bool = false  ## 라운드당 1회 Swap 사용 여부
+var is_transitioning: bool = false  ## 라운드 전환 중 입력 차단
 
 
 func _ready():
@@ -35,12 +38,13 @@ func start_new_game():
 
 func _init_inventory():
 	inventory.clear()
-	reserve.clear()
+	hand.clear()
 	active_dice.clear()
 	active_values = [0, 0, 0, 0, 0]
 	total_score = 0
 	current_round = 0
 	rerolls_remaining = 2
+	_swap_used = false
 
 	# 초기 인벤토리 구성
 	for entry in DiceTypes.STARTING_INVENTORY:
@@ -62,47 +66,92 @@ func _setup_phase():
 	current_phase = Phase.SETUP
 	phase_changed.emit(current_phase)
 
-	# 7개를 Reserve로 Draw
+	# 7개를 Hand로 Draw
 	for i in range(7):
 		if inventory.size() > 0:
-			reserve.append(inventory.pop_front())
+			hand.append(inventory.pop_front())
 
-	reserve_changed.emit()
+	hand_changed.emit()
 	inventory_changed.emit()
 
-	# 5개를 Active로 배치
-	for i in range(5):
-		if reserve.size() > 0:
-			active_dice.append(reserve.pop_front())
-
-	active_changed.emit()
-	reserve_changed.emit()
-
-	# Round Start로 전환
+	# 첫 라운드 시작
 	_start_round()
 
 
 func _start_round():
 	current_round += 1
-	round_changed.emit(current_round)
+
+	# Active 주사위를 Hand로 복귀 (첫 라운드가 아닌 경우)
+	_return_active_to_hand()
 
 	# Draw Phase: Inventory에서 1개 Draw
 	if inventory.size() > 0:
-		reserve.append(inventory.pop_front())
-		reserve_changed.emit()
+		hand.append(inventory.pop_front())
+		hand_changed.emit()
 		inventory_changed.emit()
+
+	# Hand에서 랜덤 5개를 Active로 선택
+	_select_random_active()
 
 	current_phase = Phase.ROUND_START
 	rerolls_remaining = 2
+	_swap_used = false
+
+	# 모든 데이터 준비 후 시그널 발생
+	round_changed.emit(current_round)
 	rerolls_changed.emit(rerolls_remaining)
 	phase_changed.emit(current_phase)
 
 
+func _return_active_to_hand() -> void:
+	for dice in active_dice:
+		hand.append(dice)
+	active_dice.clear()
+	hand_changed.emit()
+
+
+func _select_random_active() -> void:
+	hand.shuffle()
+	for i in range(5):
+		if hand.size() > 0:
+			active_dice.append(hand.pop_front())
+	active_changed.emit()
+	hand_changed.emit()
+
+
+#region Swap (첫 굴림 전 1회)
+func can_swap() -> bool:
+	return current_phase == Phase.ROUND_START and not _swap_used and hand.size() > 0 and not is_transitioning
+
+
+func swap_dice(active_index: int, hand_index: int) -> bool:
+	if not can_swap():
+		return false
+	if active_index < 0 or active_index >= active_dice.size():
+		return false
+	if hand_index < 0 or hand_index >= hand.size():
+		return false
+
+	# Active ↔ Hand 교환
+	var temp = active_dice[active_index]
+	active_dice[active_index] = hand[hand_index]
+	hand[hand_index] = temp
+
+	_swap_used = true
+	active_changed.emit()
+	hand_changed.emit()
+	return true
+#endregion
+
+
+#region Roll
 func roll_dice():
+	if is_transitioning:
+		return
 	if current_phase != Phase.ROUND_START and current_phase != Phase.ACTION:
 		return
 
-	# 다음 페이즈로 전환
+	# 다음 페이즈로 전환 (Swap 불가)
 	current_phase = Phase.ACTION
 	phase_changed.emit(current_phase)
 
@@ -110,6 +159,13 @@ func roll_dice():
 func on_dice_results(values: Array[int]):
 	active_values = values
 	active_changed.emit()
+
+	# 게임 규칙: 리롤 불가 시 자동으로 스코어링 단계로 전환
+	if not can_reroll():
+		end_turn()
+	else:
+		# UI에 스코어링 옵션 표시 요청
+		show_scoring_options.emit(active_dice)
 
 
 func reroll_dice(_indices: Array) -> bool:
@@ -121,29 +177,12 @@ func reroll_dice(_indices: Array) -> bool:
 	return true
 
 
-func replace_dice(active_index: int, reserve_index: int) -> bool:
-	if current_phase != Phase.ACTION:
-		return false
-	if reserve.size() == 0:
-		return false
-	if active_index < 0 or active_index >= active_dice.size():
-		return false
-	if reserve_index < 0 or reserve_index >= reserve.size():
-		return false
-
-	# Active에서 제거 (영구 제거)
-	active_dice.remove_at(active_index)
-
-	# Reserve에서 Active로 이동
-	var new_dice = reserve[reserve_index]
-	reserve.remove_at(reserve_index)
-	active_dice.insert(active_index, new_dice)
-
-	active_changed.emit()
-	reserve_changed.emit()
-	return true
+func can_reroll() -> bool:
+	return current_phase == Phase.ACTION and rerolls_remaining > 0 and not is_transitioning
+#endregion
 
 
+#region Turn & Scoring
 func end_turn():
 	current_phase = Phase.SCORING
 	phase_changed.emit(current_phase)
@@ -170,23 +209,18 @@ func record_score(category_id: String, score: int):
 
 		# 다음 라운드
 		_start_round()
+#endregion
 
 
+#region Getters
 func get_active_dice_count() -> int:
 	return active_dice.size()
 
 
-func get_reserve_count() -> int:
-	return reserve.size()
+func get_hand_count() -> int:
+	return hand.size()
 
 
 func get_inventory_count() -> int:
 	return inventory.size()
-
-
-func can_replace() -> bool:
-	return current_phase == Phase.ACTION and reserve.size() > 0
-
-
-func can_reroll() -> bool:
-	return current_phase == Phase.ACTION and rerolls_remaining > 0
+#endregion
