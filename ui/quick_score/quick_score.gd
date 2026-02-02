@@ -184,6 +184,6 @@ func _on_option_unhovered() -> void:
 
 
 func _on_phase_changed(phase: int) -> void:
-	# SCORING 페이즈로 넘어가면 숨김
-	if phase != GameState.Phase.ACTION:
+	# POST_ROLL이 아니면 숨김 (SCORING, ROLLING 등)
+	if phase != GameState.Phase.POST_ROLL:
 		hide_options()

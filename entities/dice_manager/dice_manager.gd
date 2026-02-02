@@ -233,9 +233,9 @@ func _on_dice_clicked(dice_index: int) -> void:
 	if GameState.is_transitioning:
 		return
 
-	# ROUND_START (Swap용) 또는 ACTION (Reroll용)에서만 선택 가능
+	# PRE_ROLL (Swap용) 또는 POST_ROLL (Reroll용)에서만 선택 가능
 	var phase := GameState.current_phase
-	if phase != GameState.Phase.ROUND_START and phase != GameState.Phase.ACTION:
+	if phase != GameState.Phase.PRE_ROLL and phase != GameState.Phase.POST_ROLL:
 		return
 
 	# 선택 토글

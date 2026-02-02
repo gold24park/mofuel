@@ -33,8 +33,8 @@ func _on_transitioning_changed(_is_transitioning: bool) -> void:
 
 
 func _update_visibility() -> void:
-	# ROUND_START이고 전환 애니메이션 중이 아닐 때만 표시
-	var should_show := GameState.current_phase == GameState.Phase.ROUND_START and not GameState.is_transitioning
+	# PRE_ROLL이고 전환 애니메이션 중이 아닐 때만 표시
+	var should_show := GameState.current_phase == GameState.Phase.PRE_ROLL and not GameState.is_transitioning
 	visible = should_show
 	if should_show:
 		_pulse_time = 0.0

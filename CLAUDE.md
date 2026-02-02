@@ -43,6 +43,16 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     effect_processor.gd   # 수집→정렬→적용 파이프라인
     effect_condition.gd   # 조건부 효과 (Resource)
     composite_condition.gd # AND/OR 복합 조건
+    /state_machine/       # Game state machine
+      game_state_machine.gd   # State machine controller
+      game_state_base.gd      # Base state class
+      /states/
+        setup_state.gd        # 게임 초기화
+        pre_roll_state.gd     # 첫 굴림 전 (Swap 가능)
+        rolling_state.gd      # 물리 시뮬레이션 중
+        post_roll_state.gd    # 굴린 후 (Keep/Reroll/Score)
+        scoring_state.gd      # 카테고리 선택
+        game_over_state.gd    # 승/패 결과
     /effects/             # Dice effect subclasses
       bias_effect.gd
       score_multiplier_effect.gd
@@ -77,28 +87,62 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 
 ### Game Flow
-1. **Game Start**: Inventory에서 Hand로 주사위 드로우 (초기 7개)
-2. **Round Start**: Hand에서 랜덤하게 5개를 Active로 뽑아옴
-3. **Roll**: Swipe to roll all 5 dice (direction/speed affects throw)
-4. **Action**:
-   - Click dice to Keep (moves to top, locked for round)
-   - Swipe to reroll unkept dice (2 rerolls max)
-   - Quick Score panel appears on right for fast category selection
-   - Swap option available (swap 1 active dice with Hand)
-5. **Scoring**: Select category from Quick Score or Score Card
-6. **Round End**: Active 5개가 Hand로 돌아감, Inventory에서 1개 드로우
-7. **Win/Lose**: 100 points in 5 rounds to win
+1. **SETUP**: 게임 초기화, Inventory에서 Hand로 주사위 드로우 (초기 7개)
+2. **PRE_ROLL**: Hand에서 랜덤 5개를 Active로 배치, Swap 가능 (1회)
+3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
+4. **POST_ROLL**:
+   - Click dice to select for reroll
+   - Reroll selected dice (최대 2회)
+   - Quick Score panel로 빠른 점수 선택 가능
+5. **SCORING**: Select category from Quick Score or Score Card
+6. **라운드 전환**: Active 5개가 Hand로 돌아감, Inventory에서 1개 드로우 → PRE_ROLL
+7. **GAME_OVER**: 100 points in 5 rounds to win
 
 ### Swap Mechanic
+- **PRE_ROLL 상태에서만 가능** (첫 굴림 전)
 - Select exactly 1 active dice → Swap button enabled (if Hand > 0)
-- Press Swap → enters swap mode (action buttons hidden)
+- Press Swap → enters swap mode (SubState.SWAP_SELECT)
 - Click a dice from Hand display → selected active dice goes to Hand, Hand dice takes its place
 - ESC to cancel swap mode
 
 ### State Management
-- **GameState**: Autoload singleton for match state
+
+**State Machine 기반 게임 흐름 관리:**
+
+```
+enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
+```
+
+| Phase | 설명 | 허용 액션 |
+|-------|------|-----------|
+| `SETUP` | 게임 초기화 (1회성) | - |
+| `PRE_ROLL` | 첫 굴림 전 | Swap, Roll |
+| `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
+| `POST_ROLL` | 굴린 후 | Keep, Reroll, Score |
+| `SCORING` | ScoreCard에서 카테고리 선택 | Score 선택 |
+| `GAME_OVER` | 승/패 결과 | Restart, Upgrade |
+
+**상태 전환 흐름:**
+```
+SetupState → PreRollState → RollingState → PostRollState
+                 ↑              ↑               │
+                 │              └───(reroll)────┤
+                 │                              │
+                 └──────────────────────────────┤
+                                                ↓
+                                         ScoringState
+                                                │
+                                    ┌───────────┴───────────┐
+                                    ↓                       ↓
+                              PreRollState            GameOverState
+                              (다음 라운드)
+```
+
+**핵심 클래스:**
+- **GameStateMachine**: 상태 전환 관리, game.tscn의 자식 노드
+- **GameStateBase**: 상태 베이스 클래스 (enter/exit/update/handle_input)
+- **GameState**: Autoload singleton for match data (Phase, score, rerolls 등)
 - **MetaState**: Autoload singleton for upgrades (persists between matches)
-- **Signal-based**: UI reacts to state changes via signals
 
 ### Dice Type System
 - Resource-based architecture for 100+ dice types

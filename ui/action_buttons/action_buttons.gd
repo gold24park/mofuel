@@ -31,14 +31,14 @@ func set_selected_count(count: int):
 func _update_buttons():
 	var phase = GameState.current_phase
 
-	# Swap: ROUND_START에서만 표시 (첫 굴림 전)
-	swap_button.visible = phase == GameState.Phase.ROUND_START
+	# Swap: PRE_ROLL에서만 표시 (첫 굴림 전)
+	swap_button.visible = phase == GameState.Phase.PRE_ROLL
 	swap_button.disabled = not GameState.can_swap() or _selected_count != 1
 	swap_button.text = "Swap" if GameState.can_swap() else "Swap (used)"
 
-	# Reroll, End Turn: ACTION에서만 표시
-	reroll_button.visible = phase == GameState.Phase.ACTION
-	end_turn_button.visible = phase == GameState.Phase.ACTION
+	# Reroll, End Turn: POST_ROLL에서만 표시
+	reroll_button.visible = phase == GameState.Phase.POST_ROLL
+	end_turn_button.visible = phase == GameState.Phase.POST_ROLL
 
 	reroll_button.disabled = not GameState.can_reroll() or _selected_count == 0
 

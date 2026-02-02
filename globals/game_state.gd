@@ -12,7 +12,7 @@ signal game_over(won: bool)
 signal show_scoring_options(dice: Array)  ## UI에 스코어링 옵션 표시 요청
 signal transitioning_changed(is_transitioning: bool)  ## 전환 애니메이션 상태 변경
 
-enum Phase { SETUP, ROUND_START, ACTION, SCORING }
+enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
 
 var inventory_manager := InventoryManager.new()
 
@@ -42,48 +42,36 @@ func _ready():
 	inventory_manager.active_changed.connect(func(): active_changed.emit())
 
 
+## 새 게임 데이터 초기화 (State Machine에서 호출)
 func start_new_game():
 	inventory_manager.init_starting_deck()
 	total_score = 0
 	current_round = 0
 	rerolls_remaining = 2
 	swaps_remaining = 1
-	
+
 	# MetaState의 사용 횟수 리셋
 	MetaState.reset_all_uses()
-	
-	_setup_phase()
-
-
-func _setup_phase():
-	current_phase = Phase.SETUP
-	phase_changed.emit(current_phase)
 
 	# 초기 핸드 드로우
 	inventory_manager.draw_initial_hand(7)
 
-	# 첫 라운드 시작
-	_start_round()
+	# 첫 라운드 데이터 준비
+	_prepare_first_round()
 
 
-func _start_round():
-	current_round += 1
-
-	# Active 주사위를 Hand로 복귀 (첫 라운드가 아닌 경우)
-	if current_round > 1:
-		inventory_manager.return_active_to_hand()
-
-	# Draw Phase: Inventory에서 1개 Draw
-	inventory_manager.draw_to_hand(1)
+## 첫 라운드 데이터 준비 (start_new_game에서 호출)
+func _prepare_first_round():
+	current_round = 1
 
 	# Hand에서 랜덤 5개를 Active로 선택
 	inventory_manager.select_random_active(5)
 
-	current_phase = Phase.ROUND_START
+	current_phase = Phase.PRE_ROLL
 	rerolls_remaining = 2
 	swaps_remaining = 1
 
-	# 모든 데이터 준비 후 시그널 발생
+	# 시그널 발생 (UI 갱신용)
 	round_changed.emit(current_round)
 	rerolls_changed.emit(rerolls_remaining)
 	swaps_changed.emit(swaps_remaining)
@@ -92,7 +80,7 @@ func _start_round():
 
 #region Swap (첫 굴림 전 1회)
 func can_swap() -> bool:
-	return current_phase == Phase.ROUND_START and swaps_remaining > 0 and hand.size() > 0 and not is_transitioning
+	return current_phase == Phase.PRE_ROLL and swaps_remaining > 0 and hand.size() > 0 and not is_transitioning
 
 
 func swap_dice(active_index: int, hand_index: int) -> bool:
@@ -111,15 +99,17 @@ func swap_dice(active_index: int, hand_index: int) -> bool:
 func roll_dice():
 	if is_transitioning:
 		return
-	if current_phase != Phase.ROUND_START and current_phase != Phase.ACTION:
+	if current_phase != Phase.PRE_ROLL and current_phase != Phase.POST_ROLL:
 		return
 
 	# 다음 페이즈로 전환 (Swap 불가)
-	current_phase = Phase.ACTION
+	current_phase = Phase.ROLLING
 	phase_changed.emit(current_phase)
 
 
-func on_dice_results(values: Array[int]):
+func on_dice_results(_values: Array[int]):
+	current_phase = Phase.POST_ROLL
+	phase_changed.emit(current_phase)
 	active_changed.emit()
 
 	# 게임 규칙: 리롤 불가 시 자동으로 스코어링 단계로 전환
@@ -131,16 +121,18 @@ func on_dice_results(values: Array[int]):
 
 
 func reroll_dice(_indices: Array) -> bool:
-	if current_phase != Phase.ACTION or rerolls_remaining <= 0:
+	if current_phase != Phase.POST_ROLL or rerolls_remaining <= 0:
 		return false
 
 	rerolls_remaining -= 1
 	rerolls_changed.emit(rerolls_remaining)
+	current_phase = Phase.ROLLING
+	phase_changed.emit(current_phase)
 	return true
 
 
 func can_reroll() -> bool:
-	return current_phase == Phase.ACTION and rerolls_remaining > 0 and not is_transitioning
+	return current_phase == Phase.POST_ROLL and rerolls_remaining > 0 and not is_transitioning
 #endregion
 
 
@@ -150,27 +142,51 @@ func end_turn():
 	phase_changed.emit(current_phase)
 
 
-func record_score(category_id: String, score: int):
+## 점수 기록 (State Machine이 전환을 관리하므로 _start_round 호출하지 않음)
+## @return 점수가 성공적으로 기록되었는지
+func record_score(category_id: String, score: int) -> bool:
 	var upgrade = MetaState.get_upgrade(category_id)
-	if upgrade and upgrade.can_use():
-		# 배수 적용
-		var multiplied_score = int(score * upgrade.get_total_multiplier())
-		total_score += multiplied_score
-		upgrade.use()
-		score_changed.emit(total_score)
+	if not upgrade or not upgrade.can_use():
+		return false
 
-		# 승리 체크
-		if total_score >= target_score:
-			game_over.emit(true)
-			return
+	# 배수 적용
+	var multiplied_score = int(score * upgrade.get_total_multiplier())
+	total_score += multiplied_score
+	upgrade.use()
+	score_changed.emit(total_score)
+	return true
 
-		# 라운드 체크
-		if current_round >= max_rounds:
-			game_over.emit(false)
-			return
 
-		# 다음 라운드
-		_start_round()
+## 게임 종료 체크 (UI 시그널 발생용)
+func check_game_over() -> void:
+	if total_score >= target_score:
+		game_over.emit(true)
+	elif current_round >= max_rounds:
+		game_over.emit(false)
+
+
+## 다음 라운드 데이터 준비 (애니메이션 후 호출, 시그널 없이 데이터만 변경)
+func start_next_round_data() -> void:
+	current_round += 1
+
+	# Active 주사위를 Hand로 복귀
+	inventory_manager.return_active_to_hand()
+
+	# Draw Phase: Inventory에서 1개 Draw
+	inventory_manager.draw_to_hand(1)
+
+	# Hand에서 랜덤 5개를 Active로 선택
+	inventory_manager.select_random_active(5)
+
+	current_phase = Phase.PRE_ROLL
+	rerolls_remaining = 2
+	swaps_remaining = 1
+
+	# 시그널 발생 (UI 갱신용)
+	round_changed.emit(current_round)
+	rerolls_changed.emit(rerolls_remaining)
+	swaps_changed.emit(swaps_remaining)
+	phase_changed.emit(current_phase)
 #endregion
 
 

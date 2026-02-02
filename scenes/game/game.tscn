@@ -1,6 +1,13 @@
 [gd_scene format=3 uid="uid://c8m2k4l7xpqvr"]
 
 [ext_resource type="Script" uid="uid://dqnnqwtb4yhr" path="res://scenes/game/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
+[ext_resource type="Script" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
+[ext_resource type="Script" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
+[ext_resource type="Script" path="res://globals/state_machine/states/rolling_state.gd" id="rolling_state"]
+[ext_resource type="Script" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
+[ext_resource type="Script" path="res://globals/state_machine/states/scoring_state.gd" id="scoring_state"]
+[ext_resource type="Script" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
 [ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://entities/table/table.tscn" id="2_table"]
 [ext_resource type="PackedScene" uid="uid://djq8m2fk7xc5l" path="res://entities/dice_manager/dice_manager.tscn" id="3_dice_manager"]
 [ext_resource type="PackedScene" uid="uid://cw8m5hvp2ql7r" path="res://ui/hud/hud.tscn" id="4_hud"]
@@ -114,3 +121,25 @@ grow_vertical = 2
 [node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]
 
 [node name="InventoryDeck" parent="CanvasLayer" unique_id=334932875 instance=ExtResource("14_inventory_deck")]
+
+[node name="StateMachine" type="Node" parent="."]
+script = ExtResource("state_machine")
+initial_state_name = "SetupState"
+
+[node name="SetupState" type="Node" parent="StateMachine"]
+script = ExtResource("setup_state")
+
+[node name="PreRollState" type="Node" parent="StateMachine"]
+script = ExtResource("pre_roll_state")
+
+[node name="RollingState" type="Node" parent="StateMachine"]
+script = ExtResource("rolling_state")
+
+[node name="PostRollState" type="Node" parent="StateMachine"]
+script = ExtResource("post_roll_state")
+
+[node name="ScoringState" type="Node" parent="StateMachine"]
+script = ExtResource("scoring_state")
+
+[node name="GameOverState" type="Node" parent="StateMachine"]
+script = ExtResource("game_over_state")
