@@ -131,7 +131,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 - **Globals (globals/)**: State management, registries, pure logic (no UI/visuals)
 
 ### Code Style
-- **Private variables**: Prefix with `_` (e.g., `_replace_mode`, `_cached_values`)
+- **Private variables**: Prefix with `_` (e.g., `_swap_mode`, `_cached_values`)
 - **Typed arrays/dictionaries**: Use `Array[int]`, `Dictionary[String, Resource]` instead of untyped collections
   ```gdscript
   # Good - type-safe
@@ -263,7 +263,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ### Mobile Considerations
 - Touch input: Track first touch index only (`event.index == 0`) to avoid multi-touch glitches
 - Swipe detection: Exclude UI margins (top/bottom) from swipe zone
-- Use `set_enabled()` pattern to disable input during modal states (e.g., Replace mode)
+- Use `set_enabled()` pattern to disable input during modal states (e.g., Swap mode)
 
 ### Signal Design
 - Emit rich data when effects need visual feedback

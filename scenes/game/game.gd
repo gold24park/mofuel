@@ -13,9 +13,13 @@ extends Control
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
 
-var _swap_mode: bool = false
+enum InputState {
+	NORMAL,
+	SWAP_SELECT
+}
+
+var _input_state: InputState = InputState.NORMAL
 var _swap_active_index: int = -1
-var _is_first_round: bool = true
 var _prev_active_dice: Array = []  ## 이전 라운드의 active dice (애니메이션용)
 
 
@@ -45,8 +49,8 @@ func _ready():
 
 
 func _start_game():
-	_is_first_round = true
 	GameState.start_new_game()
+	_change_input_state(InputState.NORMAL)
 	# 첫 라운드는 _on_round_changed에서 애니메이션과 함께 처리
 
 
@@ -66,33 +70,41 @@ func _on_swap_pressed():
 	if selected.size() != 1 or not GameState.can_swap():
 		return
 
-	_swap_mode = true
 	_swap_active_index = selected[0]
-	hand_display.enter_replace_mode()  # 메서드명 유지
-	action_buttons.visible = false
+	_change_input_state(InputState.SWAP_SELECT)
 
 
 func _on_hand_dice_selected(hand_index: int):
-	if not _swap_mode:
-		return
+	match _input_state:
+		InputState.NORMAL:
+			pass
+		InputState.SWAP_SELECT:
+			_handle_swap_selection(hand_index)
 
+
+func _handle_swap_selection(hand_index: int):
 	# Swap 실행
-	if not GameState.swap_dice(_swap_active_index, hand_index):
-		_exit_swap_mode()
-		return
-
-	_sync_dice_instances()
-	dice_manager.clear_selection()
-
-	# Swap 모드 종료
-	_exit_swap_mode()
+	if GameState.swap_dice(_swap_active_index, hand_index):
+		_sync_dice_instances()
+		dice_manager.clear_selection()
+	
+	# 성공하든 실패하든 시도 후엔 모드 종료
+	_change_input_state(InputState.NORMAL)
 
 
-func _exit_swap_mode():
-	_swap_mode = false
-	_swap_active_index = -1
-	hand_display.exit_replace_mode()  # 메서드명 유지
-	action_buttons.visible = true
+func _change_input_state(new_state: InputState):
+	_input_state = new_state
+	
+	match _input_state:
+		InputState.NORMAL:
+			_swap_active_index = -1
+			hand_display.exit_swap_mode()
+			action_buttons.visible = true
+		
+		InputState.SWAP_SELECT:
+			hand_display.enter_swap_mode()
+			action_buttons.visible = false
+
 
 
 #region Roll Handling
@@ -183,7 +195,7 @@ func _play_round_transition() -> void:
 	hand_display.enter_manual_mode()
 
 	# 1. Round End: Active -> Hand (Return)
-	if not _is_first_round:
+	if GameState.current_round > 1:
 		await _animate_return_to_hand()
 
 	# 2. Draw Phase: Inventory -> Hand
@@ -203,7 +215,6 @@ func _play_round_transition() -> void:
 
 	# 5. Cleanup
 	hand_display.exit_manual_mode()
-	_is_first_round = false
 	GameState.is_transitioning = false
 	dice_manager.clear_selection()
 

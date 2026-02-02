@@ -4,6 +4,7 @@ signal phase_changed(phase: int)
 signal score_changed(score: int)
 signal round_changed(round_num: int)
 signal rerolls_changed(remaining: int)
+signal swaps_changed(remaining: int)
 signal inventory_changed()
 signal hand_changed()
 signal active_changed()
@@ -13,9 +14,12 @@ signal transitioning_changed(is_transitioning: bool)  ## 전환 애니메이션 
 
 enum Phase { SETUP, ROUND_START, ACTION, SCORING }
 
-var inventory: Array[DiceInstance] = []
-var hand: Array[DiceInstance] = []  ## 매 라운드 Active 선택 풀
-var active_dice: Array[DiceInstance] = []
+var inventory_manager := InventoryManager.new()
+
+# 기존 호환성을 위한 Getter들
+var inventory: Array[DiceInstance]: get = _get_inventory
+var hand: Array[DiceInstance]: get = _get_hand
+var active_dice: Array[DiceInstance]: get = _get_active_dice
 
 var current_phase: int = Phase.SETUP
 var rerolls_remaining: int = 2
@@ -23,7 +27,7 @@ var total_score: int = 0
 var target_score: int = 100
 var current_round: int = 0
 var max_rounds: int = 5
-var _swap_used: bool = false  ## 라운드당 1회 Swap 사용 여부
+var swaps_remaining: int = 1  ## 라운드당 남은 Swap 횟수
 var is_transitioning: bool = false:  ## 라운드 전환 중 입력 차단
 	set(value):
 		if is_transitioning != value:
@@ -31,47 +35,32 @@ var is_transitioning: bool = false:  ## 라운드 전환 중 입력 차단
 			transitioning_changed.emit(value)
 
 
+func _ready():
+	# 인벤토리 매니저 신호 연결
+	inventory_manager.inventory_changed.connect(func(): inventory_changed.emit())
+	inventory_manager.hand_changed.connect(func(): hand_changed.emit())
+	inventory_manager.active_changed.connect(func(): active_changed.emit())
+
+
 func start_new_game():
-	_init_inventory()
-	_setup_phase()
-
-
-func _init_inventory():
-	inventory.clear()
-	hand.clear()
-	active_dice.clear()
+	inventory_manager.init_starting_deck()
 	total_score = 0
 	current_round = 0
 	rerolls_remaining = 2
-	_swap_used = false
-
-	# 초기 인벤토리 구성
-	for entry in DiceTypes.STARTING_INVENTORY:
-		var type_id: String = entry[0]
-		var count: int = entry[1]
-		for i in range(count):
-			var dice = DiceRegistry.create_instance(type_id)
-			if dice:
-				inventory.append(dice)
-
-	inventory.shuffle()
-	inventory_changed.emit()
-
+	swaps_remaining = 1
+	
 	# MetaState의 사용 횟수 리셋
 	MetaState.reset_all_uses()
+	
+	_setup_phase()
 
 
 func _setup_phase():
 	current_phase = Phase.SETUP
 	phase_changed.emit(current_phase)
 
-	# 7개를 Hand로 Draw
-	for i in range(7):
-		if inventory.size() > 0:
-			hand.append(inventory.pop_front())
-
-	hand_changed.emit()
-	inventory_changed.emit()
+	# 초기 핸드 드로우
+	inventory_manager.draw_initial_hand(7)
 
 	# 첫 라운드 시작
 	_start_round()
@@ -81,65 +70,40 @@ func _start_round():
 	current_round += 1
 
 	# Active 주사위를 Hand로 복귀 (첫 라운드가 아닌 경우)
-	_return_active_to_hand()
+	if current_round > 1:
+		inventory_manager.return_active_to_hand()
 
 	# Draw Phase: Inventory에서 1개 Draw
-	if inventory.size() > 0:
-		hand.append(inventory.pop_front())
-		hand_changed.emit()
-		inventory_changed.emit()
+	inventory_manager.draw_to_hand(1)
 
 	# Hand에서 랜덤 5개를 Active로 선택
-	_select_random_active()
+	inventory_manager.select_random_active(5)
 
 	current_phase = Phase.ROUND_START
 	rerolls_remaining = 2
-	_swap_used = false
+	swaps_remaining = 1
 
 	# 모든 데이터 준비 후 시그널 발생
 	round_changed.emit(current_round)
 	rerolls_changed.emit(rerolls_remaining)
+	swaps_changed.emit(swaps_remaining)
 	phase_changed.emit(current_phase)
-
-
-func _return_active_to_hand() -> void:
-	for dice in active_dice:
-		hand.append(dice)
-	active_dice.clear()
-	hand_changed.emit()
-
-
-func _select_random_active() -> void:
-	hand.shuffle()
-	for i in range(5):
-		if hand.size() > 0:
-			active_dice.append(hand.pop_front())
-	active_changed.emit()
-	hand_changed.emit()
 
 
 #region Swap (첫 굴림 전 1회)
 func can_swap() -> bool:
-	return current_phase == Phase.ROUND_START and not _swap_used and hand.size() > 0 and not is_transitioning
+	return current_phase == Phase.ROUND_START and swaps_remaining > 0 and hand.size() > 0 and not is_transitioning
 
 
 func swap_dice(active_index: int, hand_index: int) -> bool:
 	if not can_swap():
 		return false
-	if active_index < 0 or active_index >= active_dice.size():
-		return false
-	if hand_index < 0 or hand_index >= hand.size():
-		return false
 
-	# Active ↔ Hand 교환
-	var temp = active_dice[active_index]
-	active_dice[active_index] = hand[hand_index]
-	hand[hand_index] = temp
-
-	_swap_used = true
-	active_changed.emit()
-	hand_changed.emit()
-	return true
+	if inventory_manager.swap_dice(active_index, hand_index):
+		swaps_remaining -= 1
+		swaps_changed.emit(swaps_remaining)
+		return true
+	return false
 #endregion
 
 
@@ -210,11 +174,15 @@ func record_score(category_id: String, score: int):
 #endregion
 
 
-#region Getters
+#region Getters/Setters
+func _get_inventory() -> Array[DiceInstance]: return inventory_manager.inventory
+func _get_hand() -> Array[DiceInstance]: return inventory_manager.hand
+func _get_active_dice() -> Array[DiceInstance]: return inventory_manager.active_dice
+
 func get_hand_count() -> int:
-	return hand.size()
+	return inventory_manager.get_hand_count()
 
 
 func get_inventory_count() -> int:
-	return inventory.size()
+	return inventory_manager.get_inventory_count()
 #endregion
