@@ -6,7 +6,7 @@ extends Node
 signal transitioned(state: GameStateBase, new_state_name: String)
 
 var state_machine: GameStateMachine
-var game_root: Control  # 메인 게임 씬 참조 (UI, DiceManager 접근용)
+var game_root: Control # 메인 게임 씬 참조 (UI, DiceManager 접근용)
 
 
 ## 상태 진입 시 1회 호출

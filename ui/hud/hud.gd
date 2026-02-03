@@ -2,7 +2,7 @@ extends Control
 
 @onready var round_label: Label = $MarginContainer/HBoxContainer/RoundLabel
 @onready var inventory_label: Label = $MarginContainer/HBoxContainer/InventoryLabel
-@onready var hand_label: Label = $MarginContainer/HBoxContainer/ReserveLabel  ## 노드명 유지
+@onready var hand_label: Label = $MarginContainer/HBoxContainer/ReserveLabel ## 노드명 유지
 @onready var score_label: Label = $MarginContainer/HBoxContainer/ScoreLabel
 @onready var rerolls_label: Label = $MarginContainer/HBoxContainer/RerollsLabel
 
@@ -30,11 +30,11 @@ func _on_round_changed(round_num: int):
 
 
 func _on_inventory_changed():
-	inventory_label.text = "Inventory: %d" % GameState.get_inventory_count()
+	inventory_label.text = "Inventory: %d" % GameState.inventory_manager.get_inventory_count()
 
 
 func _on_hand_changed():
-	hand_label.text = "Hand: %d" % GameState.get_hand_count()
+	hand_label.text = "Hand: %d" % GameState.inventory_manager.get_hand_count()
 
 
 func _on_score_changed(score: int):

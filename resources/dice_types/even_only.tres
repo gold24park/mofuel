@@ -1,12 +1,13 @@
 [gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://cp57uskceuosb"]
 
 [ext_resource type="Script" uid="uid://x0wl6e0jnrlu" path="res://globals/dice_type_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://bipv0hglf0ram" path="res://globals/dice_effect_resource.gd" id="1_dxips"]
 [ext_resource type="Script" uid="uid://bxnou0r2hyoxy" path="res://globals/effects/face_map_effect.gd" id="2"]
 [ext_resource type="Texture2D" uid="uid://1bdeu3kvc4ss" path="res://assets/dice/uv/dice_uv_even.png" id="3"]
 
 [sub_resource type="Resource" id="face_map_effect"]
 script = ExtResource("2")
-face_map = [0, 2, 2, 4, 4, 6, 6]
+face_map = Array[int]([0, 2, 2, 4, 4, 6, 6])
 
 [resource]
 script = ExtResource("1")
@@ -14,4 +15,4 @@ id = "even_only"
 display_name = "짝수 주사위"
 description = "2, 4, 6만 나옵니다"
 texture = ExtResource("3")
-effects = [SubResource("face_map_effect")]
+effects = Array[ExtResource("1_dxips")]([SubResource("face_map_effect")])

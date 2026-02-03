@@ -91,8 +91,8 @@ func _get_compare_value() -> Variant:
 
 
 ## 디버그용 문자열
-func to_string() -> String:
-	var var_str := Variable.keys()[variable]
-	var op_str := Operator.keys()[operator]
-	var val_str := str(int_value) if variable in [Variable.FACE_VALUE, Variable.POSITION] else string_value
+func _to_string() -> String:
+	var var_str: String = Variable.keys()[variable]
+	var op_str: String = Operator.keys()[operator]
+	var val_str: String = str(int_value) if variable in [Variable.FACE_VALUE, Variable.POSITION] else string_value
 	return "%s %s %s" % [var_str, op_str, val_str]

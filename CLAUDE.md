@@ -48,7 +48,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
       game_state_base.gd      # Base state class
       /states/
         setup_state.gd        # 게임 초기화
-        pre_roll_state.gd     # 첫 굴림 전 (Swap 가능)
+        pre_roll_state.gd     # 첫 굴림 전 (Hand→Active 선택)
         rolling_state.gd      # 물리 시뮬레이션 중
         post_roll_state.gd    # 굴린 후 (Keep/Reroll/Score)
         scoring_state.gd      # 카테고리 선택
@@ -74,8 +74,8 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
   /ui/                # UI components
     /hud/             # Top status bar
-    /action_buttons/  # Reroll, Swap, End Turn buttons
-    /reserve_display/ # Hand dice display (bottom center)
+    /action_buttons/  # Reroll, End Turn buttons
+    /hand_display/    # Hand dice display (bottom center, PRE_ROLL 선택용)
     /quick_score/     # Fast scoring options (right side after roll)
     /score_card/      # Category selection (full scorecard)
     /game_over/       # Win/lose screen
@@ -87,23 +87,21 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 
 ### Game Flow
-1. **SETUP**: 게임 초기화, Inventory에서 Hand로 주사위 드로우 (초기 7개)
-2. **PRE_ROLL**: Hand에서 랜덤 5개를 Active로 배치, Swap 가능 (1회)
+1. **SETUP**: 게임 초기화, Inventory에서 Hand로 주사위 드로우 (초기 6개)
+2. **PRE_ROLL**: Hand 6개 중 5개를 직접 선택하여 Active로 배치
+   - Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
+   - Active 주사위 클릭 → Hand로 내려감
+   - 5개 선택 완료 시 Roll 버튼 활성화
 3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
 4. **POST_ROLL**:
-   - Click dice to select for reroll
+   - **자동 정렬**: 굴림 완료 후 주사위 눈 오름차순으로 자동 정렬 (물리적 위치 이동)
+   - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
+   - Click dice to select for reroll (리롤 시에도 정렬 및 효과 재적용)
    - Reroll selected dice (최대 2회)
    - Quick Score panel로 빠른 점수 선택 가능
 5. **SCORING**: Select category from Quick Score or Score Card
 6. **라운드 전환**: Active 5개가 Hand로 돌아감, Inventory에서 1개 드로우 → PRE_ROLL
 7. **GAME_OVER**: 100 points in 5 rounds to win
-
-### Swap Mechanic
-- **PRE_ROLL 상태에서만 가능** (첫 굴림 전)
-- Select exactly 1 active dice → Swap button enabled (if Hand > 0)
-- Press Swap → enters swap mode (SubState.SWAP_SELECT)
-- Click a dice from Hand display → selected active dice goes to Hand, Hand dice takes its place
-- ESC to cancel swap mode
 
 ### State Management
 
@@ -116,7 +114,7 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
 | Phase | 설명 | 허용 액션 |
 |-------|------|-----------|
 | `SETUP` | 게임 초기화 (1회성) | - |
-| `PRE_ROLL` | 첫 굴림 전 | Swap, Roll |
+| `PRE_ROLL` | 첫 굴림 전 | Hand→Active 선택, Roll |
 | `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
 | `POST_ROLL` | 굴린 후 | Keep, Reroll, Score |
 | `SCORING` | ScoreCard에서 카테고리 선택 | Score 선택 |
@@ -307,7 +305,7 @@ SetupState → PreRollState → RollingState → PostRollState
 ### Mobile Considerations
 - Touch input: Track first touch index only (`event.index == 0`) to avoid multi-touch glitches
 - Swipe detection: Exclude UI margins (top/bottom) from swipe zone
-- Use `set_enabled()` pattern to disable input during modal states (e.g., Swap mode)
+- Use `set_enabled()` pattern to disable input during transitions/animations
 
 ### Signal Design
 - Emit rich data when effects need visual feedback

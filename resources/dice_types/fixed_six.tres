@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://db8o3co4sb8s2"]
 
-[ext_resource type="Script" path="res://globals/dice_type_resource.gd" id="1"]
-[ext_resource type="Script" path="res://globals/effects/face_map_effect.gd" id="2"]
+[ext_resource type="Script" uid="uid://x0wl6e0jnrlu" path="res://globals/dice_type_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://bipv0hglf0ram" path="res://globals/dice_effect_resource.gd" id="1_xyipf"]
+[ext_resource type="Script" uid="uid://bxnou0r2hyoxy" path="res://globals/effects/face_map_effect.gd" id="2"]
 
 [sub_resource type="Resource" id="face_map_effect"]
 script = ExtResource("2")
-face_map = [0, 6, 6, 6, 6, 6, 6]
+face_map = Array[int]([0, 6, 6, 6, 6, 6, 6])
 
 [resource]
 script = ExtResource("1")
 id = "fixed_six"
 display_name = "고정 주사위"
 description = "항상 6이 나옵니다"
-effects = [SubResource("face_map_effect")]
+effects = Array[ExtResource("1_xyipf")]([SubResource("face_map_effect")])

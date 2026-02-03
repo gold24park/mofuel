@@ -19,14 +19,19 @@ func exit() -> void:
 
 func _on_all_dice_finished(values: Array) -> void:
 	# GameState에 결과 전달
-	GameState.on_dice_results(values)
-
+	# GameState.on_dice_results(values)
 	# 모든 주사위 라벨 표시
 	for i in range(5):
 		game_root.dice_labels.show_label(i)
 
-	# PostRollState로 전환
-	transitioned.emit(self, "PostRollState")
+	if GameState.can_reroll():
+		# UI에 스코어링 옵션 표시 요청
+		GameState.show_scoring_options.emit(GameState.active_dice)
+		# PostRollState로 전환
+		transitioned.emit(self , "PostRollState")
+	else:
+		# 게임 규칙: 리롤 불가 시 자동으로 스코어링 단계로 전환
+		transitioned.emit(self , "ScoringState")
 
 
 func handle_input(_event: InputEvent) -> bool:

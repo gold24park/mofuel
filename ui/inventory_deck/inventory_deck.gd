@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _update_count() -> void:
-	count_label.text = str(GameState.get_inventory_count())
+	count_label.text = str(GameState.inventory_manager.get_inventory_count())
 
 
 func _on_inventory_changed() -> void:
@@ -55,7 +55,7 @@ func _create_card_visual() -> Control:
 	var card := ColorRect.new()
 	card.custom_minimum_size = card_size
 	card.size = card_size
-	card.color = Color(0.9, 0.85, 0.75)  # 베이지색 카드
+	card.color = Color(0.9, 0.85, 0.75) # 베이지색 카드
 	card.pivot_offset = card_size / 2
 
 	# 테두리 효과용 내부 사각형

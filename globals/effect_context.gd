@@ -74,3 +74,11 @@ func get_matching_group_indices(group: String) -> Array[int]:
 		if i != source_index and all_dice[i].type.has_group(group):
 			indices.append(i)
 	return indices
+	
+## 같은 타입의 주사위 인덱스 반환
+func get_matching_type_indices(type_id: String) -> Array[int]:
+	var indices: Array[int] = []
+	for i in range(all_dice.size()):
+		if i != source_index and all_dice[i].type.id == type_id:
+			indices.append(i)
+	return indices

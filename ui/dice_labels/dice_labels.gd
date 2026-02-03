@@ -10,6 +10,8 @@ var _visible_flags: Array[bool] = [false, false, false, false, false]
 
 
 func _ready() -> void:
+	GameState.phase_changed.connect(_on_phase_changed)
+
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for i in range(DICE_COUNT):
 		var label := Label.new()
@@ -24,6 +26,9 @@ func _ready() -> void:
 		add_child(label)
 		_labels.append(label)
 
+func _on_phase_changed(new_phase: GameState.Phase) -> void:
+	if new_phase == GameState.Phase.ROLLING:
+		hide_all()
 
 func setup(camera: Camera3D, dice_nodes: Array, dice_instances: Array) -> void:
 	_camera = camera

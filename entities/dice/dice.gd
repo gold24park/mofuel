@@ -35,11 +35,15 @@ const BREATH_SCALE_MAX: float = 1.15
 
 signal roll_finished(dice_index: int, value: int)
 signal dice_clicked(dice_index: int)
+signal dice_hovered(dice_index: int)
+signal dice_unhovered(dice_index: int)
 
 
 func _ready():
 	input_ray_pickable = true
 	_create_outline()
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 
 
 func _process(delta: float) -> void:
@@ -348,3 +352,12 @@ func _create_outline() -> void:
 	mesh_instance.get_parent().add_child(outline_mesh)
 	outline_mesh.transform = mesh_instance.transform
 	outline_mesh.scale = Vector3(1.1, 1.1, 1.1)
+
+
+func _on_mouse_entered() -> void:
+	if current_state == State.IDLE:
+		dice_hovered.emit(dice_index)
+
+
+func _on_mouse_exited() -> void:
+	dice_unhovered.emit(dice_index)

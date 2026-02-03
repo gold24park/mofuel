@@ -25,7 +25,7 @@ enum Target {
 @export_group("Effect Trigger")
 @export var trigger: Trigger = Trigger.ON_ROLL
 @export var target: Target = Target.SELF
-@export var condition: Resource = null  ## EffectCondition 타입
+@export var condition: EffectCondition = null  ## EffectCondition 타입
 
 @export_group("Effect Metadata")
 @export var priority: int = 100  ## 낮을수록 먼저 실행 (0-999)

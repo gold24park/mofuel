@@ -9,7 +9,17 @@ func enter() -> void:
 	GameState.current_phase = GameState.Phase.SETUP
 	GameState.phase_changed.emit(GameState.current_phase)
 
-	# current_round를 0으로 설정하여 PreRollState가 첫 라운드임을 알 수 있게 함
+	# 게임 상태 초기화
 	GameState.current_round = 0
+	GameState.total_score = 0
+	GameState.inventory_manager.init_starting_deck()
+	
+	MetaState.reset_all_uses()
+	GameState.inventory_manager.draw_initial_hand(6)
 
-	transitioned.emit(self, "PreRollState")
+	# 시그널 발생
+	GameState.round_changed.emit(GameState.current_round)
+	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
+	
+
+	transitioned.emit(self , "PreRollState")

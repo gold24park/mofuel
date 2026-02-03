@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" path="res://ui/dice_labels/dice_labels.tscn" id="12_dice_labels"]
 [ext_resource type="PackedScene" path="res://ui/roll_button/roll_button.tscn" id="13_roll_button"]
 [ext_resource type="PackedScene" path="res://ui/inventory_deck/inventory_deck.tscn" id="14_inventory_deck"]
+[ext_resource type="PackedScene" path="res://ui/dice_tooltip/dice_tooltip.tscn" id="15_dice_tooltip"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -121,6 +122,8 @@ grow_vertical = 2
 [node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]
 
 [node name="InventoryDeck" parent="CanvasLayer" unique_id=334932875 instance=ExtResource("14_inventory_deck")]
+
+[node name="DiceTooltip" parent="CanvasLayer" instance=ExtResource("15_dice_tooltip")]
 
 [node name="StateMachine" type="Node" parent="."]
 script = ExtResource("state_machine")
