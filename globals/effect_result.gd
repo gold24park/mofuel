@@ -45,6 +45,15 @@ var effect_name: String = ""
 #endregion
 
 
+#region 애니메이션/사운드 피드백
+## 주사위 애니메이션 타입 (""이면 애니메이션 없음)
+var anim: String = ""
+
+## 사운드 이펙트 ID (""이면 사운드 없음)
+var sound: String = ""
+#endregion
+
+
 ## 다른 결과와 병합 (여러 효과 누적)
 func merge(other) -> void:
 	value_bonus += other.value_bonus
@@ -77,4 +86,6 @@ func duplicate() -> EffectResult:
 	copy.target_index = target_index
 	copy.source_name = source_name
 	copy.effect_name = effect_name
+	copy.anim = anim
+	copy.sound = sound
 	return copy

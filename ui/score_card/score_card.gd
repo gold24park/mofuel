@@ -29,7 +29,7 @@ func _create_category_buttons():
 		_add_category_button(cat_id)
 
 	_add_section_label("Combinations")
-	for cat_id in ["three_of_a_kind", "four_of_a_kind", "full_house",
+	for cat_id in ["four_of_a_kind", "full_house",
 					"small_straight", "large_straight", "yacht", "chance"]:
 		_add_category_button(cat_id)
 

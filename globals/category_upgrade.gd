@@ -28,7 +28,7 @@ func get_total_multiplier() -> float:
 
 
 func can_use() -> bool:
-	return get_remaining_uses() > 0
+	return true
 
 
 func use() -> void:

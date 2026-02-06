@@ -5,6 +5,7 @@ extends Control
 @onready var hand_label: Label = $MarginContainer/HBoxContainer/ReserveLabel ## 노드명 유지
 @onready var score_label: Label = $MarginContainer/HBoxContainer/ScoreLabel
 @onready var rerolls_label: Label = $MarginContainer/HBoxContainer/RerollsLabel
+@onready var draws_label: Label = $MarginContainer/HBoxContainer/DrawsLabel
 
 
 func _ready():
@@ -13,6 +14,7 @@ func _ready():
 	GameState.hand_changed.connect(_on_hand_changed)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.rerolls_changed.connect(_on_rerolls_changed)
+	GameState.draws_changed.connect(_on_draws_changed)
 
 	_update_all()
 
@@ -23,6 +25,7 @@ func _update_all():
 	_on_hand_changed()
 	_on_score_changed(GameState.total_score)
 	_on_rerolls_changed(GameState.rerolls_remaining)
+	_on_draws_changed(GameState.draws_remaining)
 
 
 func _on_round_changed(round_num: int):
@@ -43,3 +46,7 @@ func _on_score_changed(score: int):
 
 func _on_rerolls_changed(remaining: int):
 	rerolls_label.text = "Rerolls: %d" % remaining
+
+
+func _on_draws_changed(remaining: int):
+	draws_label.text = "Draws: %d" % remaining

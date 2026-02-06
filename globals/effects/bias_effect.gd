@@ -3,7 +3,7 @@ extends DiceEffectResource
 ## 특정 값들이 더 자주 나오도록 확률 조작
 
 ## bias_values must contain valid dice values (1-6)
-@export var bias_values: Array[int] = [5, 6]:
+@export var bias_values: Array[int] = []:
 	set(value):
 		bias_values = value
 		for v in bias_values:
@@ -15,7 +15,7 @@ extends DiceEffectResource
 func _init() -> void:
 	trigger = Trigger.ON_ROLL
 	target = Target.SELF
-	priority = 50  # 롤 변경은 빠른 우선순위
+	priority = 50 # 롤 변경은 빠른 우선순위
 	effect_name = "확률 조작"
 
 

@@ -10,6 +10,7 @@ signal active_changed()
 signal game_over(won: bool)
 signal show_scoring_options(dice: Array) ## UI에 스코어링 옵션 표시 요청
 signal transitioning_changed(is_transitioning: bool) ## 전환 애니메이션 상태 변경
+signal draws_changed(remaining: int)
 
 enum Phase {SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER}
 
@@ -17,6 +18,8 @@ var inventory_manager := InventoryManager.new()
 
 var current_phase: Phase = Phase.SETUP
 var rerolls_remaining: int = 2
+var draws_remaining: int = 1
+var max_draws_per_round: int = 1
 var total_score: int = 0
 var target_score: int = 100
 var current_round: int = 0
@@ -54,8 +57,13 @@ func move_single_to_hand(active_index: int) -> int:
 ## 점수 기록 (State Machine이 전환을 관리하므로 _start_round 호출하지 않음)
 ## @return 점수가 성공적으로 기록되었는지
 func record_score(category_id: String, score: int) -> bool:
+	# Burst는 0점으로 기록 (업그레이드 없음)
+	if category_id == "burst":
+		GameState.score_changed.emit(GameState.total_score)
+		return true
+
 	var upgrade = MetaState.get_upgrade(category_id)
-	if not upgrade or not upgrade.can_use():
+	if not upgrade:
 		return false
 
 	# 배수 적용
@@ -71,6 +79,19 @@ func move_hand_to_active(hand_indices: Array[int]) -> bool:
 		return false
 	return inventory_manager.move_hand_to_active(hand_indices)
 #endregion
+
+func can_draw() -> bool:
+	return draws_remaining > 0 and inventory_manager.can_draw()
+
+
+func draw_one() -> bool:
+	if not can_draw():
+		return false
+	inventory_manager.draw_to_hand(1)
+	draws_remaining -= 1
+	draws_changed.emit(draws_remaining)
+	return true
+
 
 func can_reroll() -> bool:
 	return rerolls_remaining > 0

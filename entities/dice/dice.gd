@@ -1,7 +1,6 @@
 extends RigidBody3D
 
 @export var dice_index: int = 0
-
 @onready var dice_mesh: Node3D = $dice
 
 const OUTLINE_SHADER = preload("res://entities/dice/outline.gdshader")
@@ -12,7 +11,7 @@ enum State {
 	MOVING_TO_DISPLAY
 }
 
-const ROLL_TIMEOUT: float = 5.0  # 최대 굴리기 시간 (초)
+const ROLL_TIMEOUT: float = 5.0 # 최대 굴리기 시간 (초)
 
 var current_state: State = State.IDLE
 var roll_strength = 20
@@ -21,15 +20,15 @@ var dice_instance: DiceInstance = null
 var display_position: Vector3 = Vector3.ZERO
 var roll_start_position: Vector3 = Vector3.ZERO
 var final_value: int = 0
-var final_rotation: Basis = Basis.IDENTITY  # 굴린 후의 회전 저장
+var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
 var roll_start_time: float = 0.0
-var _used_burst_mask: bool = false  # 버스트 마스크 사용 여부
+var _used_burst_mask: bool = false # 버스트 마스크 사용 여부
 
 # Breathing animation
 var is_breathing: bool = false
 var breath_time: float = 0.0
-const BREATH_SPEED: float = 4.0  # 숨쉬기 속도
+const BREATH_SPEED: float = 4.0 # 숨쉬기 속도
 const BREATH_SCALE_MIN: float = 1.0
 const BREATH_SCALE_MAX: float = 1.15
 
@@ -102,24 +101,24 @@ func _process_breathing(delta: float) -> void:
 # 기본 방향(Identity): 1이 위(+Y), 6이 아래(-Y)
 func _get_upright_rotation(top_face: int) -> Basis:
 	match top_face:
-		6: return Basis(Vector3.RIGHT, PI)           # -Y → +Y (X축 180°)
-		2: return Basis(Vector3.RIGHT, -PI / 2)      # +Z → +Y (X축 -90°)
-		5: return Basis(Vector3.RIGHT, PI / 2)       # -Z → +Y (X축 90°)
-		3: return Basis(Vector3.FORWARD, -PI / 2)    # +X → +Y (Z축 -90°)
-		4: return Basis(Vector3.FORWARD, PI / 2)     # -X → +Y (Z축 90°)
-		1, _: return Basis.IDENTITY                   # 기본 방향
+		6: return Basis(Vector3.RIGHT, PI) # -Y → +Y (X축 180°)
+		2: return Basis(Vector3.RIGHT, -PI / 2) # +Z → +Y (X축 -90°)
+		5: return Basis(Vector3.RIGHT, PI / 2) # -Z → +Y (X축 90°)
+		3: return Basis(Vector3.FORWARD, -PI / 2) # +X → +Y (Z축 -90°)
+		4: return Basis(Vector3.FORWARD, PI / 2) # -X → +Y (Z축 90°)
+		1, _: return Basis.IDENTITY # 기본 방향
 
 
 # 현재 회전에서 윗면 계산 (회전 행렬 기반)
 func _get_top_face_from_rotation() -> int:
 	# 각 면의 로컬 법선 벡터 (모델 기준)
 	const FACE_NORMALS := {
-		1: Vector3.UP,       # +Y
-		6: Vector3.DOWN,     # -Y
-		2: Vector3.BACK,     # +Z
-		5: Vector3.FORWARD,  # -Z
-		3: Vector3.RIGHT,    # +X
-		4: Vector3.LEFT,     # -X
+		1: Vector3.UP, # +Y
+		6: Vector3.DOWN, # -Y
+		2: Vector3.BACK, # +Z
+		5: Vector3.FORWARD, # -Z
+		3: Vector3.RIGHT, # +X
+		4: Vector3.LEFT, # -X
 	}
 
 	var best_face := 1
@@ -148,7 +147,7 @@ func setup(display_pos: Vector3, roll_pos: Vector3) -> void:
 	freeze = true
 	collision_layer = CollisionLayers.ALIGNED_DICE
 	collision_mask = 0
-	final_value = 0  # 아직 굴리지 않음
+	final_value = 0 # 아직 굴리지 않음
 	final_rotation = Basis.IDENTITY
 	transform.basis = Basis.IDENTITY
 	current_state = State.IDLE
@@ -197,7 +196,7 @@ func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float
 	var horizontal_strength: float = strength * 0.4
 	var downward_speed: float = strength * 0.7
 
-	linear_velocity = Vector3(0, -downward_speed, 0)  # 아래로 떨어지는 초기 속도
+	linear_velocity = Vector3(0, -downward_speed, 0) # 아래로 떨어지는 초기 속도
 
 	var impulse := dir * horizontal_strength
 	impulse += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
@@ -241,7 +240,6 @@ func _on_sleeping_state_changed() -> void:
 
 
 func _force_settle() -> void:
-
 	current_state = State.MOVING_TO_DISPLAY
 
 	# 물리 정지
@@ -301,6 +299,12 @@ func set_selected(selected: bool) -> void:
 		current_state = State.MOVING_TO_DISPLAY
 
 
+## 윤곽선만 표시/숨김 (높이 변경 없음, quick score 호버용)
+func set_highlighted(highlighted: bool) -> void:
+	if outline_mesh:
+		outline_mesh.visible = highlighted
+
+
 func start_breathing() -> void:
 	is_breathing = true
 	breath_time = 0.0
@@ -308,6 +312,69 @@ func start_breathing() -> void:
 
 func stop_breathing() -> void:
 	is_breathing = false
+
+
+#region Effect Animations
+## 효과 애니메이션 재생 (await 가능, breathing과 충돌 방지)
+func play_effect_anim(anim_type: String) -> void:
+	# breathing 일시 정지 (둘 다 dice_mesh.scale을 건드리므로)
+	var was_breathing := is_breathing
+	is_breathing = false
+	dice_mesh.scale = Vector3.ONE
+
+	match anim_type:
+		"bounce":
+			await _anim_bounce()
+		"scale":
+			await _anim_scale()
+		"flash":
+			await _anim_flash()
+		"shake":
+			await _anim_shake()
+		_:
+			# 알 수 없는 타입이면 기본 bounce
+			await _anim_bounce()
+
+	# breathing 복구
+	is_breathing = was_breathing
+
+
+func _anim_bounce() -> void:
+	var tween := create_tween()
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.3, 0.08) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.15) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	await tween.finished
+
+
+func _anim_scale() -> void:
+	var tween := create_tween()
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.5, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.18) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	await tween.finished
+
+
+func _anim_flash() -> void:
+	var tween := create_tween()
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 0.8, 0.04)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.2, 0.04)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 0.9, 0.04)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.08)
+	await tween.finished
+
+
+func _anim_shake() -> void:
+	var original_pos := dice_mesh.position
+	var tween := create_tween()
+	for i in range(4):
+		var offset := Vector3(randf_range(-0.15, 0.15), 0, randf_range(-0.15, 0.15))
+		tween.tween_property(dice_mesh, "position", original_pos + offset, 0.03)
+	tween.tween_property(dice_mesh, "position", original_pos, 0.04)
+	await tween.finished
+#endregion
 
 
 func _get_mesh_instance() -> MeshInstance3D:
@@ -341,9 +408,9 @@ func _create_outline() -> void:
 
 	# 간단한 단색 머티리얼 (셰이더 대신)
 	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(1.0, 0.8, 0.0, 1.0)  # 노란색
+	material.albedo_color = Color(1.0, 0.8, 0.0, 1.0) # 노란색
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.cull_mode = BaseMaterial3D.CULL_FRONT  # 뒷면만 렌더링
+	material.cull_mode = BaseMaterial3D.CULL_FRONT # 뒷면만 렌더링
 
 	outline_mesh.material_override = material
 	outline_mesh.visible = false

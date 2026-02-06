@@ -1,0 +1,110 @@
+[
+  {
+    "id": "_error",
+    "display_name": "ERROR",
+    "description": "Failed to load dice type",
+    "texture": "res://assets/dice/uv/dice_uv_error.png"
+  },
+  {
+    "id": "normal",
+    "display_name": "일반 주사위",
+    "description": "1~6 균등 확률",
+    "texture": "res://assets/dice/uv/dice_uv.png"
+  },
+  {
+    "id": "biased_high",
+    "display_name": "편향 주사위",
+    "description": "높은 숫자가 더 자주 나옵니다",
+    "effects": [
+      {"type": "BiasEffect", "bias_values": [5, 6], "bias_weight": 0.5}
+    ]
+  },
+  {
+    "id": "multiplier_2x",
+    "display_name": "배수 주사위",
+    "description": "점수 계산 시 2배 적용",
+    "effects": [
+      {
+        "type": "ModifierEffect",
+        "target": "self",
+        "value_to_change": "value_multiplier",
+        "diff": 2.0
+      }
+    ]
+  },
+  {
+    "id": "wildcard",
+    "display_name": "와일드카드 주사위",
+    "description": "족보 판정 시 원하는 숫자로 사용 가능",
+    "effects": [
+      {"type": "WildcardEffect", "trigger_values": [1, 2, 3, 4, 5, 6]}
+    ]
+  },
+  {
+    "id": "odd_only",
+    "display_name": "홀수 주사위",
+    "description": "1, 3, 5만 나옵니다",
+    "texture": "res://assets/dice/uv/dice_uv_odd.png",
+    "effects": [
+      {"type": "FaceMapEffect", "face_map": [0, 1, 1, 3, 3, 5, 5]}
+    ]
+  },
+  {
+    "id": "even_only",
+    "display_name": "짝수 주사위",
+    "description": "2, 4, 6만 나옵니다",
+    "texture": "res://assets/dice/uv/dice_uv_even.png",
+    "effects": [
+      {"type": "FaceMapEffect", "face_map": [0, 2, 2, 4, 4, 6, 6]}
+    ]
+  },
+  {
+    "id": "fixed_six",
+    "display_name": "고정 주사위",
+    "description": "항상 6이 나옵니다",
+    "effects": [
+      {"type": "FaceMapEffect", "face_map": [0, 6, 6, 6, 6, 6, 6]}
+    ]
+  },
+  {
+    "id": "wild_six",
+    "display_name": "와일드 식스",
+    "description": "6이 나오면 와일드카드로 사용 가능",
+    "texture": "res://assets/dice/uv/dice_uv_wild_6.png",
+    "effects": [
+      {"type": "WildcardEffect", "trigger_values": [6]}
+    ]
+  },
+  {
+    "id": "king",
+    "display_name": "왕 주사위",
+    "description": "인접 백성에게 +2, 인접 왕에게 -1",
+    "groups": ["royal"],
+    "texture": "res://assets/dice/uv/dice_uv.png",
+    "effects": [
+      {
+        "type": "ModifierEffect",
+        "target": "adjacent",
+        "comparisons": [{"a": "group", "b": "peasant"}],
+        "value_to_change": "value_bonus",
+        "diff": 2,
+        "anim": "bounce"
+      },
+      {
+        "type": "ModifierEffect",
+        "target": "adjacent",
+        "comparisons": [{"a": "group", "b": "royal"}],
+        "value_to_change": "value_bonus",
+        "diff": -1,
+        "anim": "shake"
+      }
+    ]
+  },
+  {
+    "id": "peasant",
+    "display_name": "백성 주사위",
+    "description": "평범한 주사위",
+    "groups": ["peasant"],
+    "texture": "res://assets/dice/uv/dice_uv.png"
+  }
+]

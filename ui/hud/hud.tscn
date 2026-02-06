@@ -55,3 +55,7 @@ text = "Score: 0 / 100"
 [node name="RerollsLabel" type="Label" parent="MarginContainer/HBoxContainer"]
 layout_mode = 2
 text = "Rerolls: 2"
+
+[node name="DrawsLabel" type="Label" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+text = "Draws: 1"

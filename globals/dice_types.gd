@@ -12,9 +12,8 @@ const WILD_SIX := "wild_six"
 
 # 초기 인벤토리 구성 (타입 ID, 개수)
 const STARTING_INVENTORY := [
-	[NORMAL, 3],
-	["king", 1],
-	["peasant", 1],
+	["king", 4],
+	["peasant", 2],
 	[EVEN_ONLY, 1],
 	[ODD_ONLY, 1],
 	[WILD_SIX, 1],

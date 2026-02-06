@@ -10,16 +10,23 @@ func enter() -> void:
 	GameState.current_phase = GameState.Phase.POST_ROLL
 	GameState.phase_changed.emit(GameState.current_phase)
 
-	# UI 표시
-	game_root.action_buttons.visible = true
-	game_root.roll_button.visible = false
-
 	# 리롤 불가 시 자동으로 스코어링 상태로 전환
 	if not GameState.can_reroll():
 		transitioned.emit(self , "ScoringState")
 		return
 
-	# Quick Score 패널 표시
+	# 스탯 준비 (숨김) → 애니메이션 중 타겟별 reveal → 나머지 표시
+	var stats: Array[Dictionary] = game_root.dice_manager.get_score_effect_stats()
+	game_root.dice_stats.prepare_stats(stats)
+	GameState.is_transitioning = true
+	await game_root.dice_manager.play_effects_animation(
+		game_root.dice_stats.reveal_stat)
+	game_root.dice_stats.reveal_all()
+	GameState.is_transitioning = false
+
+	# UI 표시 (연출 후)
+	game_root.action_buttons.visible = true
+	game_root.roll_button.visible = false
 	game_root.quick_score.show_options(GameState.active_dice)
 
 
@@ -27,6 +34,7 @@ func exit() -> void:
 	_disconnect_signals()
 	game_root.action_buttons.visible = false
 	game_root.dice_manager.stop_all_breathing()
+	# dice_stats 라벨은 SCORING까지 유지 (scoring_state.exit에서 숨김)
 
 
 func _connect_signals() -> void:
@@ -55,6 +63,7 @@ func _on_reroll_pressed() -> void:
 	GameState.rerolls_remaining -= 1
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	
+	game_root.dice_stats.hide_all()
 	for i in indices:
 		game_root.dice_labels.hide_label(i)
 	game_root.dice_manager.reroll_selected_radial_burst()

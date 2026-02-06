@@ -7,6 +7,8 @@ signal inventory_changed
 signal hand_changed
 signal active_changed
 
+const HAND_MAX: int = 10
+
 var inventory: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []
 var active_dice: Array[DiceInstance] = []
@@ -39,10 +41,29 @@ func draw_initial_hand(count: int = 7):
 
 func draw_to_hand(count: int = 1):
 	for i in range(count):
-		if not inventory.is_empty():
-			hand.append(inventory.pop_front())
+		if inventory.is_empty():
+			break
+		if hand.size() >= HAND_MAX:
+			break
+		hand.append(inventory.pop_front())
 	hand_changed.emit()
 	inventory_changed.emit()
+
+
+## Hand에서 주사위 제거 (게임에서 완전 제거, 인벤토리로 돌아가지 않음)
+func discard_from_hand(hand_index: int) -> bool:
+	if hand_index < 0 or hand_index >= hand.size():
+		return false
+	# 최소 5개는 남겨야 함
+	if hand.size() <= 5:
+		return false
+	hand.remove_at(hand_index)
+	hand_changed.emit()
+	return true
+
+
+func can_draw() -> bool:
+	return not inventory.is_empty() and (hand.size() + active_dice.size()) < HAND_MAX
 
 
 func select_random_active(count: int = 5):

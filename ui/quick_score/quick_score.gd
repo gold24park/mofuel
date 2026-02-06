@@ -6,7 +6,7 @@ signal score_selected(category_id: String, score: int)
 signal option_hovered(dice_indices: Array[int])
 signal option_unhovered()
 
-const MAX_VISIBLE_OPTIONS: int = 5
+const MAX_VISIBLE_OPTIONS: int = 6  ## 5 카테고리 + Burst
 
 @onready var options_container: VBoxContainer = $PanelContainer/VBoxContainer
 
@@ -40,11 +40,11 @@ func show_options(dice: Array) -> void:
 	# 모든 카테고리 점수 계산
 	var all_scores := Scoring.calculate_all_scores(dice)
 
-	# 사용 가능하고 점수가 있는 카테고리만 필터링
+	# 모든 카테고리 표시 (0점 포함)
 	var valid_options: Array[Dictionary] = []
 	for cat_id in all_scores:
 		var score: int = all_scores[cat_id]
-		if score > 0:  # 점수가 양수인 것만
+		if score > 0:
 			var cat = CategoryRegistry.get_category(cat_id)
 			if cat:
 				var relevant_indices := _get_relevant_dice_indices(cat, dice)
@@ -58,21 +58,32 @@ func show_options(dice: Array) -> void:
 	# 점수 높은 순 정렬
 	valid_options.sort_custom(func(a, b): return a["score"] > b["score"])
 
-	# 상위 N개만 표시
-	_current_options = valid_options.slice(0, MAX_VISIBLE_OPTIONS)
+	# 상위 N-1개 카테고리 + Burst
+	_current_options = valid_options.slice(0, MAX_VISIBLE_OPTIONS - 1)
+
+	# Burst 옵션 항상 추가 (0점 스킵)
+	_current_options.append({
+		"id": "burst",
+		"name": "Burst",
+		"score": 0,
+		"dice_indices": []
+	})
 
 	# 버튼 업데이트
 	for i in range(MAX_VISIBLE_OPTIONS):
 		var button := _option_buttons[i]
 		if i < _current_options.size():
 			var option := _current_options[i]
-			button.text = "%s  +%d" % [option["name"], option["score"]]
+			if option["id"] == "burst":
+				button.text = "Burst  0"
+			else:
+				button.text = "%s  +%d" % [option["name"], option["score"]]
 			button.visible = true
 			button.disabled = false
 		else:
 			button.visible = false
 
-	visible = _current_options.size() > 0
+	visible = true
 
 
 func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
@@ -89,23 +100,23 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 				if values[i] == target or _is_wildcard(dice[i]):
 					indices.append(i)
 
-		6, 7, 11:  # THREE_OF_A_KIND, FOUR_OF_A_KIND, YACHT
+		6, 10:  # FOUR_OF_A_KIND, YACHT
 			var target_value: int = _get_most_common_value(values)
 			for i in range(values.size()):
 				if values[i] == target_value or _is_wildcard(dice[i]):
 					indices.append(i)
 
-		8:  # FULL_HOUSE
+		7:  # FULL_HOUSE
 			for i in range(values.size()):
 				indices.append(i)
 
-		9, 10:  # SMALL_STRAIGHT, LARGE_STRAIGHT
-			var straight_values := _get_straight_values(values, category.category_type == 10)
+		8, 9:  # SMALL_STRAIGHT, LARGE_STRAIGHT
+			var straight_values := _get_straight_values(values, category.category_type == 9)
 			for i in range(values.size()):
 				if values[i] in straight_values or _is_wildcard(dice[i]):
 					indices.append(i)
 
-		12:  # CHANCE
+		11:  # CHANCE
 			for i in range(values.size()):
 				indices.append(i)
 
@@ -184,6 +195,6 @@ func _on_option_unhovered() -> void:
 
 
 func _on_phase_changed(phase: int) -> void:
-	# POST_ROLL이 아니면 숨김 (SCORING, ROLLING 등)
-	if phase != GameState.Phase.POST_ROLL:
+	# POST_ROLL과 SCORING에서만 표시
+	if phase != GameState.Phase.POST_ROLL and phase != GameState.Phase.SCORING:
 		hide_options()

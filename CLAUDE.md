@@ -76,8 +76,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     /hud/             # Top status bar
     /action_buttons/  # Reroll, End Turn buttons
     /hand_display/    # Hand dice display (bottom center, PRE_ROLL 선택용)
-    /quick_score/     # Fast scoring options (right side after roll)
-    /score_card/      # Category selection (full scorecard)
+    /quick_score/     # Scoring options (유일한 스코어링 UI, Burst 포함)
     /game_over/       # Win/lose screen
     /upgrade_screen/  # Category upgrade UI
 
@@ -88,9 +87,12 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
 ### Game Flow
 1. **SETUP**: 게임 초기화, Inventory에서 Hand로 주사위 드로우 (초기 6개)
-2. **PRE_ROLL**: Hand 6개 중 5개를 직접 선택하여 Active로 배치
-   - Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
+2. **PRE_ROLL**: Hand에서 5개를 선택하여 Active로 배치
+   - Hand == 5 & Active == 0 & Discard 모드 아님 → **자동 활성화** (순차 애니메이션)
+   - Hand > 5 → Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
    - Active 주사위 클릭 → Hand로 내려감
+   - **Discard 모드**: 토글 버튼으로 활성화, Hand 주사위 클릭 시 버리기 (최소 5개 유지)
+   - **Draw 버튼**: Inventory에서 Hand로 1개 드로우 (라운드당 횟수 제한)
    - 5개 선택 완료 시 Roll 버튼 활성화
 3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
 4. **POST_ROLL**:
@@ -98,9 +100,11 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
    - Click dice to select for reroll (리롤 시에도 정렬 및 효과 재적용)
    - Reroll selected dice (최대 2회)
-   - Quick Score panel로 빠른 점수 선택 가능
-5. **SCORING**: Select category from Quick Score or Score Card
-6. **라운드 전환**: Active 5개가 Hand로 돌아감, Inventory에서 1개 드로우 → PRE_ROLL
+   - Quick Score panel로 점수 선택
+5. **SCORING**: QuickScore에서 카테고리 선택 (ScoreCard 제거됨)
+   - 모든 카테고리 무제한 사용 가능
+   - **Burst**: 0점으로 턴 넘기기 옵션 (항상 표시)
+6. **라운드 전환**: Active 5개가 Hand로 돌아감 → PRE_ROLL (자동 드로우 없음)
 7. **GAME_OVER**: 100 points in 5 rounds to win
 
 ### State Management
@@ -114,10 +118,10 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
 | Phase | 설명 | 허용 액션 |
 |-------|------|-----------|
 | `SETUP` | 게임 초기화 (1회성) | - |
-| `PRE_ROLL` | 첫 굴림 전 | Hand→Active 선택, Roll |
+| `PRE_ROLL` | 첫 굴림 전 | Hand→Active 선택, Discard, Draw, Roll |
 | `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
 | `POST_ROLL` | 굴린 후 | Keep, Reroll, Score |
-| `SCORING` | ScoreCard에서 카테고리 선택 | Score 선택 |
+| `SCORING` | QuickScore에서 카테고리 선택 | Score 선택 |
 | `GAME_OVER` | 승/패 결과 | Restart, Upgrade |
 
 **상태 전환 흐름:**
@@ -148,10 +152,16 @@ SetupState → PreRollState → RollingState → PostRollState
 - Each effect is a separate class with typed @export properties
 - Extensible via .tres files in `/resources/dice_types/`
 
-### Category Enhancement System
-- Uses upgrade: Increase category usage count
-- Multiplier upgrade: Increase score multiplier
-- Persists between matches via MetaState
+### Category System
+- 모든 카테고리 무제한 사용 가능 (`can_use()` → 항상 `true`)
+- Multiplier upgrade: Increase score multiplier (MetaState 경유)
+- **Burst**: 특수 카테고리 (category_id: "burst"), 0점으로 턴 넘기기. CategoryRegistry에 없고 QuickScore에서 하드코딩
+
+### Inventory System
+- `InventoryManager`: inventory(덱), hand, active_dice 3개 배열 관리
+- `HAND_MAX = 10`: hand + active 합계 기준
+- `discard_from_hand()`: hand에서 영구 제거 (최소 5개 유지)
+- Draw: `GameState.draw_one()` → `draws_remaining` 차감, 라운드당 횟수 제한
 
 ## Godot 4.6 Conventions
 
@@ -458,3 +468,36 @@ func evaluate(context) -> EffectResult:
 | `AdjacentBonusEffect` | ON_SCORE | 인접 주사위에 보너스 부여 |
 | `GroupBonusEffect` | ON_SCORE | 같은 그룹 주사위에 보너스 부여 |
 | `OnAdjacentRollEffect` | ON_ADJACENT_ROLL | 인접 주사위 굴림 시 자신에게 보너스 |
+
+## Common Pitfalls
+
+### DiceManager 배치 메서드 구분
+- `set_dice_to_hand_position()`: 모든 주사위를 화면 아래로 이동 + **`visible = false`** (숨김용)
+- `set_active_positions_immediate(count)`: 주사위를 Active 위치에 배치 + **`visible = true`** (즉시 표시)
+- `animate_single_to_active(index)`: Hand→Active 애니메이션 (visible=true 포함, await 가능)
+- 자동 활성화 시 반드시 `set_dice_to_hand_position()` → `animate_single_to_active()` 순서로 호출
+
+### PRE_ROLL 자동 활성화 조건
+`_try_auto_activate()`는 4가지 조건이 **모두** 충족될 때만 발동:
+1. `!_is_animating`
+2. `!discard_mode`
+3. `hand.size() == 5`
+4. `active_dice.size() == 0`
+
+호출 시점: PRE_ROLL 진입 후, Discard 모드 OFF 후, Draw 완료 후
+
+### Hand/Active 용량 체크
+- `can_draw()`: `hand.size() + active_dice.size() < HAND_MAX` (active 포함!)
+- Draw 시 active를 hand로 되돌리지 않음 — active 상태 유지가 자연스러운 UX
+- Discard는 `hand.size() > 5`일 때만 가능 (데이터 레이어에서 보장)
+
+### Burst 카테고리
+- CategoryRegistry에 등록되지 않은 특수 ID ("burst")
+- QuickScore에서 하드코딩으로 항상 마지막에 표시
+- `GameState.record_score("burst", 0)`: upgrade 조회 스킵, 점수 0
+- `ScoringState._process_scoring()`: burst일 때 효과 계산 스킵
+
+### 시그널 연결/해제 대칭
+- State의 `_connect_signals()`/`_disconnect_signals()`는 반드시 대칭이어야 함
+- 시그널 추가 시 양쪽 모두 업데이트 — 한쪽만 하면 disconnect 에러 또는 중복 연결
+- UI 토글 모드 (discard 등)의 시그널은 `discard_mode_changed(bool)` 패턴으로 상태 변화를 전파

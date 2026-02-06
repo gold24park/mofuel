@@ -3,6 +3,8 @@ extends Control
 ## Hand 주사위 표시 및 PRE_ROLL 선택
 
 signal dice_clicked(index: int) ## Hand 주사위 클릭 시 (Active로 이동 요청)
+signal dice_discarded(index: int) ## Hand 주사위 버리기
+signal discard_mode_changed(is_active: bool) ## 버리기 모드 변경
 signal slot_animation_finished
 
 const DICE_PREVIEW = preload("res://ui/dice_preview/dice_preview.tscn")
@@ -12,10 +14,14 @@ const DICE_PREVIEW = preload("res://ui/dice_preview/dice_preview.tscn")
 
 var dice_previews: Array = []
 var _manual_mode: bool = false ## 전환 애니메이션 중 수동 제어
+var _discard_mode: bool = false ## 버리기 모드
+var _discard_button: Button = null
 
 
 func _ready():
 	GameState.hand_changed.connect(_on_hand_changed)
+	GameState.phase_changed.connect(_on_phase_changed)
+	_create_discard_button()
 	_update_display()
 
 
@@ -52,22 +58,80 @@ func _create_dice_preview(index: int) -> Control:
 
 
 func _on_preview_clicked(index: int) -> void:
-	# PRE_ROLL에서만 클릭 가능
 	if GameState.current_phase != GameState.Phase.PRE_ROLL:
 		return
 	if GameState.is_transitioning:
 		return
 
-	# Active가 5개 이상이면 더 이상 추가 불가
-	if GameState.active_dice.size() >= 5:
+	if _discard_mode:
+		# 버리기 모드: 5개 초과일 때만 버리기 가능
+		if GameState.inventory_manager.hand.size() > 5:
+			dice_discarded.emit(index)
 		return
 
+	# 일반 모드: Active로 이동
+	if GameState.active_dice.size() >= 5:
+		return
 	dice_clicked.emit(index)
 
 
 func _on_hand_changed():
 	if not _manual_mode:
 		_update_display()
+
+
+#region Discard 버튼
+func _create_discard_button() -> void:
+	_discard_button = Button.new()
+	_discard_button.text = "Discard"
+	_discard_button.custom_minimum_size = Vector2(70, 30)
+	_discard_button.toggle_mode = true
+	_discard_button.toggled.connect(_on_discard_toggled)
+	_discard_button.visible = false
+	add_child(_discard_button)
+
+	# 왼쪽 하단에 배치
+	_discard_button.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_discard_button.position = Vector2(8, -40)
+
+
+func _on_discard_toggled(toggled_on: bool) -> void:
+	if toggled_on:
+		enter_discard_mode()
+	else:
+		exit_discard_mode()
+
+
+func _on_phase_changed(phase: int) -> void:
+	if phase == GameState.Phase.PRE_ROLL:
+		_discard_button.visible = true
+		_discard_button.button_pressed = false
+	else:
+		_discard_button.visible = false
+		exit_discard_mode()
+#endregion
+
+
+#region 버리기 모드
+func enter_discard_mode() -> void:
+	_discard_mode = true
+	_update_display()
+	discard_mode_changed.emit(true)
+
+
+func exit_discard_mode() -> void:
+	if not _discard_mode:
+		return
+	_discard_mode = false
+	if _discard_button:
+		_discard_button.button_pressed = false
+	_update_display()
+	discard_mode_changed.emit(false)
+
+
+func is_discard_mode() -> bool:
+	return _discard_mode
+#endregion
 
 
 #region 전환 애니메이션 지원

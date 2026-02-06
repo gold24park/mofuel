@@ -78,13 +78,13 @@ static func _find_best_wildcard_value(current_values: Array, category) -> int:
 			return 5
 		5:  # SIXES
 			return 6
-		11, 7, 6:  # YACHT, FOUR_OF_A_KIND, THREE_OF_A_KIND
+		10, 6:  # YACHT, FOUR_OF_A_KIND
 			return _get_most_common_value(current_values)
-		8:  # FULL_HOUSE
+		7:  # FULL_HOUSE
 			return _get_fullhouse_best_value(current_values)
-		9, 10:  # SMALL_STRAIGHT, LARGE_STRAIGHT
+		8, 9:  # SMALL_STRAIGHT, LARGE_STRAIGHT
 			return _get_straight_best_value(current_values)
-		12:  # CHANCE
+		11:  # CHANCE
 			return 6
 
 	return 6
@@ -144,37 +144,32 @@ static func _calculate_base_score(category, values: Array, dice: Array) -> int:
 		0, 1, 2, 3, 4, 5:  # ONES through SIXES
 			return _calculate_number_score(category.target_number, values, dice)
 
-		6:  # THREE_OF_A_KIND
-			if _has_n_of_a_kind(values, 3):
-				return _calculate_sum_with_effects(values, dice)
-			return 0
-
-		7:  # FOUR_OF_A_KIND
+		6:  # FOUR_OF_A_KIND
 			if _has_n_of_a_kind(values, 4):
 				return _calculate_sum_with_effects(values, dice)
 			return 0
 
-		8:  # FULL_HOUSE
+		7:  # FULL_HOUSE
 			if _is_full_house(values):
-				return _apply_fixed_score_with_effects(category.fixed_score, dice)
+				return _calculate_sum_with_effects(values, dice)
 			return 0
 
-		9:  # SMALL_STRAIGHT
+		8:  # SMALL_STRAIGHT
 			if _is_small_straight(values):
 				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
-		10:  # LARGE_STRAIGHT
+		9:  # LARGE_STRAIGHT
 			if _is_large_straight(values):
 				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
-		11:  # YACHT
+		10:  # YACHT
 			if _has_n_of_a_kind(values, 5):
 				return _apply_fixed_score_with_effects(category.fixed_score, dice)
 			return 0
 
-		12:  # CHANCE
+		11:  # CHANCE
 			return _calculate_sum_with_effects(values, dice)
 
 	return 0
@@ -269,14 +264,5 @@ static func _is_large_straight(values: Array) -> bool:
 static func calculate_all_scores(dice: Array) -> Dictionary:
 	var results = {}
 	for cat in CategoryRegistry.get_all_categories():
-		var upgrade = MetaState.get_upgrade(cat.id)
-		if upgrade and upgrade.can_use():
-			results[cat.id] = calculate_score_with_upgrade(cat, dice)
-		else:
-			results[cat.id] = -1
+		results[cat.id] = calculate_score_with_upgrade(cat, dice)
 	return results
-
-
-static func can_score(category_id: String) -> bool:
-	var upgrade = MetaState.get_upgrade(category_id)
-	return upgrade != null and upgrade.can_use()

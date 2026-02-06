@@ -2,6 +2,7 @@ class_name InventoryDeck
 extends Control
 
 signal draw_finished
+signal draw_pressed ## 플레이어가 드로우 버튼 클릭
 
 @export var draw_duration: float = 0.3
 @export var card_size: Vector2 = Vector2(60, 80)
@@ -10,13 +11,15 @@ signal draw_finished
 @onready var count_label: Label = $DeckContainer/CountLabel
 
 var _deck_center: Vector2
+var _draw_enabled: bool = false
+var _draw_button: Button = null
 
 
 func _ready() -> void:
 	GameState.inventory_changed.connect(_on_inventory_changed)
 	_update_count()
-	# 덱 중심 위치 계산 (좌상단 기준)
 	_deck_center = deck_container.get_rect().get_center()
+	_create_draw_button()
 
 
 func _update_count() -> void:
@@ -25,6 +28,23 @@ func _update_count() -> void:
 
 func _on_inventory_changed() -> void:
 	_update_count()
+
+
+func _create_draw_button() -> void:
+	_draw_button = Button.new()
+	_draw_button.text = "Draw"
+	_draw_button.custom_minimum_size = Vector2(70, 30)
+	_draw_button.pressed.connect(func(): draw_pressed.emit())
+	_draw_button.disabled = true
+	add_child(_draw_button)
+	_draw_button.position = Vector2(0, 0)
+
+
+func set_draw_enabled(enabled: bool) -> void:
+	_draw_enabled = enabled
+	if _draw_button:
+		_draw_button.disabled = not enabled
+	deck_container.modulate = Color.WHITE if enabled else Color(0.5, 0.5, 0.5)
 
 
 ## 드로우 애니메이션 실행 (Hand 영역으로)

@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="DiceTypeResource" format=3 uid="uid://d4cufxfdn36h"]
-
-[ext_resource type="Script" uid="uid://x0wl6e0jnrlu" path="res://globals/dice_type_resource.gd" id="1"]
-[ext_resource type="Script" uid="uid://bipv0hglf0ram" path="res://globals/dice_effect_resource.gd" id="1_m2s4k"]
-[ext_resource type="Texture2D" uid="uid://cwcispppgl6k2" path="res://assets/dice/uv/dice_uv.png" id="3_16a2d"]
-
-[resource]
-script = ExtResource("1")
-texture = ExtResource("3_16a2d")

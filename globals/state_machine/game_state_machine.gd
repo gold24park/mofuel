@@ -58,7 +58,7 @@ func on_child_transitioned(state: GameStateBase, new_state_name: String) -> void
 		current_state.exit()
 
 	current_state = new_state
-	print("[StateMachine] %s -> %s" % [state.name, new_state_name])
+	# print("[StateMachine] %s -> %s" % [state.name, new_state_name])
 	current_state.enter()
 
 

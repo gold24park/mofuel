@@ -8,12 +8,12 @@ extends Control
 @onready var camera_3d = $SubViewportContainer/SubViewport/World3D/Camera3D
 @onready var hud = $CanvasLayer/HUD
 @onready var action_buttons = $CanvasLayer/ActionButtons
-@onready var score_card = $CanvasLayer/ScoreCard
 @onready var game_over_screen = $CanvasLayer/GameOver
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
 @onready var hand_display = $CanvasLayer/HandDisplay
 @onready var quick_score = $CanvasLayer/QuickScore
 @onready var dice_labels = $CanvasLayer/DiceLabels
+@onready var dice_stats = $CanvasLayer/DiceStats
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
 @onready var dice_tooltip = $CanvasLayer/DiceTooltip
@@ -40,6 +40,7 @@ func _ready():
 func _sync_dice_instances():
 	dice_manager.set_dice_instances(GameState.active_dice)
 	dice_labels.setup(camera_3d, dice_manager.dice_nodes, GameState.active_dice)
+	dice_stats.setup(camera_3d, dice_manager)
 
 
 ## 플랫폼 감지

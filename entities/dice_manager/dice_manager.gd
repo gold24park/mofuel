@@ -287,81 +287,113 @@ func _get_all_dice_instances() -> Array:
 #endregion
 
 
-## Scoring 단계에서 효과 연출 및 적용 (비동기)
-func play_scoring_effects_sequence() -> void:
-	# 1. ON_ROLL 효과 처리
+## 효과 애니메이션만 재생 (데이터 변경 없음, POST_ROLL 미리보기용)
+## on_target: 타겟 주사위 애니메이션 직전 호출되는 콜백 (index: int)
+func play_effects_animation(on_target: Callable = Callable()) -> void:
 	var all_dice := _get_all_dice_instances()
 	if all_dice.is_empty():
 		return
 
-	var roll_results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_ROLL,
-		all_dice
-	)
-	
-	# 2. ON_ADJACENT_ROLL 효과 처리 (모든 주사위에 대해 시뮬레이션)
-	# 인접 롤 트리거는 원래 개별적으로 발생하지만, 여기서는 한 번에 모아서 처리
-	# 각 주사위가 서로에게 트리거가 됨
-	var adj_results_list = []
-	for i in range(DICE_COUNT):
-		var res = EffectProcessor.process_trigger(
-			DiceEffectResource.Trigger.ON_ADJACENT_ROLL,
-			all_dice,
-			i
-		)
-		if not res.is_empty():
-			adj_results_list.append(res)
-			
-	# 3. 효과 적용 및 연출 (순차적)
-	# 왼쪽(0)부터 오른쪽(4)으로 순회하며 연출
-	for i in range(DICE_COUNT):
-		var has_effect = false
-		
-		# 이 주사위가 소스인 ON_ROLL 효과 찾기
-		if roll_results.has(i) or _has_source_effect(roll_results, i):
-			has_effect = true
-			
-		# 이 주사위가 소스인 ADJ 효과 찾기
-		for res in adj_results_list:
-			if res.has(i) or _has_source_effect(res, i):
-				has_effect = true
-				
-		if has_effect:
-			# 연출: 흔들기 + 소리
-			dice_nodes[i].start_breathing() # 임시 연출
-			# TODO: Play sound
-			await get_tree().create_timer(0.3).timeout
-			dice_nodes[i].stop_breathing()
-			
-			# 실제 데이터 적용 (여기서 적용해야 연출과 싱크가 맞음)
-			# 하지만 EffectProcessor 구조상 결과가 Target 인덱스로 묶여있음.
-			# 단순히 여기서 모두 적용해버리고 넘어가도 됨.
-			
-	# 데이터 일괄 적용 (연출 후)
-	_apply_results_to_dice(roll_results, all_dice)
-	for res in adj_results_list:
-		_apply_results_to_dice(res, all_dice)
-		
-	# 결과 UI 갱신 요청 등을 위해 시그널 발송 가능
-	# effects_applied.emit(...)
+	var score_results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+
+	var source_anims: Dictionary = {}
+	_collect_source_anims(score_results, source_anims)
+	print("[EffectFX] source_anims: %s" % [source_anims])
+
+	await _play_source_anims_sequence(source_anims, on_target)
 
 
-func _has_source_effect(results: Dictionary, source_idx: int) -> bool:
+## Scoring 단계에서 효과 데이터만 적용 (애니메이션은 POST_ROLL에서 완료)
+func apply_scoring_effects() -> void:
+	var all_dice := _get_all_dice_instances()
+	if all_dice.is_empty():
+		return
+
+	var score_results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+
+	for i in range(all_dice.size()):
+		all_dice[i].roll_effects.clear()
+	_add_results_to_dice(score_results, all_dice)
+	for i in range(all_dice.size()):
+		all_dice[i].apply_roll_effects_from_results()
+
+
+## 소스별 순차 애니메이션 재생 (왼→오)
+func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable = Callable()) -> void:
+	for src_idx in range(DICE_COUNT):
+		if not source_anims.has(src_idx):
+			continue
+
+		var anims: Array = source_anims[src_idx]
+		print("[EffectFX] src[%d] -> %d targets" % [src_idx, anims.size()])
+
+		dice_nodes[src_idx].start_breathing()
+		await get_tree().create_timer(0.15).timeout
+
+		for anim_info in anims:
+			var target_idx: int = anim_info["target"]
+			var anim_type: String = anim_info["anim"]
+			if on_target.is_valid():
+				on_target.call(target_idx)
+			if anim_type != "":
+				print("[EffectFX]   target[%d] anim: %s" % [target_idx, anim_type])
+				await dice_nodes[target_idx].play_effect_anim(anim_type)
+
+		dice_nodes[src_idx].stop_breathing()
+		await get_tree().create_timer(0.1).timeout
+
+
+## 결과에서 소스별 애니메이션 정보 추출
+func _collect_source_anims(results: Dictionary, out: Dictionary) -> void:
 	for target_idx in results:
-		for effect in results[target_idx]:
-			if effect.source_index == source_idx:
-				return true
-	return false
+		for result: EffectResult in results[target_idx]:
+			if not result.has_effect():
+				continue
+			var src := result.source_index
+			if src < 0:
+				continue
+			if not out.has(src):
+				out[src] = []
+			out[src].append({"target": target_idx, "anim": result.anim})
 
 
-func _apply_results_to_dice(results: Dictionary, all_dice: Array) -> void:
+## 결과를 주사위에 추가 (clear 없이 누적)
+func _add_results_to_dice(results: Dictionary, all_dice: Array) -> void:
 	for i in range(all_dice.size()):
 		if results.has(i):
-			all_dice[i].roll_effects.clear() # 기존 효과 초기화? 주의: 누적되어야 할 수도 있음
-			# ON_ROLL은 라운드마다 초기화되는게 맞음.
 			for result in results[i]:
 				all_dice[i].add_roll_effect(result)
-			all_dice[i].apply_roll_effects_from_results()
+
+
+#region 코너 스탯 데이터
+## ON_SCORE 효과를 미리 계산하여 주사위별 bonus/multiplier 반환
+## 반환: Array[Dictionary] — [{bonus: int, multiplier: int}, ...]
+func get_score_effect_stats() -> Array[Dictionary]:
+	var stats: Array[Dictionary] = []
+	var all_dice := _get_all_dice_instances()
+
+	if all_dice.is_empty():
+		stats.resize(DICE_COUNT)
+		for i in range(DICE_COUNT):
+			stats[i] = {"bonus": 0, "multiplier": 1}
+		return stats
+
+	var results := EffectProcessor.process_trigger(
+		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+
+	for i in range(DICE_COUNT):
+		var bonus: int = 0
+		var mult: float = 1.0
+		if results.has(i):
+			for result: EffectResult in results[i]:
+				bonus += result.value_bonus
+				mult *= result.value_multiplier
+		stats.append({"bonus": bonus, "multiplier": int(mult)})
+
+	return stats
+#endregion
 
 
 #region 선택 관리
@@ -449,6 +481,19 @@ func start_breathing(indices: Array) -> void:
 func stop_all_breathing() -> void:
 	for die in dice_nodes:
 		die.stop_breathing()
+
+
+func highlight_dice(indices: Array) -> void:
+	for i in indices:
+		if not Guard.verify(i >= 0 and i < dice_nodes.size(),
+				"Invalid highlight index %d" % i):
+			continue
+		dice_nodes[i].set_highlighted(true)
+
+
+func unhighlight_all() -> void:
+	for die in dice_nodes:
+		die.set_highlighted(false)
 #endregion
 
 
