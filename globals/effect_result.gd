@@ -18,18 +18,6 @@ var permanent_multiplier: float = 1.0
 #endregion
 
 
-#region 기타 효과
-## 와일드카드 여부
-var is_wildcard: bool = false
-
-## 롤 값 변경 (-1이면 변경 없음)
-var modified_roll_value: int = -1
-
-## 효과 우선순위 (정렬용)
-var priority: int = 100
-#endregion
-
-
 #region 시각적 피드백용 출처 정보
 ## 효과 발생 주사위 인덱스
 var source_index: int = -1
@@ -60,16 +48,12 @@ func merge(other) -> void:
 	value_multiplier *= other.value_multiplier
 	permanent_bonus += other.permanent_bonus
 	permanent_multiplier *= other.permanent_multiplier
-	is_wildcard = is_wildcard or other.is_wildcard
-	if other.modified_roll_value >= 0:
-		modified_roll_value = other.modified_roll_value
 
 
 ## 효과가 있는지 확인
 func has_effect() -> bool:
 	return value_bonus != 0 or value_multiplier != 1.0 or \
-		   permanent_bonus != 0 or permanent_multiplier != 1.0 or \
-		   is_wildcard or modified_roll_value >= 0
+		   permanent_bonus != 0 or permanent_multiplier != 1.0
 
 
 ## 복사본 생성
@@ -79,9 +63,6 @@ func duplicate() -> EffectResult:
 	copy.value_multiplier = value_multiplier
 	copy.permanent_bonus = permanent_bonus
 	copy.permanent_multiplier = permanent_multiplier
-	copy.is_wildcard = is_wildcard
-	copy.modified_roll_value = modified_roll_value
-	copy.priority = priority
 	copy.source_index = source_index
 	copy.target_index = target_index
 	copy.source_name = source_name

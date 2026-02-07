@@ -4,6 +4,7 @@ extends RefCounted
 var type: DiceTypeResource
 var current_value: int = 0
 var wildcard_assigned_value: int = 0
+var roll_count: int = 0
 
 
 #region Effect Results
@@ -24,18 +25,19 @@ func _init(dice_type: DiceTypeResource) -> void:
 
 
 #region Roll
-## 물리적 주사위 값 설정 (효과 적용 전)
+## 물리적 주사위 값 설정 → face_values 매핑 적용
 func roll(physical_value: int = -1) -> int:
-	current_value = physical_value if physical_value > 0 else randi_range(1, 6)
+	var physical := physical_value if physical_value > 0 else randi_range(1, 6)
+	var mapped := type.map_face(physical)
+	# 와일드카드면 물리적 값 유지 (스코어링에서 최적값 할당)
+	current_value = physical if mapped == DiceTypeResource.FACE_WILDCARD else mapped
+	roll_count += 1
 	return current_value
 
 
 ## 롤 효과 결과 적용 (EffectProcessor가 처리한 결과)
 func apply_roll_effects_from_results() -> void:
 	for result in roll_effects:
-		if result.modified_roll_value >= 0:
-			current_value = result.modified_roll_value
-		# 영구 보너스 누적
 		permanent_value_bonus += result.permanent_bonus
 		permanent_value_multiplier *= result.permanent_multiplier
 #endregion
@@ -46,10 +48,6 @@ func get_display_value() -> int:
 	if wildcard_assigned_value > 0:
 		return wildcard_assigned_value
 	return current_value
-
-
-func get_display_text() -> String:
-	return type.get_display_text(current_value)
 #endregion
 
 

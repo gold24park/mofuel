@@ -15,7 +15,7 @@ func enter() -> void:
 	GameState.inventory_manager.init_starting_deck()
 	
 	MetaState.reset_all_uses()
-	GameState.inventory_manager.draw_initial_hand(6)
+	GameState.inventory_manager.draw_initial_hand(5)
 
 	# 시그널 발생
 	GameState.round_changed.emit(GameState.current_round)

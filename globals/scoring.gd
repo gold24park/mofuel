@@ -20,12 +20,9 @@ static func calculate_score(category, dice: Array) -> int:
 	return int((base_score + permanent_bonus) * permanent_multiplier)
 
 
-## ON_SCORE 효과 처리
+## 효과 처리
 static func _process_score_effects(dice: Array) -> void:
-	var results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_SCORE,
-		dice
-	)
+	var results := EffectProcessor.process_effects(dice)
 
 	# 각 주사위에 결과 할당
 	for i in range(dice.size()):

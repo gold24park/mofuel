@@ -1,0 +1,2819 @@
+extends Node
+
+const board_size = 25
+
+const initial_symbol_types = [
+	"kibusim", "cheese", "kiki", "moon", "sticker",
+]
+
+func get_round_stats() -> Array[RoundStats]:
+	return [
+		RoundStats.round1(),
+		RoundStats.round2(),
+		RoundStats.round3(),
+		RoundStats.round4(),
+		RoundStats.round5(),
+		RoundStats.round6(),
+		RoundStats.round7(),
+		RoundStats.round8(),
+		RoundStats.round9(),
+		RoundStats.round10(),
+	]
+
+class Colors:
+	static var rarity = {
+		"common": "#997c70",
+		"uncommon": "#88c273",
+		"rare": "#4c7b8b",
+		"legendary": "#ffd65a"
+	}
+	
+	static var group = {
+		"mojadan": "#00A8C8",
+		"friend": "#FF9800",
+		"event": "#4C8CFF",
+		"game": "#00C078",
+		"fan": "#B84CFF",
+		"business": "#FFD700",
+		"object": "#FF5C5C",
+		"ani": "#FFAA99",
+		"hunter": "#44D62C",
+		"tools": "#FF3B58",
+		"human": "#8796FF",
+	}
+
+class Names:
+	static var group = {
+		"mojadan": "모자단",
+		"friend": "친구",
+		"event": "이벤트",
+		"game": "게임",
+		"fan": "팬",
+		"business": "사업",
+		"object": "사물",
+		"ani": "애니",
+		"hunter": "헌터",
+		"tools": "도구",
+		"human": "인간"
+	}
+
+const symbols = {
+	"dunchang": {
+		"type": "dunchang",
+		"display_name": "던창",
+		"value": 3,
+		"description": "10% 확률로 {{bodyprofile}} 생성",
+		"group": ["friend", "human"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.10,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "bodyprofile",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_DUNCHANG
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sapchang"
+					},
+					{
+						"a": "probability",
+						"b": 0.8
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAPCHANG
+			}
+		]
+	},
+	"choi13": {
+		"type": "choi13",
+		"display_name": "최아나13",
+		"value": 6,
+		"description": "8턴마다 {{appointment}} 생성",
+		"group": ["friend", "fan", "human"],
+		"rarity": "rare",
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 5,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 8,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "appointment",
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sapchang"
+					},
+					{
+						"a": "probability",
+						"b": 0.8
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAPCHANG
+			}
+		]
+	},
+	"appointment": {
+		"type": "appointment",
+		"display_name": "약속",
+		"value": 3,
+		"description": "5% 확률로 랜덤한 {{friend}} 추가",
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.05
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "friend",
+			}
+		]
+	},
+	"fechang": {
+		"type": "fechang",
+		"display_name": "프창",
+		"value": 3,
+		"description": "인접한 {{friend}}에게 x2 제공, 인접한 {{sapchang}}이 100%로 영구스탯 +1 획득",
+		"group": ["friend", "human"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "friend"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sapchang"
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAPCHANG
+			}
+		]
+	},
+	"bodyprofile": {
+		"type": "bodyprofile",
+		"display_name": "바디프로필",
+		"value": 3,
+		"description": "친구가 찍은 바디프로필입니다! 이것도...친구의 범주로 들어가죠.",
+		"group": ["friend"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sapchang"
+					},
+					{
+						"a": "probability",
+						"b": 0.8
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAPCHANG
+			}
+		]
+	},
+	"sapchang": {
+		"type": "sapchang",
+		"display_name": "샆창",
+		"value": 2,
+		"description": "{{friend}}가 인접할때마다 80% 확률로 자신에게 영구적으로 +2",
+		"group": ["friend", "human"],
+		"rarity": "common",
+		"effects": []
+	},
+	"newman": {
+		"type": "newman",
+		"display_name": "유입",
+		"description": "50% 확률로 노모로 변경",
+		"value": 1,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "nomo",
+				"anim": Enums.SymbolAnim.ROTATE,
+			}
+		]
+	},
+	"nomo": {
+		"type": "nomo",
+		"display_name": "노모",
+		"description": "5턴 후 {{chomo}}로 변경",
+		"value": 3,
+		"group": ["mojadan", "fan"],
+		"rarity": "common",
+		"extra_value_formula": {
+			"a": 5,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "chomo",
+				"anim": Enums.SymbolAnim.ROTATE,
+			},
+		]
+	},
+	"chomo": {
+		"type": "chomo",
+		"display_name": "초모",
+		"description": "주위의 {{mojadan}}에게 +2, 5턴 후 {{pamo}}로 변경",
+		"value": 4,
+		"group": ["mojadan", "fan"],
+		"rarity": "uncommon",
+		"extra_value_formula": {
+			"a": 5,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "mojadan"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "pamo",
+				"anim": Enums.SymbolAnim.ROTATE,
+			},
+		]
+	},
+	"pamo": {
+		"type": "pamo",
+		"display_name": "파모",
+		"description": "주위의 {{mojadan}}에게 +3, 5턴 후 {{bomo}}로 변경",
+		"value": 5,
+		"group": ["mojadan", "fan"],
+		"rarity": "rare",
+		"extra_value_formula": {
+			"a": 5,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "mojadan"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "bomo",
+				"anim": Enums.SymbolAnim.ROTATE,
+			},
+		]
+	},
+	"bomo": {
+		"type": "bomo",
+		"display_name": "보모",
+		"description": "주위의 {{mojadan}}에게 +4, 5턴 후 {{ppalmo}}로 변경",
+		"value": 6,
+		"group": ["mojadan", "fan"],
+		"rarity": "rare",
+		"extra_value_formula": {
+			"a": 5,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "mojadan"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 4,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "ppalmo",
+				"anim": Enums.SymbolAnim.ROTATE,
+			},
+		]
+	},
+	"ppalmo": {
+		"type": "ppalmo",
+		"display_name": "빨모",
+		"description": "주위의 {{mojadan}}에게 x2, 인접한 {{newman}}을 즉시 {{nomo}}로 변경",
+		"value": 7,
+		"group": ["mojadan", "fan"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "mojadan"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "newman"
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "nomo",
+				"anim": Enums.SymbolAnim.SCALE,
+			},
+		]
+	},
+	"sukchung": {
+		"type": "sukchung",
+		"display_name": "숙청",
+		"description": "각각 60% 확률로 위아래 카드를 파괴, 파괴시 +12",
+		"value": 3,
+		"group": ["event"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "updown_symbols",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.6
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SUKCHUNG
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "effect_applied",
+						"b": true,
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 12,
+				"anim": Enums.SymbolAnim.SCALE,
+			},
+		]
+	},
+	"mission": {
+		"type": "mission",
+		"display_name": "미션",
+		"description": "파괴시 +30 제공, 12턴동안 파괴하지 못할 시 스스로를 파괴하고 +1 제공",
+		"value": 3,
+		"group": ["event"],
+		"rarity": "uncommon",
+		"extra_value_formula": {
+			"a": 12,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 12
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true
+					},
+					{
+						"a": "times_displayed",
+						"b": 12,
+						"op": "gte"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 1,
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "mission_1",
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true
+					},
+					{
+						"a": "times_displayed",
+						"b": 12,
+						"op": "lt"
+					},
+				],
+				"value_to_change": "value_bonus",
+				"diff": 30,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_MISSION
+			}
+		]
+	},
+	"donation": {
+		"type": "donation",
+		"display_name": "도네이션",
+		"description": "자신을 파괴하고 +10 제공",
+		"value": 10,
+		"group": ["event"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 1
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"youngdo": {
+		"type": "youngdo",
+		"display_name": "영상도네",
+		"description": "파괴될때 총 등장횟수만큼 추가 제공",
+		"value": 3,
+		"group": ["event"],
+		"rarity": "common",
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 0,
+			"op": "plus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": "times_displayed",
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"shotgun": {
+		"type": "shotgun",
+		"display_name": "샷건",
+		"description": "각각 70% 확률로 양쪽 카드를 파괴, 자신을 영구적으로 +4",
+		"value": 1,
+		"group": ["tools"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "side_symbols",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.7
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SHOTGUN,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "effect_applied",
+						"b": true,
+					}
+				],
+				"value_to_change": "value",
+				"diff": 4,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"gon": {
+		"type": "gon",
+		"display_name": "곤",
+		"description": "인접한 {{hunter}}에게 x4",
+		"value": 4,
+		"group": ["ani", "hunter"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "hunter"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 4,
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_GON
+			}
+		]
+	},
+	"kirua": {
+		"type": "kirua",
+		"display_name": "키루아",
+		"description": "턴이 지날 때마다 70% 확률로 자신을 영구적으로 +1\n\n[color=#aaaaaa]- 사랑했었다.",
+		"value": 0,
+		"group": ["ani", "hunter"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.7,
+					}
+				],
+				"value_to_change": "value",
+				"diff": 1,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_KIRUA
+			}
+		]
+	},
+	"crapika": {
+		"type": "crapika",
+		"display_name": "크라피카",
+		"description": "25% 확률로 +5",
+		"value": 3,
+		"group": ["ani", "hunter"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.25,
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"hisoka": {
+		"type": "hisoka",
+		"display_name": "히소카",
+		"description": "50% 확률로 인접한 {{human}} 파괴",
+		"value": 8,
+		"group": ["ani", "hunter"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "human"
+					},
+					{
+						"a": "probability",
+						"b": 0.5,
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"gohan": {
+		"type": "gohan",
+		"display_name": "손오반",
+		"description": "파괴시 랜덤한 드래곤볼 추가",
+		"value": 6,
+		"group": ["ani"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": ["dball1", "dball2", "dball3", "dball4", "dball5", "dball6", "dball7"],
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"dball1": {
+		"type": "dball1",
+		"display_name": "1성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 1,
+		"rarity": "common",
+		"group": ["ani"],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type_on_board",
+						"b": [
+							"dball2",
+							"dball3",
+							"dball3",
+							"dball4",
+							"dball5",
+							"dball6",
+							"dball7",
+						],
+					}
+				],
+				"value_to_change": "dball_effect",
+				"anim": Enums.SymbolAnim.DRAGONBALL,
+				"anim_targets": Enums.SymbolAnimTarget.ALL_DRAGONBALLS
+			}
+		]
+	},
+	"dball2": {
+		"type": "dball2",
+		"display_name": "2성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 2,
+		"rarity": "common",
+		"group": ["ani"],
+		"effects": []
+	},
+	"dball3": {
+		"type": "dball3",
+		"display_name": "3성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 3,
+		"rarity": "common",
+		"group": ["ani"],
+		"effects": []
+	},
+	"dball4": {
+		"type": "dball4",
+		"display_name": "4성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 4,
+		"rarity": "legendary",
+		"group": [],
+		"effects": []
+	},
+	"dball5": {
+		"type": "dball5",
+		"display_name": "5성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 5,
+		"rarity": "uncommon",
+		"group": ["ani"],
+		"effects": []
+	},
+	"dball6": {
+		"type": "dball6",
+		"display_name": "6성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 6,
+		"rarity": "rare",
+		"group": ["ani"],
+		"effects": []
+	},
+	"dball7": {
+		"type": "dball7",
+		"display_name": "7성구",
+		"description": "1~7성구를 모두 보드에 배치하면 라운드를 통과하고 {{stone}}이 됨.",
+		"value": 7,
+		"rarity": "rare",
+		"group": ["ani"],
+		"effects": []
+	},
+	"mayoi": {
+		"type": "mayoi",
+		"display_name": "마요이",
+		"description": "등장마다 일반 카드보다 더 좋은 카드를 발견할 확률이 0.3% 증가",
+		"value": 2,
+		"group": ["game"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "mayoi",
+					}
+				],
+				"value_to_change": "rarity_bonus",
+				"diff": 0.003,
+				"anim": Enums.SymbolAnim.CIRCLE,
+			}
+		],
+	},
+	"kibusim": {
+		"type": "kibusim",
+		"display_name": "키부심",
+		"description": "가장 윗줄에 놓일경우 +5\n\n[color=#aaaaaa]- 150이든 160이든 뭔 상관이죠? 다 140으로 보이는데",
+		"value": 1,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "index",
+						"b": [0, 1, 2, 3, 4],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"pebbles": {
+		"type": "pebbles",
+		"display_name": "페블즈",
+		"description": "가장 아랫줄에 놓일경우 +5\n\n[color=#aaaaaa]- 탈 것의 이름은 대부분 페블즈입니다.",
+		"value": 1,
+		"group": ["game"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "index",
+						"b": [20, 21, 22, 23, 24],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_PEBBLES,
+			}
+		]
+	},
+	"daejeon": {
+		"type": "daejeon",
+		"display_name": "대전",
+		"description": "보드의 중앙에 위치하면 +77\n\n[color=#aaaaaa]- 대전이 수도가 되어야한다고 강하게 주장합니다.",
+		"value": 6,
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "index",
+						"b": [12],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 77,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_DAEJEON,
+			}
+		]
+	},
+	"gettowork": {
+		"type": "gettowork",
+		"display_name": "겟투워크",
+		"description": "-2~8까지 랜덤 점수추가\n\n[color=#aaaaaa]- 급할수록 돌아가라는 교훈을 얻었습니다.",
+		"value": 0,
+		"group": ["game"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "gettowork"
+					}
+				],
+				"value_to_change": "random_range_value_bonus",
+				"diff": [-2, 8],
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail"
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "norail",
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_NORAIL,
+			}
+		]
+	},
+	"ganon": {
+		"type": "ganon",
+		"display_name": "가논",
+		"description": "인접한 슬롯이 비어있을 경우, {{boko}}를 생성.\n\n[color=#aaaaaa]- 8시간동안 가논과의 사투를 벌인 사람이 있습니다.",
+		"value": 8,
+		"group": ["game"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail"
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "norail",
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_NORAIL,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "adjacent_empty_symbols",
+						"b": true
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "boko",
+			},
+		]
+	},
+	"cheese": {
+		"type": "cheese",
+		"display_name": "치즈",
+		"description": "인접한 {{rail}}에 의해 파괴, {{rail}}에게 영구적으로 +5\n\n[color=#aaaaaa]- 가장 즐겨먹는 먹이입니다.",
+		"value": 1,
+		"rarity": "common",
+		"group": [],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail"
+					}
+				],
+				"value_to_change": "value",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			}
+		]
+	},
+	"rail": {
+		"type": "rail",
+		"display_name": "랠짱",
+		"description": "{{gettowork}}/{{radan}}/{{ganon}}을 만나면 일시적으로 {{norail}}이 된다. 1/2/3/4 중 랜덤한 배수를 부여한다.\n\n[color=#aaaaaa]- 게임 못하는 사람 중에는 제일 잘해요.",
+		"value": 7,
+		"rarity": "legendary",
+		"group": ["human", "friend"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "cheese"
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.SHAKE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "railten"
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail",
+					},
+				],
+				"value_to_change": "random_multiplier",
+				"diff": [1, 2, 3, 4],
+				"anim": Enums.SymbolAnim.SCALE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "value_multiplier",
+						"b": 4,
+						"op": "gte"
+					},
+				],
+				"anim": Enums.SymbolAnim.CIRCLE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_RAIL_MULT
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sapchang"
+					},
+					{
+						"a": "probability",
+						"b": 0.8
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAPCHANG
+			}
+		]
+	},
+	"norail": {
+		"type": "norail",
+		"display_name": "안해랠짱",
+		"description": "3턴 뒤 {{rail}}이 된다.\n\n[color=#aaaaaa]- 안해라고 하면 벌금 1000원 적립하신답니다.",
+		"value": 0,
+		"rarity": "common",
+		"group": ["human"],
+		"pickable": false,
+		"extra_value_formula": {
+			"a": 3,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 3,
+						"op": "gte"
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "rail",
+				"anim": Enums.SymbolAnim.ROTATE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_RAIL,
+			}
+		]
+	},
+	"railten": {
+		"type": "railten",
+		"display_name": "래텐짱",
+		"description": "인접한 모든 카드에 x2. 랠짱을 만날시 파괴.\n\n[color=#aaaaaa]- 니디걸오버도즈의 초텐짱에서 유래!",
+		"value": 3,
+		"rarity": "rare",
+		"group": [],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "empty",
+						"op": "not"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.CIRCLE,
+			}
+		]
+	},
+	"haoba": {
+		"type": "haoba",
+		"display_name": "하오바",
+		"description": "각각 50% 확률로 양쪽 카드에 영구적으로 +2\n\n[color=#aaaaaa]- 하프오크바드의 줄임말입니다.",
+		"value": 2,
+		"rarity": "rare",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "side_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "empty",
+						"op": "not"
+					},
+					{
+						"a": "probability",
+						"b": 0.5
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_HAOBA,
+			}
+		]
+	},
+	"stone": {
+		"type": "stone",
+		"display_name": "돌",
+		"description": "평범한 돌",
+		"value": 0,
+		"pickable": false,
+		"rarity": "common",
+		"group": ["tools"],
+		"effects": [
+			
+		]
+	},
+	"bangsong": {
+		"type": "bangsong",
+		"display_name": "방송",
+		"description": "20% 확률로 {{mission}}/{{donation}}/{{youngdo}}중 하나를 생성",
+		"value": 5,
+		"rarity": "rare",
+		"group": [],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.2
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": ["mission", "donation", "youngdo"],
+			}
+		]
+	},
+	"sims": {
+		"type": "sims",
+		"display_name": "심즈",
+		"description": "7턴마다 {{bangsong}}을 생성\n\n[color=#aaaaaa]- 볼 땐 재미있는 게임입니다.",
+		"value": 1,
+		"rarity": "common",
+		"group": ["game"],
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 7,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 7,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "bangsong",
+			}
+		]
+	},
+	"x": {
+		"type": "x",
+		"display_name": "X",
+		"pickable": false,
+		"description": "트위터는 아니에요. 아무것도 아니에요.",
+		"value": 0,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			
+		]
+	},
+	"fanmeeting": {
+		"type": "fanmeeting",
+		"display_name": "팬미팅",
+		"description": "인접한 {{fan}}에게 x3\n\n[color=#aaaaaa]- 10만 구독자 달성시 팬미팅 공약이 있었습니다.",
+		"value": 5,
+		"group": ["event"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "fan",
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			}
+		]
+	},
+	"disney": {
+		"type": "disney",
+		"display_name": "디즈니",
+		"description": "매 턴마다 영구적으로 -1 혹은 -2\n\n[color=#aaaaaa]- 왜 샀을까요?",
+		"value": - 5,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "disney"
+					}
+				],
+				"value_to_change": "random_range_value",
+				"diff": [-1, -2],
+			}
+		]
+	},
+	"nvidia": {
+		"type": "nvidia",
+		"display_name": "엔비디아",
+		"description": "1% 확률로 {{nvidia}} 생성,6턴마다 x6\n\n[color=#aaaaaa]- 스스로 알까는 주식이 있다고합니다.",
+		"value": 3,
+		"group": [],
+		"rarity": "uncommon",
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 6,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 6,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 6,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.01,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "nvidia",
+			}
+		]
+	},
+	"choco": {
+		"type": "choco",
+		"display_name": "초코",
+		"description": "인접한 -값을 모두 +로 바꾼다.\n\n[color=#aaaaaa]- 랠짱이 키우는 강아지입니다. 이케아 출신이죠.",
+		"value": 2,
+		"group": ["object"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "empty",
+						"op": "not"
+					}
+				],
+				"value_to_change": "score",
+				"diff": "abs",
+				"anim": Enums.SymbolAnim.CIRCLE,
+			},
+		]
+	},
+	"diary": {
+		"type": "diary",
+		"display_name": "다이어리",
+		"description": "12턴 후 파괴, 인접한 {{sticker}}, {{diaryfan}}에게 x3",
+		"value": 7,
+		"group": ["tools"],
+		"rarity": "uncommon",
+		"extra_value_formula": {
+			"a": 12,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 12,
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.SHAKE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["sticker", "diaryfan"],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"post": {
+		"type": "post",
+		"display_name": "뻘글",
+		"description": "화장실에서 읽기에 이만한건 없죠.",
+		"value": 1,
+		"group": [],
+		"rarity": "uncommon",
+		"effects": []
+	},
+	"scarybutcute": {
+		"type": "scarybutcute",
+		"display_name": "스벗큐",
+		"description": "20% 확률로 스티커를 생성.",
+		"value": 3,
+		"rarity": "uncommon",
+		"group": ["business"],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.2
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "sticker",
+			}
+		]
+	},
+	"ilfe": {
+		"type": "ilfe",
+		"display_name": "서일페",
+		"description": "30% 확률로 {{diaryfan}} 생성",
+		"value": 6,
+		"rarity": "rare",
+		"group": ["event"],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.3
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "diaryfan",
+			}
+		]
+	},
+	"sticker": {
+		"type": "sticker",
+		"display_name": "스티커",
+		"description": "인벤토리에 있는 {{sticker}}의 수 만큼 추가 획득\n\n[color=#aaaaaa]- 이놈의 악성재고",
+		"value": 1,
+		"rarity": "common",
+		"group": ["tools"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "diaryfan"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 10,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sticker",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": ["inventory_type_count", "sticker", 1],
+			}
+		]
+	},
+	"diaryfan": {
+		"type": "diaryfan",
+		"display_name": "문구팬",
+		"description": "인접한 {{sticker}}를 제거하고 +10",
+		"value": 2,
+		"rarity": "common",
+		"group": ["fan", "human"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sticker"
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"skit": {
+		"type": "skit",
+		"display_name": "스킵",
+		"description": "인접한 {{lopper}}에게 x5",
+		"value": 4,
+		"rarity": "uncommon",
+		"group": ["ani"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "lopper"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"lopper": {
+		"type": "lopper",
+		"display_name": "로퍼",
+		"description": "인접한 {{skit}}에게 x5",
+		"value": 2,
+		"rarity": "common",
+		"group": ["ani"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "skit"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"jump": {
+		"type": "jump",
+		"display_name": "소년점프",
+		"description": "8턴마다 랜덤한 {{ani}}를 생성",
+		"value": 2,
+		"rarity": "uncommon",
+		"group": ["ani"],
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 8,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 8,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "ani",
+			}
+		]
+	},
+	"radan": {
+		"type": "radan",
+		"display_name": "별 부수는 라단",
+		"description": "1턴마다 자신을 영구적으로 +2",
+		"value": - 10,
+		"rarity": "rare",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "radan",
+					}
+				],
+				"value_to_change": "value",
+				"diff": 2,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail"
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "norail",
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_NORAIL,
+			}
+		]
+	},
+	"boko": {
+		"type": "boko",
+		"display_name": "보코블린",
+		"description": "5턴 후 파괴, 인접한 {{ganon}}에게 x3",
+		"value": 2,
+		"group": ["game"],
+		"rarity": "common",
+		"extra_value_formula": {
+			"a": 5,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 5,
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "ganon",
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			}
+		]
+	},
+	"pyrimon": {
+		"type": "pyrimon",
+		"display_name": "파이리몽",
+		"value": 6,
+		"description": "19% 확률로 랜덤 {{tools}} 생성",
+		"group": ["fan"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.19,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "tools",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_PYRIMON
+			}
+		]
+	},
+	"best_post": {
+		"type": "best_post",
+		"display_name": "인기글",
+		"value": 5,
+		"description": "인접한 {{best_post}}, {{post}}에 x3",
+		"group": [],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["post", "best_post"],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"cafe1": {
+		"type": "cafe1",
+		"display_name": "조무래기",
+		"value": 3,
+		"description": "15% 확률로 {{post}} 생성",
+		"group": ["human"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.15,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "post",
+			}
+		]
+	},
+	"cafe2": {
+		"type": "cafe2",
+		"display_name": "연구원",
+		"value": 7,
+		"description": "10% 확률로 {{best_post}} 생성",
+		"group": ["human"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.1,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "best_post",
+			}
+		]
+	},
+	"cafe3": {
+		"type": "cafe3",
+		"display_name": "사천왕",
+		"value": 9,
+		"description": "인접한 {{post}}를 50% 확률로 {{best_post}}로 변경",
+		"group": ["human"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "post"
+					},
+					{
+						"a": "probability",
+						"b": 0.5
+					}
+				],
+				"value_to_change": "switch_symbol",
+				"diff": "best_post",
+				"anim": Enums.SymbolAnim.SCALE,
+			},
+		]
+	},
+	"bang48": {
+		"type": "bang48",
+		"display_name": "48시간뱅송",
+		"description": "인벤토리의 카드 수가 30개 이상일 경우 +48\n\n[color=#aaaaaa]- 48시간 방송해주세요~",
+		"value": - 12,
+		"group": ["event"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "inventory_size",
+						"b": 30,
+						"op": "gte"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 48,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"birthday": {
+		"type": "birthday",
+		"display_name": "래탄절",
+		"description": "12턴마다 {{donation}}을 생성\n\n[color=#aaaaaa]- 언제인지는 다들 아시죠?",
+		"value": 2,
+		"rarity": "common",
+		"group": ["event"],
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 12,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 12,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "donation",
+			}
+		]
+	},
+	"dogfoot": {
+		"type": "dogfoot",
+		"display_name": "도그풋",
+		"value": 3,
+		"description": "5% 확률로 {{game}} 생성\n\n[color=#aaaaaa]- 도그풋에서 게임을 완성할 수 있길!",
+		"group": ["business"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.05,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "game",
+			}
+		]
+	},
+	"bot": {
+		"type": "bot",
+		"display_name": "어둠의 봇",
+		"value": 10,
+		"description": "10% 확률로 고장. 고장시 -10\n\n[color=#aaaaaa]- 대부분은 버그입니다.",
+		"group": ["tools"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.1,
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": - 10,
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "bot_1",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_BOT,
+			}
+		]
+	},
+	"leorio": {
+		"type": "leorio",
+		"display_name": "레오리오",
+		"description": "모은 친구비가 $100 이상일 경우 +5",
+		"value": 1,
+		"group": ["ani", "hunter"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "score",
+						"b": 100,
+						"op": "gte"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 5,
+				"anim": Enums.SymbolAnim.CIRCLE,
+			}
+		]
+	},
+	"kirby": {
+		"type": "kirby",
+		"display_name": "커비",
+		"description": "커비를 제외한, 오른쪽 카드를 파괴하고 스탯을 자신에 더함",
+		"value": 0,
+		"group": ["game"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "kirby",
+					}
+				],
+				"value_to_change": "kirby_effect",
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_KIRBY
+			},
+			{
+				"effect_type": "right_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "kirby",
+						"op": "not"
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+			}
+		]
+	},
+	"albacat": {
+		"type": "albacat",
+		"display_name": "알바냥",
+		"description": "인접한 {{pebbles}}/{{choco}}에게 +5\n\n[color=#aaaaaa]- 제트버거 알바생이에요.",
+		"value": 2,
+		"group": ["object"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["pebbles", "choco"],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"cyberpunk": {
+		"type": "cyberpunk",
+		"display_name": "사이버펑크",
+		"description": "인접한 {{tools}}에 +3\n\n[color=#aaaaaa]- 기초적인 임플란트죠.",
+		"value": 3,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "tools",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE
+			},
+		]
+	},
+	"kiki": {
+		"type": "kiki",
+		"display_name": "키키",
+		"description": "모르면 키키만 치세요.",
+		"value": 3,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+		]
+	},
+	"sinsekai": {
+		"type": "sinsekai",
+		"display_name": "신세카이 골절",
+		"description": "4턴마다 아무것도 제공하지 않는다.\n\n[color=#aaaaaa]- 러너들에게 나타나는 질병입니다. 아마도?",
+		"value": 5,
+		"group": [],
+		"rarity": "common",
+		"extra_value_formula": {
+			"a": "times_displayed",
+			"b": 4,
+			"op": "mod"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 4,
+						"op": "mod"
+					}
+				],
+				"value_to_change": "score",
+				"diff": "zero",
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "sinsekai_1",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SINSEKAI
+			},
+		]
+	},
+	"summer": {
+		"type": "summer",
+		"display_name": "여름",
+		"description": "인접한 {{skit}}/{{lopper}}/{{railten}}/{{rail}}에게 +3\n\n[color=#aaaaaa]- 여름 좋아하시나요? 나는 좋아하는데.",
+		"value": 2,
+		"group": ["event"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "skit",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "lopper",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "railten",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "rail",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"survival": {
+		"type": "survival",
+		"display_name": "서바이벌",
+		"description": "매 턴마다 0이 될때까지 -1\n\n[color=#aaaaaa]- 종이인간이지만 서바이벌은 좋아",
+		"value": 12,
+		"group": ["event"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "value",
+						"b": 0,
+						"op": "gt"
+					}
+				],
+				"value_to_change": "value",
+				"diff": - 1,
+				"anim": Enums.SymbolAnim.SHAKE,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "value",
+						"b": 0,
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 0,
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "survival_1"
+			},
+		]
+	},
+	"ssd": {
+		"type": "ssd",
+		"display_name": "성심당",
+		"description": "인접한 {{ssd}}/{{cheese}}/{{zelato}}/{{siobread}}에게 +4",
+		"value": 2,
+		"group": [],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["cheese", "zelato", "siobread", "ssd"],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 4,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"cookie_monster": {
+		"type": "cookie_monster",
+		"display_name": "쿠키몬스터 텀블러",
+		"description": "삭제하지 않는 이상 파괴되지 않음\n\n[color=#aaaaaa]- 누구에게나 애착물건은 있지만, 그게 플라스틱 텀블러인 경우는 드물죠.",
+		"value": 5,
+		"group": ["tools"],
+		"rarity": "rare",
+		"destroyable": false,
+		"effects": [
+			
+		]
+	},
+	"mealmoa": {
+		"type": "mealmoa",
+		"display_name": "밀모아",
+		"description": "인접한 {{business}}에게 +5\n\n[color=#aaaaaa]- 세상의 모든 밀키트를 리뷰합니다.",
+		"value": 5,
+		"group": ["business"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "business",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"issue": {
+		"type": "issue",
+		"display_name": "이슈장군",
+		"description": "인접한 {{business}}에게 +4\n\n[color=#aaaaaa]- 언젠가 이슈장군 채널 나오면 전 줄 아세요.",
+		"value": 4,
+		"group": ["business"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "business",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 4,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"silkscreen": {
+		"type": "silkscreen",
+		"display_name": "실크스크린",
+		"description": "인접한 {{business}}에게 +1\n\n[color=#aaaaaa]- 대학생때부터 가진 창업의 꿈",
+		"value": 2,
+		"group": ["business"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "business",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 1,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"zelato": {
+		"type": "zelato",
+		"display_name": "갓젤라또",
+		"description": "구석에 있을 경우 -3\n\n[color=#aaaaaa]- 여수 딸기모찌파는데 옆에다가 가게를...",
+		"value": 3,
+		"group": ["business"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "index",
+						"b": [0, 4, 20, 24],
+						"op": "in"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": - 3,
+				"anim": Enums.SymbolAnim.CIRCLE,
+			},
+		]
+	},
+	"ceo": {
+		"type": "ceo",
+		"display_name": "폐업왕 김사장",
+		"description": "15% 확률로 {{business}}을 생성.",
+		"value": 2,
+		"group": ["human"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.15,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "business",
+			}
+		]
+	},
+	"siobread": {
+		"type": "siobread",
+		"display_name": "소금빵 인형",
+		"description": "4턴 후 파괴.\n\n[color=#aaaaaa]- 이 세상에 단 하나뿐인 소금빵 인형입니다.",
+		"value": 7,
+		"rarity": "uncommon",
+		"group": ["business"],
+		"extra_value_formula": {
+			"a": 4,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 4,
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"resin": {
+		"type": "resin",
+		"display_name": "레진공예",
+		"description": "4턴 후 파괴.\n\n[color=#aaaaaa]- 얼마안쓴 레진공예 키트 판매합니다.",
+		"value": 4,
+		"rarity": "common",
+		"group": ["business"],
+		"extra_value_formula": {
+			"a": 4,
+			"b": "times_displayed",
+			"op": "minus"
+		},
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "times_displayed",
+						"b": 4,
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"woohoo": {
+		"type": "woohoo",
+		"display_name": "사랑나누기",
+		"description": "{{sims_test}}과 인접시 x3\n\n[color=#aaaaaa]- 유튜브 성공공식 알려드립니다. 임.출.육, 임신출산육아.",
+		"value": 5,
+		"rarity": "rare",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sims_test",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 10,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			}
+		]
+	},
+	"sims_test": {
+		"type": "sims_test",
+		"display_name": "심즈실험실",
+		"description": "{{woohoo}}과 인접시 +10",
+		"value": 7,
+		"rarity": "legendary",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "woohoo",
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SIMS_TEST
+			}
+		]
+	},
+	"finger": {
+		"type": "finger",
+		"display_name": "손가락",
+		"description": "가리키는 방향에 +3, {{moon}}을 가리키면 +50",
+		"value": 2,
+		"rarity": "uncommon",
+		"group": ["object"],
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "finger",
+					}
+				],
+				"value_to_change": "random_direction",
+			},
+			{
+				"effect_type": "direction_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "moon",
+						"op": "not"
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+			{
+				"effect_type": "direction_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "moon",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 50,
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"moon": {
+		"type": "moon",
+		"display_name": "달",
+		"description": "환하게 빛나는 보름달입니다.\n\n[color=#aaaaaa]- 손가락으로 달을 가리키면 달을 봐야지 얘들아.",
+		"value": 2,
+		"rarity": "common",
+		"group": ["object"],
+		"effects": [
+		]
+	},
+	"general_game": {
+		"type": "general_game",
+		"display_name": "종겜스",
+		"value": 0,
+		"description": "인접한 {{game}}에게 x3 제공",
+		"group": ["human"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "game"
+					}
+				],
+				"value_to_change": "value_multiplier",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+			},
+		]
+	},
+	"ad": {
+		"type": "ad",
+		"display_name": "광고",
+		"value": 7,
+		"description": "10% 확률로 {{newman}} 생성",
+		"group": [],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.1
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "newman",
+			},
+		]
+	},
+	"ark": {
+		"type": "ark",
+		"display_name": "아크시참모집폼",
+		"value": 9,
+		"description": "인접한 슬롯이 비어있는 경우, 자신을 파괴\n\n[color=#aaaaaa]- 어느 날 새벽, 아주 짧은 시간동안 시참 모집폼이 열렸다고한다.",
+		"group": ["game"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "adjacent_empty_symbols",
+						"b": true
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+			},
+		]
+	},
+	"rosario": {
+		"type": "rosario",
+		"display_name": "로사리오 돈",
+		"description": "양쪽의 {{human}}과 만나면 10% 확률로 {{woohoo}} 생성",
+		"value": 4,
+		"rarity": "uncommon",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "side_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "human"
+					},
+					{
+						"a": "probability",
+						"b": 0.1
+					},
+				],
+				"value_to_change": "create_symbol",
+				"diff": "woohoo",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_ROSARIO,
+			},
+		]
+	},
+	"ker": {
+		"type": "ker",
+		"display_name": "커족",
+		"description": "인접한 {{human}}들에게 +3",
+		"value": 2,
+		"rarity": "common",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "human"
+					},
+				],
+				"value_to_change": "value_bonus",
+				"diff": 3,
+				"anim": Enums.SymbolAnim.BOUNCE
+			},
+		]
+	},
+	"jagger": {
+		"type": "jagger",
+		"display_name": "자거족",
+		"description": "인접한 {{human}}들에게 -3",
+		"value": 5,
+		"rarity": "common",
+		"group": ["game"],
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "human"
+					},
+				],
+				"value_to_change": "value_bonus",
+				"diff": - 3,
+				"anim": Enums.SymbolAnim.SHAKE
+			},
+		]
+	},
+	"sampo": {
+		"type": "sampo",
+		"display_name": "삼포",
+		"value": 1,
+		"description": "인벤토리에 있는 {{sampo}} 수 x3만큼 추가제공\n\n[color=#aaaaaa]- 4성 6돌은...인연이죠",
+		"group": ["game"],
+		"rarity": "common",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "sampo",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": ["inventory_type_count", "sampo", 3],
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_SAMPO,
+			},
+		]
+	},
+	"pickpocket": {
+		"type": "pickpocket",
+		"display_name": "소매치기",
+		"value": 3,
+		"description": "파괴시 랜덤한 {{object}} 카드 3개를 획득.",
+		"group": ["tools"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "object",
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "object",
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "object",
+			},
+		]
+	},
+	"calendar": {
+		"type": "calendar",
+		"display_name": "달력",
+		"value": 5,
+		"description": "10% 확률로 랜덤한 {{event}}를 생성.\n\n[color=#aaaaaa]- 마지막 공식 굿즈라고 합니다.",
+		"group": ["tools"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.1,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "event",
+			},
+		]
+	},
+	"elevator": {
+		"type": "elevator",
+		"display_name": "엘리베이터",
+		"value": 5,
+		"description": "파괴시 랜덤한 {{human}} 카드 2개를 획득.",
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "human",
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "elevator_1",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_ELEVATOR,
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "destroyed",
+						"b": true,
+					}
+				],
+				"value_to_change": "create_group",
+				"diff": "human",
+				"anim": Enums.SymbolAnim.TEXTURE,
+				"anim_params": "elevator_1"
+			},
+		]
+	},
+	"majuk": {
+		"type": "majuk",
+		"display_name": "마죽거사",
+		"description": "모은 친구비가 $100 이하일 경우 파괴됨\n\n[color=#aaaaaa]- <마시고 죽자 거지는 사절>이라는 중세여관이 있었다고 합니다.",
+		"value": 10,
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "score",
+						"b": 100,
+						"op": "lte"
+					}
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+			}
+		]
+	},
+	"otaku": {
+		"type": "otaku",
+		"display_name": "오타쿠 감별법",
+		"description": "인접한 {{ani}}에게 +3\n\n[color=#aaaaaa]- 당신이 오타쿠인지 아닌지 헷갈리시나요? 그렇다면 당신은 오타쿠입니다.",
+		"value": 4,
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "group",
+						"b": "ani",
+					}
+				],
+				"value_to_change": "value_bonus",
+				"diff": 2,
+				"anim": Enums.SymbolAnim.BOUNCE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_OTAKU
+			}
+		]
+	},
+	"jjjs": {
+		"type": "jjjs",
+		"display_name": "전전전세",
+		"description": "인접한 {{kirua}}/{{rail}}/{{sampo}}에게 영구적으로 +1\n\n[color=#aaaaaa]- 눈물버튼",
+		"value": 3,
+		"group": ["ani"],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["kirua", "rail", "sampo"],
+						"op": "in"
+					},
+				],
+				"value_to_change": "value",
+				"diff": 1,
+				"anim": Enums.SymbolAnim.SCALE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_JJJS
+			}
+		]
+	},
+	"reaction": {
+		"type": "reaction",
+		"display_name": "리액션",
+		"description": "인접한 {{mission}}/{{youngdo}}파괴",
+		"value": 5,
+		"group": ["tools"],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["mission", "youngdo"],
+						"op": "in"
+					},
+				],
+				"value_to_change": "destroyed",
+				"diff": true,
+				"anim": Enums.SymbolAnim.FLASH,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_REACTION,
+			}
+		]
+	},
+	"dobakutenshi": {
+		"type": "dobakutenshi",
+		"display_name": "도바쿠텐시",
+		"description": "-7/2/7 중 랜덤한 배수를 부여.",
+		"value": 3,
+		"group": ["ani"],
+		"rarity": "legendary",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "dobakutenshi",
+					},
+				],
+				"value_to_change": "random_multiplier",
+				"diff": [-7, 2, 7]
+			},
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "value_multiplier",
+						"b": 7,
+						"op": "gte"
+					},
+				],
+				"anim": Enums.SymbolAnim.CIRCLE,
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_DOBAKUTENSHI
+			}
+		]
+	},
+	"jtmy": {
+		"type": "jtmy",
+		"display_name": "즛토마요",
+		"description": "10% 확률로 {{tear}} 생성, 인접한 {{tear}}의 -를 영구적으로 +로 바꾼다.",
+		"value": 10,
+		"group": [],
+		"rarity": "rare",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.10,
+					}
+				],
+				"value_to_change": "create_symbol",
+				"diff": "tear",
+				"sound": SoundEffectSettings.SoundEffectType.SYMBOL_JTMY
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": "tear",
+					},
+				],
+				"value_to_change": "value",
+				"diff": "abs",
+				"anim": Enums.SymbolAnim.SCALE,
+			}
+		]
+	},
+	"tear": {
+		"type": "tear",
+		"display_name": "즙",
+		"description": "인접한 {{tear}}/{{disney}}의 -를 +로 바꾼다. 80% 확률로 매 턴마다 -1",
+		"value": 3,
+		"group": [],
+		"rarity": "uncommon",
+		"effects": [
+			{
+				"effect_type": "self",
+				"comparisons": [
+					{
+						"a": "probability",
+						"b": 0.8,
+					},
+				],
+				"value_to_change": "value",
+				"diff": - 1,
+				"anim": Enums.SymbolAnim.SHAKE,
+			},
+			{
+				"effect_type": "adjacent_symbols",
+				"comparisons": [
+					{
+						"a": "type",
+						"b": ["tear", "disney"],
+						"op": "in"
+					},
+				],
+				"value_to_change": "score",
+				"diff": "abs",
+				"anim": Enums.SymbolAnim.CIRCLE,
+			}
+		]
+	},
+}

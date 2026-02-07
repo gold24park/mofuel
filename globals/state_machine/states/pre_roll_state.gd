@@ -61,7 +61,6 @@ func _play_round_transition() -> void:
 	var is_first_round := GameState.current_round == 1
 
 	GameState.is_transitioning = true
-	game_root.dice_labels.hide_all()
 	game_root.hand_display.enter_manual_mode()
 
 	if is_first_round:

@@ -12,21 +12,12 @@ var source_index: int = -1
 ## 모든 활성 주사위 배열
 var all_dice: Array = []
 
-## 현재 트리거 타입 (DiceEffectResource.Trigger)
-var trigger: int = 0
-
-## ON_ADJACENT_ROLL용 - 굴림을 발생시킨 인접 주사위
-var triggering_dice = null
-var triggering_index: int = -1
-
 
 static func create(
 	p_source_dice,
 	p_source_index: int,
-	p_all_dice: Array,
-	p_trigger: int
+	p_all_dice: Array
 ) -> EffectContext:
-	# Validate at creation time
 	assert(p_source_dice != null, "source_dice cannot be null")
 	assert(p_source_index >= 0 and p_source_index < p_all_dice.size(),
 		"source_index %d out of bounds for all_dice size %d" % [p_source_index, p_all_dice.size()])
@@ -35,14 +26,7 @@ static func create(
 	ctx.source_dice = p_source_dice
 	ctx.source_index = p_source_index
 	ctx.all_dice = p_all_dice
-	ctx.trigger = p_trigger
 	return ctx
-
-
-func with_triggering(p_triggering_dice, p_triggering_index: int) -> EffectContext:
-	triggering_dice = p_triggering_dice
-	triggering_index = p_triggering_index
-	return self
 
 
 ## 인접 주사위 인덱스 반환 (좌/우)

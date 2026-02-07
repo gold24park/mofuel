@@ -211,16 +211,13 @@ func _sort_and_animate_dice() -> void:
 	await get_tree().create_timer(0.6).timeout
 
 
-## ON_ROLL 효과 처리
+## 모든 효과 처리 (트리거 구분 없음)
 func _process_roll_effects() -> void:
 	var all_dice := _get_all_dice_instances()
 	if all_dice.is_empty():
 		return
 
-	var results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_ROLL,
-		all_dice
-	)
+	var results := EffectProcessor.process_effects(all_dice)
 
 	# 각 주사위에 결과 할당 및 적용
 	var effect_data: Array[Dictionary] = []
@@ -229,7 +226,6 @@ func _process_roll_effects() -> void:
 		if results.has(i):
 			for result in results[i]:
 				all_dice[i].add_roll_effect(result)
-				# 시각적 피드백 데이터 수집
 				if result.source_index >= 0 and result.source_index != i:
 					effect_data.append({
 						"from": result.source_index,
@@ -237,36 +233,6 @@ func _process_roll_effects() -> void:
 						"name": result.effect_name
 					})
 		all_dice[i].apply_roll_effects_from_results()
-
-	if not effect_data.is_empty():
-		effects_applied.emit(effect_data)
-
-
-## ON_ADJACENT_ROLL 효과 처리
-func _process_adjacent_roll_effects(triggering_index: int) -> void:
-	var all_dice := _get_all_dice_instances()
-	if all_dice.is_empty():
-		return
-
-	var results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_ADJACENT_ROLL,
-		all_dice,
-		triggering_index
-	)
-
-	# 기존 roll_effects에 병합
-	var effect_data: Array[Dictionary] = []
-	for i in range(all_dice.size()):
-		if results.has(i):
-			for result in results[i]:
-				all_dice[i].add_roll_effect(result)
-				if result.source_index >= 0:
-					effect_data.append({
-						"from": result.source_index,
-						"to": i,
-						"name": result.effect_name,
-						"trigger": "adjacent_roll"
-					})
 
 	if not effect_data.is_empty():
 		effects_applied.emit(effect_data)
@@ -294,8 +260,7 @@ func play_effects_animation(on_target: Callable = Callable()) -> void:
 	if all_dice.is_empty():
 		return
 
-	var score_results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+	var score_results := EffectProcessor.process_effects(all_dice)
 
 	var source_anims: Dictionary = {}
 	_collect_source_anims(score_results, source_anims)
@@ -310,8 +275,7 @@ func apply_scoring_effects() -> void:
 	if all_dice.is_empty():
 		return
 
-	var score_results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+	var score_results := EffectProcessor.process_effects(all_dice)
 
 	for i in range(all_dice.size()):
 		all_dice[i].roll_effects.clear()
@@ -380,8 +344,7 @@ func get_score_effect_stats() -> Array[Dictionary]:
 			stats[i] = {"bonus": 0, "multiplier": 1}
 		return stats
 
-	var results := EffectProcessor.process_trigger(
-		DiceEffectResource.Trigger.ON_SCORE, all_dice)
+	var results := EffectProcessor.process_effects(all_dice)
 
 	for i in range(DICE_COUNT):
 		var bonus: int = 0

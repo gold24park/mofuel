@@ -40,7 +40,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     category_*.gd     # Category/upgrade classes
     effect_context.gd     # 효과 실행 컨텍스트
     effect_result.gd      # 효과 결과 (시각적 피드백 포함)
-    effect_processor.gd   # 수집→정렬→적용 파이프라인
+    effect_processor.gd   # 수집→적용 파이프라인
     effect_condition.gd   # 조건부 효과 (Resource)
     composite_condition.gd # AND/OR 복합 조건
     /state_machine/       # Game state machine
@@ -54,13 +54,8 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
         scoring_state.gd      # 카테고리 선택
         game_over_state.gd    # 승/패 결과
     /effects/             # Dice effect subclasses
-      bias_effect.gd
-      score_multiplier_effect.gd
-      wildcard_effect.gd           # trigger_values로 조건부/항상 와일드 통합
-      face_map_effect.gd           # 고정값, 짝수/홀수만 등 모두 표현 가능
-      adjacent_bonus_effect.gd     # 인접 주사위 보너스
-      group_bonus_effect.gd        # 그룹 태그 매칭 보너스
-      on_adjacent_roll_effect.gd   # 인접 굴림 반응 효과
+      modifier_effect.gd           # 범용 점수 수정 (Data-driven)
+      action_effect.gd             # 게임 상태 변경 (드로우/파괴/변환)
 
   /entities/          # Reusable game entities
     /dice/            # 3D dice with physics
@@ -81,7 +76,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     /upgrade_screen/  # Category upgrade UI
 
   /resources/         # Data definitions
-    /dice_types/      # Dice type .tres files
+    /dice_types/      # (비어있음 — 데이터는 globals/dice_types.gd)
     /categories/      # Category .tres files
 ```
 
@@ -148,9 +143,11 @@ SetupState → PreRollState → RollingState → PostRollState
 
 ### Dice Type System
 - Resource-based architecture for 100+ dice types
-- Effect subclasses: BiasEffect, ScoreMultiplierEffect, WildcardEffect, FaceMapEffect
-- Each effect is a separate class with typed @export properties
-- Extensible via .tres files in `/resources/dice_types/`
+- **face_values**: DiceTypeResource 속성, 0=와일드카드 센티널
+- **ModifierEffect**: 점수 수정 (value_bonus, value_multiplier, permanent_bonus, permanent_multiplier)
+- **ActionEffect**: 게임 상태 변경 (ADD_DRAWS, DESTROY_SELF, TRANSFORM)
+- Comparisons(조건부 필터)는 베이스 클래스(DiceEffectResource)에서 공유
+- Extensible via `DiceTypes.ALL` in `globals/dice_types.gd`
 
 ### Category System
 - 모든 카테고리 무제한 사용 가능 (`can_use()` → 항상 `true`)
@@ -208,6 +205,16 @@ SetupState → PreRollState → RollingState → PostRollState
   # Avoid - requires code change
   const ROLL_HEIGHT: float = 12.0
   extra_multiplier += 0.5  # magic number
+  ```
+- **Constructor parameters**: Use `self.` to disambiguate, not `p_` prefix
+  ```gdscript
+  # Good
+  func _init(bias_values: Array[int] = []) -> void:
+      self.bias_values = bias_values
+
+  # Avoid
+  func _init(p_bias_values: Array[int] = []) -> void:
+      bias_values = p_bias_values
   ```
 - **Helper functions**: Extract repeated logic into private helper functions
   ```gdscript
@@ -337,22 +344,13 @@ SetupState → PreRollState → RollingState → PostRollState
 
 | 클래스 | 역할 |
 |--------|------|
-| `DiceEffectResource` | 효과 베이스 클래스 (Trigger, Target enum 정의) |
+| `DiceEffectResource` | 효과 베이스 클래스 (Target, CompareField, CompareOp enum + comparison 로직) |
+| `ModifierEffect` | 점수 수정 효과 (ModifyTarget enum, delta) |
+| `ActionEffect` | 게임 상태 변경 효과 (Action enum, delta, params) |
 | `EffectContext` | 효과 실행 시 컨텍스트 (source_dice, all_dice 등) |
 | `EffectResult` | 효과 결과 + 시각적 피드백 정보 |
-| `EffectProcessor` | 수집→정렬→적용 파이프라인 |
+| `EffectProcessor` | 수집→적용 파이프라인 (ModifierEffect만 처리, ActionEffect는 별도) |
 | `EffectCondition` | Resource 기반 조건 (Inspector에서 편집) |
-
-### Triggers (발동 시점)
-
-```gdscript
-enum Trigger {
-    ON_ROLL,          # 주사위 굴림 완료 후
-    ON_KEEP,          # 주사위 킵(잠금) 시
-    ON_SCORE,         # 점수 계산 시
-    ON_ADJACENT_ROLL, # 인접 주사위가 굴려졌을 때
-}
-```
 
 ### Targets (효과 적용 대상)
 
@@ -364,6 +362,19 @@ enum Target {
     MATCHING_VALUE, # 같은 눈의 주사위에 적용
     MATCHING_GROUP, # 같은 그룹 태그의 주사위에 적용
 }
+```
+
+### Comparisons (조건부 필터)
+
+DiceEffectResource 베이스 클래스에서 공유되는 조건 시스템:
+```gdscript
+enum CompareField { TYPE, GROUP, VALUE, PROBABILITY, INDEX, ROLL_COUNT }
+enum CompareOp { EQ, NOT, IN, GTE, LT, MOD }
+```
+
+JSON 예시:
+```json
+"comparisons": [{"a": "group", "b": "peasant"}, {"a": "value", "b": 6, "op": "gte"}]
 ```
 
 ### Adjacency System
@@ -406,7 +417,7 @@ signal effects_applied(effect_data: Array[Dictionary])
 
 ```gdscript
 # DiceTypeResource
-@export var groups: Array[String] = ["gem", "valuable"]
+var groups: Array[String] = ["gem", "valuable"]
 
 func has_group(group: String) -> bool:
     return group in groups
@@ -420,54 +431,53 @@ func has_group(group: String) -> bool:
 ## Adding New Content
 
 ### New Dice Type
-1. Create `.tres` in `/resources/dice_types/`
-2. Set `id`, `display_name`, `description`, `color`, `rarity`
-3. Add effects array with DiceEffectResource
+1. Add entry in `globals/dice_types.gd` → `DiceTypes.ALL`
+2. Set `id`, `display_name`, `description`, `groups`
+3. Set `face_values` for custom face mapping (0 = wildcard)
+4. Add effects array (enum 직접 참조: `T.ADJACENT`, `M.VALUE_BONUS` 등)
 
 ### New Category
 1. Create `.tres` in `/resources/categories/`
 2. Set scoring rules in `category_type`
 3. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
 
-### New Effect Type
+### New Effect
 
-1. Create new class in `/globals/effects/` extending `DiceEffectResource`
-2. Set trigger, target, priority in `_init()`
-3. Override `evaluate(context) -> EffectResult`
+`DiceTypes.ALL`의 effects 배열에 Dictionary로 추가 (enum 직접 참조):
 
+**ModifierEffect** (점수 수정):
 ```gdscript
-# Example: globals/effects/adjacent_bonus_effect.gd
-class_name AdjacentBonusEffect
-extends DiceEffectResource
-
-@export_group("Bonus Settings")
-@export var bonus_value: int = 1
-@export var bonus_multiplier: float = 1.0
-
-func _init() -> void:
-    trigger = Trigger.ON_SCORE
-    target = Target.ADJACENT
-    priority = 200
-    effect_name = "인접 보너스"
-
-func evaluate(context) -> EffectResult:
-    var result := EffectResult.new()
-    result.value_bonus = bonus_value
-    result.value_multiplier = bonus_multiplier
-    return result
+{
+    "type": "ModifierEffect",
+    "target": T.ADJACENT,
+    "comparisons": [{"a": F.GROUP, "b": "peasant"}],
+    "modify_target": M.VALUE_BONUS,
+    "delta": 2,
+    "anim": "bounce",
+}
 ```
+4 orthogonal axes: target (WHO), comparisons (WHEN), modify_target (WHAT), delta (HOW MUCH)
+
+**ActionEffect** (게임 상태 변경):
+```gdscript
+{
+    "type": "ActionEffect",
+    "target": T.SELF,
+    "comparisons": [{"a": F.VALUE, "b": 6}],
+    "action": A.ADD_DRAWS,
+    "delta": 1,
+}
+```
+Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_id"}`)
 
 ### Built-in Effects
 
-| 효과 | 트리거 | 설명 |
-|------|--------|------|
-| `BiasEffect` | ON_ROLL | 특정 값들이 더 자주 나오도록 확률 조작 |
-| `FaceMapEffect` | ON_ROLL | 물리적 면 값을 다른 값으로 매핑 |
-| `ScoreMultiplierEffect` | ON_SCORE | 점수에 배수 적용 |
-| `WildcardEffect` | ON_SCORE | 특정 값일 때 와일드카드로 사용 |
-| `AdjacentBonusEffect` | ON_SCORE | 인접 주사위에 보너스 부여 |
-| `GroupBonusEffect` | ON_SCORE | 같은 그룹 주사위에 보너스 부여 |
-| `OnAdjacentRollEffect` | ON_ADJACENT_ROLL | 인접 주사위 굴림 시 자신에게 보너스 |
+| 효과 | 설명 |
+|------|------|
+| `ModifierEffect` | 점수 수정: value_bonus, value_multiplier, permanent_bonus, permanent_multiplier |
+| `ActionEffect` | 게임 상태 변경: ADD_DRAWS, DESTROY_SELF, TRANSFORM |
+
+면 매핑과 와일드카드는 `DiceTypeResource.face_values`로 처리 (효과가 아닌 주사위 속성).
 
 ## Common Pitfalls
 

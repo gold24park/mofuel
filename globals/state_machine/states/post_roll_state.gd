@@ -64,8 +64,6 @@ func _on_reroll_pressed() -> void:
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	
 	game_root.dice_stats.hide_all()
-	for i in indices:
-		game_root.dice_labels.hide_label(i)
 	game_root.dice_manager.reroll_selected_radial_burst()
 	transitioned.emit(self , "RollingState")
 #endregion

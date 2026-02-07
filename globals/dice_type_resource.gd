@@ -1,20 +1,26 @@
 class_name DiceTypeResource
 extends Resource
 
-@export var id: String = "normal"
-@export var display_name: String = "일반 주사위"
-@export var description: String = "1~6 균등 확률"
+#region Face Value Sentinels
+const FACE_WILDCARD := 0 ## 와일드카드 — 스코어링에서 최적값 자동 할당
+const FACE_SKULL := 7    ## 해골 — 스코어링에 포함되지 않음
+#endregion
 
-@export_group("Groups")
-@export var groups: Array[String] = []  ## 태그 (예: ["gem", "valuable"])
+var id: String
+var display_name: String
+var description: String
 
-@export_group("Visual")
-@export var texture: Texture2D  # UV 텍스처 (null이면 기본 텍스처 사용)
-@export var material: Material  # 커스텀 머티리얼 (null이면 기본 + 텍스처)
-@export var value_labels: Dictionary = {}  # {value: "표시 텍스트"} 예: {6: "?"}
-@export var wildcard_label: String = "?"  # 와일드카드 기본 표시
+var groups: Array[String] = [] ## 태그 (예: ["gem", "valuable"])
 
-@export var effects: Array[DiceEffectResource] = []
+## 각 물리적 면의 논리적 값 (index 0 미사용, 1-6이 주사위 면)
+## 1-6: 일반값, FACE_WILDCARD(0): 와일드카드, FACE_SKULL(7)+: 특수값
+## 기본값: identity (변환 없음)
+var face_values: Array[int] = [0, 1, 2, 3, 4, 5, 6]
+
+var texture: Texture2D ## UV 텍스처 (null이면 기본 텍스처 사용)
+var material: Material ## 커스텀 머티리얼 (null이면 기본 + 텍스처)
+
+var effects: Array[DiceEffectResource] = []
 
 
 #region Group Queries
@@ -40,38 +46,20 @@ func get_effect_of_type(effect_class: Variant) -> DiceEffectResource:
 
 func has_effect_of_type(effect_class: Variant) -> bool:
 	return get_effect_of_type(effect_class) != null
-
-
-func get_effects_by_trigger(trigger: DiceEffectResource.Trigger) -> Array[DiceEffectResource]:
-	var result: Array[DiceEffectResource] = []
-	for effect in effects:
-		if effect.trigger == trigger:
-			result.append(effect)
-	return result
 #endregion
 
 
-#region Wildcard Query
-## 특정 값이 와일드카드인지 확인 (WildcardEffect 기반)
+#region Face Values
+## 물리적 면 값을 논리적 값으로 매핑
+func map_face(physical_value: int) -> int:
+	return face_values[physical_value]
+
+
+## 특정 값이 와일드카드인지 확인
 func is_wildcard_value(value: int) -> bool:
-	for effect in effects:
-		if effect is WildcardEffect:
-			if value in effect.trigger_values:
-				return true
-	return false
-#endregion
-
-
-#region Display Logic
-func get_display_text(value: int) -> String:
-	# 커스텀 라벨이 있으면 우선 사용
-	if value_labels.has(value):
-		return value_labels[value]
-	# 와일드카드면 와일드카드 라벨
-	if is_wildcard_value(value):
-		return wildcard_label
-	# 일반 값
-	return str(value)
+	if value < 1 or value > 6:
+		return false
+	return face_values[value] == FACE_WILDCARD
 #endregion
 
 

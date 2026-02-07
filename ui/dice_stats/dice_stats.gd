@@ -1,6 +1,5 @@
 extends Control
-## 주사위 코너 스탯 표시 (2D 프로젝션)
-## dice_labels와 동일한 패턴: camera.unproject_position()으로 3D→2D 변환
+## 주사위 코너 스탯 표시 (2D 프로젝션, camera.unproject_position()으로 3D→2D 변환)
 
 const DICE_COUNT := 5
 
