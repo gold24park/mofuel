@@ -128,12 +128,11 @@ func _roll_dice_radial_burst(indices: Array[int]) -> void:
 
 #region 롤 내부 구현
 func _set_fast_physics(enabled: bool) -> void:
-	if enabled:
-		Engine.time_scale = roll_time_scale
-		Engine.physics_ticks_per_second = int(BASE_PHYSICS_TICKS * roll_time_scale)
-	else:
-		Engine.time_scale = 1.0
-		Engine.physics_ticks_per_second = BASE_PHYSICS_TICKS
+	var s := roll_time_scale if enabled else 1.0
+	# 물리 solver 정밀도를 높여 고중력에서의 접촉 jitter 방지
+	Engine.physics_ticks_per_second = int(BASE_PHYSICS_TICKS * s)
+	for dice in dice_nodes:
+		dice.set_physics_scale(s)
 
 
 func _on_dice_finished(dice_index: int, value: int) -> void:

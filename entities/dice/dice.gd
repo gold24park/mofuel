@@ -13,6 +13,12 @@ enum State {
 
 const ROLL_TIMEOUT: float = 5.0 # 최대 굴리기 시간 (초)
 
+## 물리 스케일링 기본값 (_ready에서 .tscn 초기값 캡처)
+var _base_gravity_scale: float
+var _base_linear_damp: float
+var _base_angular_damp: float
+var _physics_scale: float = 1.0
+
 var current_state: State = State.IDLE
 var roll_strength = 20
 var is_selected: bool = false
@@ -39,6 +45,9 @@ signal dice_unhovered(dice_index: int)
 
 
 func _ready():
+	_base_gravity_scale = gravity_scale
+	_base_linear_damp = linear_damp
+	_base_angular_damp = angular_damp
 	input_ray_pickable = true
 	_create_outline()
 	mouse_entered.connect(_on_mouse_entered)
@@ -153,6 +162,15 @@ func setup(display_pos: Vector3, roll_pos: Vector3) -> void:
 	current_state = State.IDLE
 
 
+## 물리 시뮬레이션 속도 스케일 설정 (UI에 영향 없음)
+## s=2.0이면 같은 궤적을 절반 시간에 완료
+func set_physics_scale(s: float) -> void:
+	_physics_scale = s
+	gravity_scale = _base_gravity_scale * s * s
+	linear_damp = _base_linear_damp * s
+	angular_damp = _base_angular_damp * s
+
+
 func set_display_position(new_pos: Vector3) -> void:
 	display_position = new_pos
 	# IDLE 상태면 바로 이동 시작
@@ -192,25 +210,26 @@ func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float
 	dice_mesh.scale = Vector3.ONE * 1.5
 
 	# 버스트 임펄스 - 높은 곳에서 떨어뜨리면서 퍼짐
+	var s := _physics_scale
 	var dir: Vector3 = direction.normalized()
 	var horizontal_strength: float = strength * 0.4
 	var downward_speed: float = strength * 0.7
 
-	linear_velocity = Vector3(0, -downward_speed, 0) # 아래로 떨어지는 초기 속도
+	linear_velocity = Vector3(0, -downward_speed * s, 0) # 아래로 떨어지는 초기 속도
 
 	var impulse := dir * horizontal_strength
 	impulse += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
-	apply_central_impulse(impulse)
+	apply_central_impulse(impulse * s)
 
 	# 강한 회전
 	var spin_axis := dir.cross(Vector3.UP)
 	if spin_axis.length() < 0.1:
 		spin_axis = Vector3.RIGHT
-	angular_velocity = spin_axis.normalized() * strength * 0.7 + Vector3(
+	angular_velocity = (spin_axis.normalized() * strength * 0.7 + Vector3(
 		randf_range(-8, 8),
 		randf_range(-8, 8),
 		randf_range(-8, 8)
-	)
+	)) * s
 #endregion
 
 
@@ -220,6 +239,7 @@ func _on_sleeping_state_changed() -> void:
 
 	# 상태를 먼저 변경하여 중복 호출 방지
 	current_state = State.MOVING_TO_DISPLAY
+	set_physics_scale(1.0)
 
 	# 회전 행렬에서 윗면 계산
 	var physical_value := _get_top_face_from_rotation()
@@ -241,6 +261,7 @@ func _on_sleeping_state_changed() -> void:
 
 func _force_settle() -> void:
 	current_state = State.MOVING_TO_DISPLAY
+	set_physics_scale(1.0)
 
 	# 물리 정지
 	freeze = true
