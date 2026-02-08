@@ -18,8 +18,9 @@ func enter() -> void:
 	GameState.current_round += 1
 	GameState.round_changed.emit(GameState.current_round)
 
-	GameState.rerolls_remaining = 2
+	GameState.rerolls_remaining = GameState.MAX_REROLLS
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
+	GameState.is_double_down = false
 
 	# 드로우 횟수 리셋
 	GameState.draws_remaining = GameState.max_draws_per_round
@@ -90,8 +91,7 @@ func _play_next_round_transition() -> void:
 
 
 func _animate_return_to_hand() -> void:
-	var prev_active = game_root._prev_active_dice
-	game_root.hand_display.prepare_incoming_slots(5, prev_active)
+	game_root.hand_display.prepare_incoming_slots(GameState.DICE_COUNT, GameState.active_dice)
 
 	await game_root.dice_manager.animate_dice_to_hand_with_callback(
 		func(index: int):
@@ -105,19 +105,20 @@ func _animate_return_to_hand() -> void:
 func _try_auto_activate() -> void:
 	if _is_animating:
 		return
-	if GameState.deck.hand.size() != 5:
+	if GameState.deck.hand.size() != GameState.DICE_COUNT:
 		return
 	if GameState.active_dice.size() != 0:
 		return
 
-	var indices: Array[int] = [0, 1, 2, 3, 4]
+	var indices: Array[int] = []
+	indices.assign(range(GameState.DICE_COUNT))
 	GameState.deck.move_hand_to_active(indices)
 
 	game_root._sync_dice_instances()
 	game_root.dice_manager.set_dice_to_hand_position()
 
 	_is_animating = true
-	for i in range(5):
+	for i in GameState.DICE_COUNT:
 		game_root.dice_manager.animate_single_to_active(i)
 		await game_root.get_tree().create_timer(0.08).timeout
 	_is_animating = false

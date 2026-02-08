@@ -165,7 +165,7 @@ func _update_slot(index: int, dice_instance: DiceInstance) -> void:
 
 ## Discard 가능 조건: hand + active > 5 (라운드 끝에 active가 hand로 돌아오므로)
 func _can_discard() -> bool:
-	return GameState.deck.hand.size() + GameState.active_dice.size() > 5
+	return GameState.deck.hand.size() + GameState.active_dice.size() > GameState.DICE_COUNT
 
 
 func _update_discard_slot_style() -> void:
@@ -196,7 +196,7 @@ func _on_slot_clicked(index: int) -> void:
 		return
 	if index >= GameState.deck.hand.size():
 		return
-	if GameState.active_dice.size() >= 5:
+	if GameState.active_dice.size() >= GameState.DICE_COUNT:
 		return
 	dice_clicked.emit(index)
 #endregion

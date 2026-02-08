@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/action_bar/action_bar.gd" id="1_script"]
+
+[node name="ActionBar" type="Control"]
+layout_mode = 3
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -280.0
+offset_right = 200.0
+offset_bottom = -180.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("1_script")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="StandButton" type="Button" parent="CenterContainer/HBoxContainer"]
+custom_minimum_size = Vector2(110, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "STAND"
+
+[node name="RerollButton" type="Button" parent="CenterContainer/HBoxContainer"]
+custom_minimum_size = Vector2(140, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "REROLL (2)"
+
+[node name="DoubleDownButton" type="Button" parent="CenterContainer/HBoxContainer"]
+custom_minimum_size = Vector2(150, 70)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "DOUBLE DOWN x2"

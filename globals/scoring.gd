@@ -1,6 +1,14 @@
 class_name Scoring
 extends RefCounted
 
+## 스트레이트 판정용 패턴 상수
+const SMALL_STRAIGHT_PATTERNS := [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
+const LARGE_STRAIGHT_PATTERNS := [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]]
+const ALL_STRAIGHT_PATTERNS := [
+	[1, 2, 3, 4, 5], [2, 3, 4, 5, 6],
+	[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6],
+]
+
 
 static func calculate_score(category, dice: Array) -> int:
 	_process_score_effects(dice)
@@ -63,7 +71,7 @@ static func _find_best_wildcard_value(current_values: Array, category) -> int:
 	var CT := CategoryResource.CategoryType
 	match category.category_type:
 		CT.HIGH_DICE:
-			return 6
+			return GameState.MAX_FACE_VALUE
 
 		CT.ONE_PAIR, CT.TRIPLE, CT.FOUR_CARD, CT.FIVE_CARD:
 			return _get_most_common_value(current_values)
@@ -77,7 +85,7 @@ static func _find_best_wildcard_value(current_values: Array, category) -> int:
 		CT.SMALL_STRAIGHT, CT.LARGE_STRAIGHT:
 			return _get_straight_best_value(current_values)
 
-	return 6
+	return GameState.MAX_FACE_VALUE
 #endregion
 
 
@@ -188,8 +196,7 @@ static func _get_unique_sorted(values: Array) -> Array[int]:
 static func _is_small_straight(values: Array) -> bool:
 	var unique := _get_unique_sorted(values)
 
-	var patterns := [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
-	for pattern in patterns:
+	for pattern in SMALL_STRAIGHT_PATTERNS:
 		var found := true
 		for p in pattern:
 			if p not in unique:
@@ -202,18 +209,18 @@ static func _is_small_straight(values: Array) -> bool:
 
 
 static func _is_large_straight(values: Array) -> bool:
-	match _get_unique_sorted(values):
-		[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]:
+	var unique := _get_unique_sorted(values)
+	for pattern in LARGE_STRAIGHT_PATTERNS:
+		if unique == pattern:
 			return true
-		_:
-			return false
+	return false
 #endregion
 
 
 #region Wildcard Helpers
 static func _get_most_common_value(values: Array) -> int:
 	var counts := _count_values(values)
-	var best_value := 6
+	var best_value := GameState.MAX_FACE_VALUE
 	var best_count := 0
 
 	for value in counts:
@@ -221,7 +228,7 @@ static func _get_most_common_value(values: Array) -> int:
 			best_count = counts[value]
 			best_value = value
 
-	return best_value if best_count > 0 else 6
+	return best_value if best_count > 0 else GameState.MAX_FACE_VALUE
 
 
 static func _get_two_pair_best_value(values: Array) -> int:
@@ -236,7 +243,7 @@ static func _get_two_pair_best_value(values: Array) -> int:
 
 	if has_pair:
 		# 가장 높은 단독 값으로 페어 만들기
-		for v in range(6, 0, -1):
+		for v in range(GameState.MAX_FACE_VALUE, 0, -1):
 			if counts.get(v, 0) == 1:
 				return v
 		# 단독이 없으면 최대값 페어 강화
@@ -251,7 +258,7 @@ static func _get_fullhouse_best_value(values: Array) -> int:
 	# 3개짜리가 있으면 2개짜리 만들기
 	for value in counts:
 		if counts[value] == 3:
-			for v2 in range(6, 0, -1):
+			for v2 in range(GameState.MAX_FACE_VALUE, 0, -1):
 				if v2 != value:
 					return v2
 
@@ -260,21 +267,19 @@ static func _get_fullhouse_best_value(values: Array) -> int:
 		if counts[value] >= 2:
 			return value
 
-	return 6
+	return GameState.MAX_FACE_VALUE
 
 
 static func _get_straight_best_value(values: Array) -> int:
 	var unique := _get_unique_sorted(values)
 
 	# 연속 수열 완성을 위한 빈 숫자 찾기
-	var straights := [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
-
-	for straight in straights:
+	for straight in ALL_STRAIGHT_PATTERNS:
 		for needed in straight:
 			if needed not in unique:
 				return needed
 
-	return 6
+	return GameState.MAX_FACE_VALUE
 #endregion
 
 
@@ -283,3 +288,33 @@ static func calculate_all_scores(dice: Array) -> Dictionary:
 	for cat in CategoryRegistry.get_all_categories():
 		results[cat.id] = calculate_score_with_upgrade(cat, dice)
 	return results
+
+
+## 최고 점수 카테고리 반환. 없으면 빈 Dictionary
+static func get_best_category(dice: Array) -> Dictionary:
+	var all_scores := calculate_all_scores(dice)
+	var best_id: String = ""
+	var best_score: int = 0
+	for cat_id in all_scores:
+		if all_scores[cat_id] > best_score:
+			best_score = all_scores[cat_id]
+			best_id = cat_id
+	if best_id == "":
+		return {}
+	return {"category_id": best_id, "score": best_score,
+			"category": CategoryRegistry.get_category(best_id)}
+
+
+## ScoreDisplay용 분해 데이터 반환
+static func get_score_breakdown(category, dice: Array) -> Dictionary:
+	_process_score_effects(dice)
+	var values := _get_effective_values(dice, category)
+	var base := _calculate_base_score(category, values)
+	var bonus_pool := 0
+	var mult_pool := 1.0
+	for d in dice:
+		bonus_pool += d.get_total_bonus()
+		mult_pool += d.get_total_multiplier() - 1.0
+	return {"category_name": category.display_name, "base": base,
+			"bonus_pool": bonus_pool, "mult_pool": mult_pool,
+			"final": int((base + bonus_pool) * mult_pool)}

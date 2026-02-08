@@ -17,15 +17,9 @@ func exit() -> void:
 	game_root.dice_manager.all_dice_finished.disconnect(_on_all_dice_finished)
 
 
-func _on_all_dice_finished(values: Array) -> void:
-	if GameState.can_reroll():
-		# UI에 스코어링 옵션 표시 요청
-		GameState.show_scoring_options.emit(GameState.active_dice)
-		# PostRollState로 전환
-		transitioned.emit(self , "PostRollState")
-	else:
-		# 게임 규칙: 리롤 불가 시 자동으로 스코어링 단계로 전환
-		transitioned.emit(self , "ScoringState")
+func _on_all_dice_finished(_values: Array) -> void:
+	# 항상 PostRollState로 전환 (점수 연출 표시)
+	transitioned.emit(self, "PostRollState")
 
 
 func handle_input(_event: InputEvent) -> bool:

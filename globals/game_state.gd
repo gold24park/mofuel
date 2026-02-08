@@ -8,17 +8,24 @@ signal pool_changed()
 signal hand_changed()
 signal active_changed()
 signal game_over(won: bool)
-signal show_scoring_options(dice: Array) ## UI에 스코어링 옵션 표시 요청
 signal transitioning_changed(is_transitioning: bool) ## 전환 애니메이션 상태 변경
 signal draws_changed(remaining: int)
 
 enum Phase {SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER}
 
+const DICE_COUNT: int = 5 ## Active 슬롯 수 (동시에 굴리는 주사위 개수)
+const MAX_FACE_VALUE: int = 6 ## 주사위 최대 눈 (6면체)
+const MAX_REROLLS: int = 2 ## 라운드당 최대 리롤 횟수
+
+const DOUBLE_DOWN_COST: int = 2
+const DOUBLE_DOWN_MULTIPLIER: float = 2.0
+
 var inventory := Inventory.new()
 var deck := Deck.new()
+var is_double_down: bool = false
 
 var current_phase: Phase = Phase.SETUP
-var rerolls_remaining: int = 2
+var rerolls_remaining: int = MAX_REROLLS
 var draws_remaining: int = 1
 var max_draws_per_round: int = 1
 var total_score: int = 0
@@ -69,6 +76,9 @@ func record_score(category_id: String, score: int) -> bool:
 
 	# 배수 적용
 	var multiplied_score := int(score * upgrade.get_total_multiplier())
+	# Double Down 배수 적용
+	if is_double_down:
+		multiplied_score = int(multiplied_score * DOUBLE_DOWN_MULTIPLIER)
 	GameState.total_score += multiplied_score
 	upgrade.use()
 	GameState.score_changed.emit(GameState.total_score)
@@ -96,6 +106,10 @@ func draw_one() -> bool:
 
 func can_reroll() -> bool:
 	return rerolls_remaining > 0
+
+
+func can_double_down() -> bool:
+	return rerolls_remaining >= DOUBLE_DOWN_COST and not is_double_down
 
 func is_game_over() -> bool:
 	return total_score >= target_score or current_round >= max_rounds

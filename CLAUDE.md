@@ -72,7 +72,8 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
   /ui/                # UI components
     /hud/             # Top status bar
     /hand_display/    # Hand bar (고정 10슬롯 + DiscardSlot + DrawButton)
-    /quick_score/     # Scoring options (유일한 스코어링 UI, Burst 포함)
+    /score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
+    /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down)
     /game_over/       # Win/lose screen
     /upgrade_screen/  # Category upgrade UI
 
@@ -94,12 +95,15 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 4. **POST_ROLL**:
    - **자동 정렬**: 굴림 완료 후 주사위 눈 오름차순으로 자동 정렬 (물리적 위치 이동)
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
-   - Click dice to select for reroll (리롤 시에도 정렬 및 효과 재적용)
-   - REROLL 버튼 (Roll 버튼과 겸용): 선택된 주사위 리롤 (최대 2회)
-   - Quick Score panel로 직접 점수 선택 (End Turn 없음)
-5. **SCORING**: QuickScore에서 카테고리 선택 (ScoreCard 제거됨)
-   - 모든 카테고리 무제한 사용 가능
-   - **Burst**: 0점으로 턴 넘기기 옵션 (항상 표시)
+   - **ScoreDisplay**: 발라트로 스타일 점수 연출 (카테고리명 → chips × mult → 최종 점수)
+   - **자동 족보 선택**: 시스템이 최고 점수 카테고리 자동 선택 (수동 선택 없음)
+   - **ActionBar**: Stand / Reroll / Double Down 버튼
+     - **Stand**: 현재 최고 족보로 점수 확정
+     - **Reroll**: 선택한 주사위 리롤 (리롤 1개 소모)
+     - **Double Down**: 리롤 2개 소모, 전체 리롤, 점수 ×2 (1회 제한)
+   - 리롤 불가 시 자동 Stand (점수 연출만 보여주고 종료)
+5. **SCORING**: PostRollState에서 전달받은 점수를 자동 기록 (UI 선택 없음)
+   - 유효 족보 없으면 자동 0점 (burst)
 6. **라운드 전환**: Active 5개가 Hand로 돌아감 → PRE_ROLL (자동 드로우 없음)
 7. **GAME_OVER**: 100 points in 5 rounds to win
 
@@ -116,16 +120,17 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
 | `SETUP` | 게임 초기화 (1회성) | - |
 | `PRE_ROLL` | 첫 굴림 전 | Hand→Active 선택, Discard, Draw, Roll |
 | `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
-| `POST_ROLL` | 굴린 후 | Keep, Reroll, Score |
-| `SCORING` | QuickScore에서 카테고리 선택 | Score 선택 |
+| `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | Stand, Reroll, Double Down |
+| `SCORING` | 자동 점수 기록 | - (자동 처리) |
 | `GAME_OVER` | 승/패 결과 | Restart, Upgrade |
 
 **상태 전환 흐름:**
 ```
 SetupState → PreRollState → RollingState → PostRollState
                  ↑              ↑               │
-                 │              └───(reroll)────┤
-                 │                              │
+                 │              ├───(reroll)────┤
+                 │              └──(dbl down)───┤
+                 │                              │ (stand / auto)
                  └──────────────────────────────┤
                                                 ↓
                                          ScoringState
@@ -140,6 +145,8 @@ SetupState → PreRollState → RollingState → PostRollState
 - **GameStateMachine**: 상태 전환 관리, game.tscn의 자식 노드
 - **GameStateBase**: 상태 베이스 클래스 (enter/exit/update/handle_input)
 - **GameState**: Autoload singleton for match data (Phase, score, rerolls, inventory, deck 등)
+  - 게임 상수: `DICE_COUNT = 5`, `MAX_FACE_VALUE = 6`, `MAX_REROLLS = 2`, `DOUBLE_DOWN_COST = 2`
+  - Double Down: `is_double_down`, `can_double_down()`, `DOUBLE_DOWN_MULTIPLIER = 2.0`
 - **MetaState**: Autoload singleton for upgrades (persists between matches)
 - **Inventory**: 영구 주사위 컬렉션 (RefCounted, `GameState.inventory`)
 - **Deck**: 스테이지 로컬 덱 — pool/hand/active_dice (RefCounted, `GameState.deck`)
@@ -164,7 +171,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **파이브카드** (FIVE_CARD): 같은 눈 5개 → 고정 50점
 - 모든 카테고리 무제한 사용 가능
 - Multiplier upgrade: Increase score multiplier (MetaState 경유)
-- **Burst**: 특수 카테고리 (category_id: "burst"), 0점으로 턴 넘기기. CategoryRegistry에 없고 QuickScore에서 하드코딩
+- **Burst**: 유효 족보 없을 때 자동 0점 (category_id: "burst"). CategoryRegistry 미등록
 
 ### Inventory / Deck System
 - **`Inventory`** (`globals/inventory.gd`): 플레이어의 영구 주사위 컬렉션. 스테이지를 넘어 유지. 상점에서 매매 가능.
@@ -174,7 +181,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **`Deck`** (`globals/inventory_manager.gd`): 스테이지 로컬 덱. pool(draw pile) + hand + active_dice 관리.
   - `init_from_inventory(inv)`: Inventory에서 deep-copy하여 덱 초기화
   - `HAND_MAX = 10`: hand + active 합계 기준
-  - `discard_from_hand()`: hand에서 영구 제거 (최소 5개 유지)
+  - `discard_from_hand()`: hand에서 영구 제거 (최소 DICE_COUNT개 유지)
   - 파괴된 주사위는 Deck에서만 사라짐 (Inventory 원본 무사)
 - **`DiceInstance.clone_for_stage()`**: 영구 보너스 유지, 스테이지 로컬 상태 초기화
 - **`GameState.inventory`**: Inventory 인스턴스 (영구)
@@ -241,7 +248,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Helper functions**: Extract repeated logic into private helper functions
   ```gdscript
   func _keep_all_dice() -> void:
-      for i in range(5):
+      for i in GameState.DICE_COUNT:
           if i not in dice_manager.get_kept_indices():
               dice_manager.keep_dice(i)
   ```
@@ -293,14 +300,20 @@ SetupState → PreRollState → RollingState → PostRollState
       assert(category != null, "CategoryUpgrade not initialized")
       return category.base_uses + extra_uses
   ```
-- **Avoid magic numbers**: Extract to constants or @export variables
+- **Avoid magic numbers**: Use `GameState` constants for game-wide values
   ```gdscript
   # Good - self-documenting
-  return category_type <= CategoryType.SIXES
+  if hand.size() != GameState.DICE_COUNT:
+  for v in range(GameState.MAX_FACE_VALUE, 0, -1):
 
   # Avoid - what does 5 mean?
-  return category_type <= 5
+  if hand.size() != 5:
+  for v in range(6, 0, -1):
   ```
+  - `GameState.DICE_COUNT` (5): Active 슬롯 수
+  - `GameState.MAX_FACE_VALUE` (6): 주사위 최대 눈
+  - `GameState.MAX_REROLLS` (2): 라운드당 최대 리롤
+  - Entity(`dice_manager.gd`)는 자체 `const DICE_COUNT` 유지 (Autoload 미참조)
 
 ### Sanitize on Init
 데이터 유효성 검사를 사용 시점이 아닌 설정 시점에 수행하여 반복적인 방어적 코드 제거.
@@ -552,7 +565,7 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 ### PRE_ROLL 자동 활성화 조건
 `_try_auto_activate()`는 3가지 조건이 **모두** 충족될 때만 발동:
 1. `!_is_animating`
-2. `hand.size() == 5`
+2. `hand.size() == GameState.DICE_COUNT`
 3. `active_dice.size() == 0`
 
 호출 시점: PRE_ROLL 진입 후, Discard 완료 후, Draw 완료 후
@@ -560,15 +573,21 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 ### Hand/Active 용량 체크
 - `can_draw()`: `hand.size() + active_dice.size() < HAND_MAX` (active 포함!)
 - Draw 시 active를 hand로 되돌리지 않음 — active 상태 유지가 자연스러운 UX
-- Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭, `hand.size() > 5`일 때만 가능
+- Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭, `hand + active > DICE_COUNT`일 때만 가능
 
 ### Burst 카테고리
 - CategoryRegistry에 등록되지 않은 특수 ID ("burst")
-- QuickScore에서 하드코딩으로 항상 마지막에 표시
+- 유효 족보 없을 때 PostRollState에서 자동 0점 처리
 - `GameState.record_score("burst", 0)`: upgrade 조회 스킵, 점수 0
 - `ScoringState._process_scoring()`: burst일 때 효과 계산 스킵
+
+### Double Down
+- 리롤 2개 소모 (`DOUBLE_DOWN_COST = 2`), 5개 전체 리롤
+- `GameState.is_double_down = true` → `record_score()`에서 `DOUBLE_DOWN_MULTIPLIER (2.0)` 적용
+- 라운드당 1회 (`can_double_down()`: `rerolls >= 2 and not is_double_down`)
+- `PreRollState.enter()`에서 `is_double_down = false` 리셋
 
 ### 시그널 연결/해제 대칭
 - State의 `_connect_signals()`/`_disconnect_signals()`는 반드시 대칭이어야 함
 - 시그널 추가 시 양쪽 모두 업데이트 — 한쪽만 하면 disconnect 에러 또는 중복 연결
-- RollButton은 PRE_ROLL(Roll)과 POST_ROLL(Reroll) 겸용 — phase에 따라 다른 시그널 emit
+- RollButton은 PRE_ROLL 전용 (ROLL! 만). POST_ROLL 액션은 ActionBar가 담당

@@ -49,8 +49,8 @@ func draw_to_hand(count: int = 1):
 func discard_from_hand(hand_index: int) -> bool:
 	if hand_index < 0 or hand_index >= hand.size():
 		return false
-	# 최소 5개는 남겨야 함 (hand + active 합산 — active는 라운드 끝에 hand로 복귀)
-	if hand.size() + active_dice.size() <= 5:
+	# 최소 DICE_COUNT개는 남겨야 함 (hand + active 합산 — active는 라운드 끝에 hand로 복귀)
+	if hand.size() + active_dice.size() <= GameState.DICE_COUNT:
 		return false
 	hand.remove_at(hand_index)
 	hand_changed.emit()
@@ -82,8 +82,8 @@ func return_active_to_hand():
 ## @param hand_indices 이동할 Hand 내 인덱스 배열 (0-based)
 ## @return 성공 여부
 func move_hand_to_active(hand_indices: Array[int]) -> bool:
-	# 검증: 5개여야 하며, 모든 인덱스가 유효해야 함
-	if hand_indices.size() != 5:
+	# 검증: DICE_COUNT개여야 하며, 모든 인덱스가 유효해야 함
+	if hand_indices.size() != GameState.DICE_COUNT:
 		return false
 	for idx in hand_indices:
 		if idx < 0 or idx >= hand.size():
@@ -119,7 +119,7 @@ func move_hand_to_active(hand_indices: Array[int]) -> bool:
 func move_single_to_active(hand_index: int) -> int:
 	if hand_index < 0 or hand_index >= hand.size():
 		return -1
-	if active_dice.size() >= 5:
+	if active_dice.size() >= GameState.DICE_COUNT:
 		return -1
 
 	var dice := hand[hand_index]

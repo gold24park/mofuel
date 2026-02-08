@@ -10,7 +10,8 @@ extends Control
 @onready var game_over_screen = $CanvasLayer/GameOver
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
 @onready var hand_display = $CanvasLayer/HandDisplay
-@onready var quick_score = $CanvasLayer/QuickScore
+@onready var score_display = $CanvasLayer/ScoreDisplay
+@onready var action_bar = $CanvasLayer/ActionBar
 @onready var dice_stats = $CanvasLayer/DiceStats
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
