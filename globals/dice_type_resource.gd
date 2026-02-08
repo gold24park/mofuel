@@ -67,15 +67,20 @@ func is_wildcard_value(value: int) -> bool:
 func apply_visual(mesh_instance: MeshInstance3D) -> void:
 	if mesh_instance == null:
 		return
-	# 커스텀 머티리얼이 있으면 그대로 사용
+	# 베이스 결정: 커스텀 머티리얼 > 메시 기본 머티리얼
+	var base_mat: StandardMaterial3D
 	if material:
-		mesh_instance.material_override = material
+		base_mat = material.duplicate() as StandardMaterial3D
+	elif mesh_instance.get_active_material(0):
+		base_mat = mesh_instance.get_active_material(0).duplicate() as StandardMaterial3D
+	else:
 		return
-	# 텍스처만 있으면 기존 머티리얼 복제 후 텍스처 교체
+	# 텍스처를 Detail Layer로 적용 (알파 기반 블렌딩)
+	# mix(머티리얼색, 텍스처RGB, 텍스처Alpha) → 투명=머티리얼, 불투명=텍스처색
 	if texture:
-		var base_mat := mesh_instance.get_active_material(0)
-		if base_mat:
-			var new_mat := base_mat.duplicate() as StandardMaterial3D
-			new_mat.albedo_texture = texture
-			mesh_instance.material_override = new_mat
+		base_mat.detail_enabled = true
+		base_mat.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+		base_mat.detail_albedo = texture
+		base_mat.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
+	mesh_instance.material_override = base_mat
 #endregion

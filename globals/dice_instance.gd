@@ -24,6 +24,14 @@ func _init(dice_type: DiceTypeResource) -> void:
 	type = dice_type
 
 
+## Inventory → Deck 복사용. 영구 보너스 유지, 스테이지 로컬 상태 초기화
+func clone_for_stage() -> DiceInstance:
+	var clone := DiceInstance.new(type)
+	clone.permanent_value_bonus = permanent_value_bonus
+	clone.permanent_value_multiplier = permanent_value_multiplier
+	return clone
+
+
 #region Roll
 ## 물리적 주사위 값 설정 → face_values 매핑 적용
 func roll(physical_value: int = -1) -> int:

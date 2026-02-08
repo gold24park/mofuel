@@ -16,17 +16,17 @@ var _draw_button: Button = null
 
 
 func _ready() -> void:
-	GameState.inventory_changed.connect(_on_inventory_changed)
+	GameState.pool_changed.connect(_on_pool_changed)
 	_update_count()
 	_deck_center = deck_container.get_rect().get_center()
 	_create_draw_button()
 
 
 func _update_count() -> void:
-	count_label.text = str(GameState.inventory_manager.get_inventory_count())
+	count_label.text = str(GameState.deck.get_pool_count())
 
 
-func _on_inventory_changed() -> void:
+func _on_pool_changed() -> void:
 	_update_count()
 
 

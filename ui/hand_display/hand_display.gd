@@ -32,8 +32,8 @@ func _update_display():
 	dice_previews.clear()
 
 	# Hand 주사위 표시
-	for i in range(GameState.inventory_manager.hand.size()):
-		var dice_instance: DiceInstance = GameState.inventory_manager.hand[i]
+	for i in range(GameState.deck.hand.size()):
+		var dice_instance: DiceInstance = GameState.deck.hand[i]
 		var preview := _create_dice_preview(i)
 		container.add_child(preview)
 		preview.set_dice_instance(dice_instance)
@@ -65,7 +65,7 @@ func _on_preview_clicked(index: int) -> void:
 
 	if _discard_mode:
 		# 버리기 모드: 5개 초과일 때만 버리기 가능
-		if GameState.inventory_manager.hand.size() > 5:
+		if GameState.deck.hand.size() > 5:
 			dice_discarded.emit(index)
 		return
 

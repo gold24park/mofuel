@@ -10,7 +10,7 @@ extends Control
 
 func _ready():
 	GameState.round_changed.connect(_on_round_changed)
-	GameState.inventory_changed.connect(_on_inventory_changed)
+	GameState.pool_changed.connect(_on_pool_changed)
 	GameState.hand_changed.connect(_on_hand_changed)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.rerolls_changed.connect(_on_rerolls_changed)
@@ -21,7 +21,7 @@ func _ready():
 
 func _update_all():
 	_on_round_changed(GameState.current_round)
-	_on_inventory_changed()
+	_on_pool_changed()
 	_on_hand_changed()
 	_on_score_changed(GameState.total_score)
 	_on_rerolls_changed(GameState.rerolls_remaining)
@@ -32,12 +32,12 @@ func _on_round_changed(round_num: int):
 	round_label.text = "Round: %d / %d" % [round_num, GameState.max_rounds]
 
 
-func _on_inventory_changed():
-	inventory_label.text = "Inventory: %d" % GameState.inventory_manager.get_inventory_count()
+func _on_pool_changed():
+	inventory_label.text = "Pool: %d" % GameState.deck.get_pool_count()
 
 
 func _on_hand_changed():
-	hand_label.text = "Hand: %d" % GameState.inventory_manager.get_hand_count()
+	hand_label.text = "Hand: %d" % GameState.deck.get_hand_count()
 
 
 func _on_score_changed(score: int):

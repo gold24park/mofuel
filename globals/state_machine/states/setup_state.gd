@@ -12,10 +12,11 @@ func enter() -> void:
 	# 게임 상태 초기화
 	GameState.current_round = 0
 	GameState.total_score = 0
-	GameState.inventory_manager.init_starting_deck()
-	
+	GameState.inventory.init_starting_inventory()
+	GameState.deck.init_from_inventory(GameState.inventory)
+
 	MetaState.reset_all_uses()
-	GameState.inventory_manager.draw_initial_hand(5)
+	GameState.deck.draw_initial_hand(5)
 
 	# 시그널 발생
 	GameState.round_changed.emit(GameState.current_round)

@@ -35,6 +35,7 @@ const ALL := [
 		"display_name": "일반 주사위",
 		"description": "1~6 균등 확률",
 		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_plastic_white.tres",
 	},
 	{
 		"id": "multiplier_2x",
@@ -88,6 +89,7 @@ const ALL := [
 		"description": "인접 백성에게 +2, 인접 왕에게 -1",
 		"groups": ["royal"],
 		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_metal.tres",
 		"effects": [
 			{
 				"type": "ModifierEffect",
@@ -113,6 +115,7 @@ const ALL := [
 		"description": "평범한 주사위",
 		"groups": ["peasant"],
 		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_wood.tres",
 	},
 	{
 		"id": "draw",
@@ -158,4 +161,218 @@ const ALL := [
 			},
 		],
 	},
+	#region ── 도둑 / 범죄자 ──
+	{
+		"id": "thief",
+		"display_name": "도둑 주사위",
+		"description": "인접에서 빼앗아 자신을 강화 (인접 -2, 자신 +4)",
+		"groups": ["criminal"],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.ADJACENT,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": -2,
+				"anim": "shake",
+			},
+			{
+				"type": "ModifierEffect",
+				"target": Target.SELF,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": 4,
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
+	#region ── 수호자 / 신성 ──
+	{
+		"id": "guardian",
+		"display_name": "수호자 주사위",
+		"description": "자신을 희생하여 모든 주사위 강화 (전체 +1, 자신 -3)",
+		"groups": ["holy"],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_metal.tres",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.ALL_DICE,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": 1,
+				"anim": "bounce",
+			},
+			{
+				"type": "ModifierEffect",
+				"target": Target.SELF,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": -3,
+				"anim": "shake",
+			},
+		],
+	},
+	#endregion
+	#region ── 뱀파이어 / 언데드 ──
+	{
+		"id": "vampire",
+		"display_name": "뱀파이어 주사위",
+		"description": "인접 흡수 — 인접 -1, 자신 영구 +1 (누적)",
+		"groups": ["undead"],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.ADJACENT,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": -1,
+				"anim": "shake",
+			},
+			{
+				"type": "ModifierEffect",
+				"target": Target.SELF,
+				"modify_target": ModifyTarget.PERMANENT_BONUS,
+				"delta": 1,
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
+	#region ── 쌍둥이 ──
+	{
+		"id": "twins",
+		"display_name": "쌍둥이 주사위",
+		"description": "같은 눈을 굴린 모든 주사위 +3",
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_plastic_white.tres",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.MATCHING_VALUE,
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": 3,
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
+	#region ── 폭탄 ──
+	{
+		"id": "bomb",
+		"display_name": "폭탄 주사위",
+		"description": "항상 ×2, 하지만 1이 나오면 폭발하여 파괴",
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_metal.tres",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.SELF,
+				"modify_target": ModifyTarget.VALUE_MULTIPLIER,
+				"delta": 2.0,
+				"anim": "bounce",
+			},
+			{
+				"type": "ActionEffect",
+				"target": Target.SELF,
+				"comparisons": [{"a": Field.VALUE, "b": 1}],
+				"action": Action.DESTROY_SELF,
+				"anim": "shake",
+			},
+		],
+	},
+	#endregion
+	#region ── 학자 / 지혜 ──
+	{
+		"id": "scholar",
+		"display_name": "학자 주사위",
+		"description": "매 라운드 영구 +1 누적 — 후반에 강력",
+		"groups": ["wise"],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_wood.tres",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.SELF,
+				"modify_target": ModifyTarget.PERMANENT_BONUS,
+				"delta": 1,
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
+	#region ── 상인 / 경제 ──
+	{
+		"id": "merchant",
+		"display_name": "상인 주사위",
+		"description": "5 이상이면 추가 드로우 +1",
+		"groups": ["peasant"],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_wood.tres",
+		"effects": [
+			{
+				"type": "ActionEffect",
+				"target": Target.SELF,
+				"comparisons": [{"a": Field.VALUE, "b": 5, "op": Op.GTE}],
+				"action": Action.ADD_DRAWS,
+				"delta": 1,
+			},
+		],
+	},
+	#endregion
+	#region ── 저주 ──
+	{
+		"id": "cursed",
+		"display_name": "저주 주사위",
+		"description": "4~6만 나오지만 인접 주사위를 약화 (×0.5)",
+		"face_values": [0, 4, 4, 5, 5, 6, 6],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.ADJACENT,
+				"modify_target": ModifyTarget.VALUE_MULTIPLIER,
+				"delta": 0.5,
+				"anim": "shake",
+			},
+		],
+	},
+	#endregion
+	#region ── 불사조 ──
+	{
+		"id": "phoenix",
+		"display_name": "불사조 주사위",
+		"description": "처음엔 약하지만 (1~3) 4번 굴리면 고정 6으로 진화",
+		"face_values": [0, 1, 1, 2, 2, 3, 3],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"effects": [
+			{
+				"type": "ActionEffect",
+				"target": Target.SELF,
+				"comparisons": [{"a": Field.ROLL_COUNT, "b": 4, "op": Op.GTE}],
+				"action": Action.TRANSFORM,
+				"params": {"to": "fixed_six"},
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
+	#region ── 행운 ──
+	{
+		"id": "lucky",
+		"display_name": "행운 주사위",
+		"description": "1 또는 6만 나옴 — 6을 굴린 모든 주사위에 +2",
+		"face_values": [0, 1, 1, 1, 6, 6, 6],
+		"texture": "res://assets/dice/uv/dice_uv.png",
+		"material": "res://assets/dice/materials/mat_plastic_white.tres",
+		"effects": [
+			{
+				"type": "ModifierEffect",
+				"target": Target.ALL_DICE,
+				"comparisons": [{"a": Field.VALUE, "b": 6}],
+				"modify_target": ModifyTarget.VALUE_BONUS,
+				"delta": 2,
+				"anim": "bounce",
+			},
+		],
+	},
+	#endregion
 ]

@@ -87,7 +87,7 @@ func _play_first_round_transition() -> void:
 
 func _play_next_round_transition() -> void:
 	await _animate_return_to_hand()
-	GameState.inventory_manager.return_active_to_hand()
+	GameState.deck.return_active_to_hand()
 	game_root.dice_manager.set_dice_to_hand_position()
 	game_root.hand_display.exit_manual_mode()
 	game_root.hand_display.enter_manual_mode()
@@ -111,13 +111,13 @@ func _try_auto_activate() -> void:
 		return
 	if game_root.hand_display.is_discard_mode():
 		return
-	if GameState.inventory_manager.hand.size() != 5:
+	if GameState.deck.hand.size() != 5:
 		return
 	if GameState.active_dice.size() != 0:
 		return
 
 	var indices: Array[int] = [0, 1, 2, 3, 4]
-	GameState.inventory_manager.move_hand_to_active(indices)
+	GameState.deck.move_hand_to_active(indices)
 
 	game_root._sync_dice_instances()
 	game_root.dice_manager.set_dice_to_hand_position()
@@ -170,7 +170,7 @@ func _on_active_dice_clicked(active_index: int) -> void:
 func _on_dice_discarded(hand_index: int) -> void:
 	if _is_animating or GameState.is_transitioning:
 		return
-	GameState.inventory_manager.discard_from_hand(hand_index)
+	GameState.deck.discard_from_hand(hand_index)
 
 
 ## Discard 모드 꺼졌을 때 → 자동 활성화 체크

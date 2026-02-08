@@ -1,56 +1,51 @@
-class_name InventoryManager
+class_name Deck
 extends RefCounted
 
-## 주사위 데이터 및 위치 이동 관리 클래스
+## 스테이지 로컬 덱 — pool(draw pile) + hand + active_dice 관리
+## Inventory에서 deep-copy하여 생성, 스테이지 종료 시 폐기
 
-signal inventory_changed
+signal pool_changed
 signal hand_changed
 signal active_changed
 
 const HAND_MAX: int = 10
 
-var inventory: Array[DiceInstance] = []
+var pool: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []
 var active_dice: Array[DiceInstance] = []
 
 
-func init_starting_deck():
-	inventory.clear()
+## Inventory에서 deep-copy하여 덱 초기화
+func init_from_inventory(inv: Inventory) -> void:
+	pool.clear()
 	hand.clear()
 	active_dice.clear()
-	
-	for entry in DiceTypes.STARTING_INVENTORY:
-		var type_id: String = entry[0]
-		var count: int = entry[1]
-		for i in range(count):
-			var dice = DiceRegistry.create_instance(type_id)
-			if dice:
-				inventory.append(dice)
-	
-	inventory.shuffle()
-	inventory_changed.emit()
+
+	pool = inv.create_stage_copies()
+	pool.shuffle()
+	pool_changed.emit()
 
 
 func draw_initial_hand(count: int = 7):
 	for i in range(count):
-		if not inventory.is_empty():
-			hand.append(inventory.pop_front())
+		if not pool.is_empty():
+			hand.append(pool.pop_front())
 	hand_changed.emit()
-	inventory_changed.emit()
+	pool_changed.emit()
 
 
 func draw_to_hand(count: int = 1):
 	for i in range(count):
-		if inventory.is_empty():
+		if pool.is_empty():
 			break
 		if hand.size() >= HAND_MAX:
 			break
-		hand.append(inventory.pop_front())
+		hand.append(pool.pop_front())
 	hand_changed.emit()
-	inventory_changed.emit()
+	pool_changed.emit()
 
 
-## Hand에서 주사위 제거 (게임에서 완전 제거, 인벤토리로 돌아가지 않음)
+## Hand에서 주사위 제거 (게임에서 완전 제거, pool로 돌아가지 않음)
 func discard_from_hand(hand_index: int) -> bool:
 	if hand_index < 0 or hand_index >= hand.size():
 		return false
@@ -63,7 +58,7 @@ func discard_from_hand(hand_index: int) -> bool:
 
 
 func can_draw() -> bool:
-	return not inventory.is_empty() and (hand.size() + active_dice.size()) < HAND_MAX
+	return not pool.is_empty() and (hand.size() + active_dice.size()) < HAND_MAX
 
 
 func select_random_active(count: int = 5):
@@ -159,17 +154,17 @@ func move_single_to_hand(active_index: int) -> int:
 func reorder_active_dice(new_order_indices: Array[int]) -> void:
 	if new_order_indices.size() != active_dice.size():
 		return
-		
+
 	var new_active: Array[DiceInstance] = []
 	for idx in new_order_indices:
 		new_active.append(active_dice[idx])
-		
+
 	active_dice = new_active
 	active_changed.emit()
 
 
-func get_inventory_count() -> int:
-	return inventory.size()
+func get_pool_count() -> int:
+	return pool.size()
 
 
 func get_hand_count() -> int:

@@ -1,13 +1,6 @@
 [gd_scene format=3 uid="uid://c8m2k4l7xpqvr"]
 
 [ext_resource type="Script" uid="uid://dqnnqwtb4yhr" path="res://scenes/game/game.gd" id="1_game"]
-[ext_resource type="Script" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
-[ext_resource type="Script" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/rolling_state.gd" id="rolling_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/scoring_state.gd" id="scoring_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
 [ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://entities/table/table.tscn" id="2_table"]
 [ext_resource type="PackedScene" uid="uid://djq8m2fk7xc5l" path="res://entities/dice_manager/dice_manager.tscn" id="3_dice_manager"]
 [ext_resource type="PackedScene" uid="uid://cw8m5hvp2ql7r" path="res://ui/hud/hud.tscn" id="4_hud"]
@@ -17,10 +10,17 @@
 [ext_resource type="Shader" uid="uid://b30rplgnr3k2" path="res://shaders/pixelate.gdshader" id="9_pixelate"]
 [ext_resource type="PackedScene" uid="uid://bm7k2xp5ql8vn" path="res://ui/hand_display/hand_display.tscn" id="10_reserve_display"]
 [ext_resource type="PackedScene" uid="uid://bqkx2nxvthc6y" path="res://ui/quick_score/quick_score.tscn" id="11_quick_score"]
-[ext_resource type="PackedScene" path="res://ui/dice_stats/dice_stats.tscn" id="16_dice_stats"]
-[ext_resource type="PackedScene" path="res://ui/roll_button/roll_button.tscn" id="13_roll_button"]
+[ext_resource type="PackedScene" uid="uid://b4tec2ymj0kbv" path="res://ui/roll_button/roll_button.tscn" id="13_roll_button"]
 [ext_resource type="PackedScene" path="res://ui/inventory_deck/inventory_deck.tscn" id="14_inventory_deck"]
 [ext_resource type="PackedScene" path="res://ui/dice_tooltip/dice_tooltip.tscn" id="15_dice_tooltip"]
+[ext_resource type="PackedScene" path="res://ui/dice_stats/dice_stats.tscn" id="16_dice_stats"]
+[ext_resource type="Script" uid="uid://be0n8263vsi7u" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
+[ext_resource type="Script" uid="uid://bgideag8ai4qt" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
+[ext_resource type="Script" uid="uid://bknp5u7rhfdl4" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
+[ext_resource type="Script" uid="uid://cssakh1hta1cp" path="res://globals/state_machine/states/rolling_state.gd" id="rolling_state"]
+[ext_resource type="Script" uid="uid://de86a700gaq64" path="res://globals/state_machine/states/scoring_state.gd" id="scoring_state"]
+[ext_resource type="Script" uid="uid://c0611asothgpk" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
+[ext_resource type="Script" uid="uid://cvia4x0pfap6u" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -38,7 +38,8 @@ glow_enabled = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pixelate"]
 shader = ExtResource("9_pixelate")
-shader_parameter/pixelate_size = 4.0
+shader_parameter/pixelate_size = 5.00000019
+shader_parameter/reference_height = 1280.0000380000001
 shader_parameter/color_levels = 16.0
 
 [node name="Game" type="Control" unique_id=1578359998]
@@ -114,32 +115,31 @@ offset_top = 0.0
 offset_bottom = 0.0
 grow_vertical = 2
 
-[node name="DiceStats" parent="CanvasLayer" instance=ExtResource("16_dice_stats")]
+[node name="DiceStats" parent="CanvasLayer" unique_id=551138598 instance=ExtResource("16_dice_stats")]
 
 [node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]
 
 [node name="InventoryDeck" parent="CanvasLayer" unique_id=334932875 instance=ExtResource("14_inventory_deck")]
 
-[node name="DiceTooltip" parent="CanvasLayer" instance=ExtResource("15_dice_tooltip")]
+[node name="DiceTooltip" parent="CanvasLayer" unique_id=956099878 instance=ExtResource("15_dice_tooltip")]
 
-[node name="StateMachine" type="Node" parent="."]
+[node name="StateMachine" type="Node" parent="." unique_id=2064687143]
 script = ExtResource("state_machine")
-initial_state_name = "SetupState"
 
-[node name="SetupState" type="Node" parent="StateMachine"]
+[node name="SetupState" type="Node" parent="StateMachine" unique_id=670883674]
 script = ExtResource("setup_state")
 
-[node name="PreRollState" type="Node" parent="StateMachine"]
+[node name="PreRollState" type="Node" parent="StateMachine" unique_id=1933258430]
 script = ExtResource("pre_roll_state")
 
-[node name="RollingState" type="Node" parent="StateMachine"]
+[node name="RollingState" type="Node" parent="StateMachine" unique_id=258059785]
 script = ExtResource("rolling_state")
 
-[node name="PostRollState" type="Node" parent="StateMachine"]
+[node name="PostRollState" type="Node" parent="StateMachine" unique_id=1914421397]
 script = ExtResource("post_roll_state")
 
-[node name="ScoringState" type="Node" parent="StateMachine"]
+[node name="ScoringState" type="Node" parent="StateMachine" unique_id=880554659]
 script = ExtResource("scoring_state")
 
-[node name="GameOverState" type="Node" parent="StateMachine"]
+[node name="GameOverState" type="Node" parent="StateMachine" unique_id=73281343]
 script = ExtResource("game_over_state")

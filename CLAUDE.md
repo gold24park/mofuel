@@ -31,8 +31,10 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 /mofuel/
   /globals/           # Autoload singletons and shared classes
-    game_state.gd     # Match state management
+    game_state.gd     # Match state management (inventory + deck 소유)
     meta_state.gd     # Between-match state (upgrades)
+    inventory.gd      # Inventory — 영구 주사위 컬렉션 (class_name Inventory)
+    inventory_manager.gd  # Deck — 스테이지 로컬 덱 (class_name Deck)
     dice_registry.gd  # Dice type loader
     category_registry.gd  # Category loader
     scoring.gd        # Score calculation
@@ -81,13 +83,13 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 
 ### Game Flow
-1. **SETUP**: 게임 초기화, Inventory에서 Hand로 주사위 드로우 (초기 6개)
+1. **SETUP**: 게임 초기화, Inventory → Deck(deep-copy) → Hand로 주사위 드로우 (초기 5개)
 2. **PRE_ROLL**: Hand에서 5개를 선택하여 Active로 배치
    - Hand == 5 & Active == 0 & Discard 모드 아님 → **자동 활성화** (순차 애니메이션)
    - Hand > 5 → Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
    - Active 주사위 클릭 → Hand로 내려감
    - **Discard 모드**: 토글 버튼으로 활성화, Hand 주사위 클릭 시 버리기 (최소 5개 유지)
-   - **Draw 버튼**: Inventory에서 Hand로 1개 드로우 (라운드당 횟수 제한)
+   - **Draw 버튼**: Deck pool에서 Hand로 1개 드로우 (라운드당 횟수 제한)
    - 5개 선택 완료 시 Roll 버튼 활성화
 3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
 4. **POST_ROLL**:
@@ -138,8 +140,10 @@ SetupState → PreRollState → RollingState → PostRollState
 **핵심 클래스:**
 - **GameStateMachine**: 상태 전환 관리, game.tscn의 자식 노드
 - **GameStateBase**: 상태 베이스 클래스 (enter/exit/update/handle_input)
-- **GameState**: Autoload singleton for match data (Phase, score, rerolls 등)
+- **GameState**: Autoload singleton for match data (Phase, score, rerolls, inventory, deck 등)
 - **MetaState**: Autoload singleton for upgrades (persists between matches)
+- **Inventory**: 영구 주사위 컬렉션 (RefCounted, `GameState.inventory`)
+- **Deck**: 스테이지 로컬 덱 — pool/hand/active_dice (RefCounted, `GameState.deck`)
 
 ### Dice Type System
 - Resource-based architecture for 100+ dice types
@@ -154,11 +158,21 @@ SetupState → PreRollState → RollingState → PostRollState
 - Multiplier upgrade: Increase score multiplier (MetaState 경유)
 - **Burst**: 특수 카테고리 (category_id: "burst"), 0점으로 턴 넘기기. CategoryRegistry에 없고 QuickScore에서 하드코딩
 
-### Inventory System
-- `InventoryManager`: inventory(덱), hand, active_dice 3개 배열 관리
-- `HAND_MAX = 10`: hand + active 합계 기준
-- `discard_from_hand()`: hand에서 영구 제거 (최소 5개 유지)
+### Inventory / Deck System
+- **`Inventory`** (`globals/inventory.gd`): 플레이어의 영구 주사위 컬렉션. 스테이지를 넘어 유지. 상점에서 매매 가능.
+  - `init_starting_inventory()`: 게임 시작 시 `DiceTypes.STARTING_INVENTORY`로 초기 구성
+  - `create_stage_copies()`: 모든 주사위를 `clone_for_stage()`로 deep-copy하여 반환
+  - `add()` / `remove()`: 상점 매매용
+- **`Deck`** (`globals/inventory_manager.gd`): 스테이지 로컬 덱. pool(draw pile) + hand + active_dice 관리.
+  - `init_from_inventory(inv)`: Inventory에서 deep-copy하여 덱 초기화
+  - `HAND_MAX = 10`: hand + active 합계 기준
+  - `discard_from_hand()`: hand에서 영구 제거 (최소 5개 유지)
+  - 파괴된 주사위는 Deck에서만 사라짐 (Inventory 원본 무사)
+- **`DiceInstance.clone_for_stage()`**: 영구 보너스 유지, 스테이지 로컬 상태 초기화
+- **`GameState.inventory`**: Inventory 인스턴스 (영구)
+- **`GameState.deck`**: Deck 인스턴스 (스테이지 로컬)
 - Draw: `GameState.draw_one()` → `draws_remaining` 차감, 라운드당 횟수 제한
+- Signal: `pool_changed` (기존 `inventory_changed` → 리네임)
 
 ## Godot 4.6 Conventions
 

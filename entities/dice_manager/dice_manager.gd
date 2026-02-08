@@ -170,7 +170,7 @@ func _sort_and_animate_dice() -> void:
 	new_cached_values.resize(DICE_COUNT)
 	var old_to_new = {}
 	
-	var new_order_indices: Array[int] = [] # InventoryManager용
+	var new_order_indices: Array[int] = [] # Deck용
 	
 	for new_idx in range(DICE_COUNT):
 		var item = sort_data[new_idx]
@@ -184,8 +184,8 @@ func _sort_and_animate_dice() -> void:
 		# 내부 인덱스 업데이트
 		item.node.dice_index = new_idx
 	
-	# 3. InventoryManager 업데이트 (Active Dice 순서)
-	GameState.inventory_manager.reorder_active_dice(new_order_indices)
+	# 3. Deck 업데이트 (Active Dice 순서)
+	GameState.deck.reorder_active_dice(new_order_indices)
 	
 	# 4. Rolling Indices 업데이트 (효과 처리를 위해 트리거 위치 갱신)
 	var new_rolling_indices: Array[int] = []
