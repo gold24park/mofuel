@@ -6,15 +6,15 @@
 layout_mode = 3
 anchors_preset = 0
 offset_right = 100.0
-offset_bottom = 120.0
+offset_bottom = 110.0
 script = ExtResource("1")
 
 [node name="DeckContainer" type="Control" parent="."]
 layout_mode = 0
 offset_left = 20.0
-offset_top = 60.0
+offset_top = 10.0
 offset_right = 80.0
-offset_bottom = 140.0
+offset_bottom = 90.0
 
 [node name="CardBack1" type="ColorRect" parent="DeckContainer"]
 layout_mode = 0

@@ -27,7 +27,7 @@ func init(root_node: Control) -> void:
 		current_state = initial_state
 		initial_state.enter()
 	else:
-		push_error("GameStateMachine: Initial state not found - " + initial_state_name)
+		push_error("GameStateMachine: Initial state not found - %s" % initial_state_name)
 
 
 func _process(delta: float) -> void:
@@ -51,7 +51,7 @@ func on_child_transitioned(state: GameStateBase, new_state_name: String) -> void
 
 	var new_state: GameStateBase = states.get(new_state_name.to_lower())
 	if not new_state:
-		push_warning("GameStateMachine: State not found - " + new_state_name)
+		push_warning("GameStateMachine: State not found - %s" % new_state_name)
 		return
 
 	if current_state:

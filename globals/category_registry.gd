@@ -12,7 +12,7 @@ func _load_all_categories() -> void:
 	var dir := DirAccess.open(path)
 
 	if dir == null:
-		push_warning("CategoryRegistry: Cannot open directory: " + path)
+		push_warning("CategoryRegistry: Cannot open directory: %s" % path)
 		return
 
 	dir.list_dir_begin()
@@ -31,7 +31,7 @@ func _load_all_categories() -> void:
 func get_category(id: String) -> CategoryResource:
 	if categories.has(id):
 		return categories[id]
-	push_warning("CategoryRegistry: Unknown category: " + id)
+	push_warning("CategoryRegistry: Unknown category: %s" % id)
 	return null
 
 

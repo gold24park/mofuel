@@ -8,7 +8,7 @@ extends Control
 @onready var draws_label: Label = $MarginContainer/HBoxContainer/DrawsLabel
 
 
-func _ready():
+func _ready() -> void:
 	GameState.round_changed.connect(_on_round_changed)
 	GameState.pool_changed.connect(_on_pool_changed)
 	GameState.hand_changed.connect(_on_hand_changed)
@@ -19,7 +19,7 @@ func _ready():
 	_update_all()
 
 
-func _update_all():
+func _update_all() -> void:
 	_on_round_changed(GameState.current_round)
 	_on_pool_changed()
 	_on_hand_changed()
@@ -28,25 +28,25 @@ func _update_all():
 	_on_draws_changed(GameState.draws_remaining)
 
 
-func _on_round_changed(round_num: int):
+func _on_round_changed(round_num: int) -> void:
 	round_label.text = "Round: %d / %d" % [round_num, GameState.max_rounds]
 
 
-func _on_pool_changed():
+func _on_pool_changed() -> void:
 	inventory_label.text = "Pool: %d" % GameState.deck.get_pool_count()
 
 
-func _on_hand_changed():
+func _on_hand_changed() -> void:
 	hand_label.text = "Hand: %d" % GameState.deck.get_hand_count()
 
 
-func _on_score_changed(score: int):
+func _on_score_changed(score: int) -> void:
 	score_label.text = "Score: %d / %d" % [score, GameState.target_score]
 
 
-func _on_rerolls_changed(remaining: int):
+func _on_rerolls_changed(remaining: int) -> void:
 	rerolls_label.text = "Rerolls: %d" % remaining
 
 
-func _on_draws_changed(remaining: int):
+func _on_draws_changed(remaining: int) -> void:
 	draws_label.text = "Draws: %d" % remaining

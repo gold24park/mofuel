@@ -13,7 +13,6 @@ func enter() -> void:
 	# PostRollState에서 Quick Score로 전환된 경우 자동 처리
 	var pending := GameState.consume_pending_score()
 	if pending:
-		game_root._prev_active_dice = GameState.active_dice.duplicate()
 		_process_scoring(pending.category_id, pending.score)
 		return
 
@@ -48,8 +47,6 @@ func _process_scoring(category_id: String, _estimated_score: int) -> void:
 	# 1. UI 잠금 (중복 클릭 방지)
 	GameState.is_transitioning = true
 	game_root.quick_score.hide_options()
-
-	game_root._prev_active_dice = GameState.active_dice.duplicate()
 
 	# Burst = 0점 스킵 (효과 계산 불필요)
 	if category_id == "burst":

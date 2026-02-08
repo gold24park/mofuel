@@ -9,14 +9,14 @@ signal upgrade_pressed
 @onready var upgrade_button: Button = $Panel/VBoxContainer/UpgradeButton
 
 
-func _ready():
+func _ready() -> void:
 	GameState.game_over.connect(_on_game_over)
 	restart_button.pressed.connect(_on_restart_pressed)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	visible = false
 
 
-func _on_game_over(won: bool):
+func _on_game_over(won: bool) -> void:
 	visible = true
 
 	if won:
@@ -29,11 +29,11 @@ func _on_game_over(won: bool):
 	score_label.text = "Final Score: %d" % GameState.total_score
 
 
-func _on_restart_pressed():
+func _on_restart_pressed() -> void:
 	visible = false
 	restart_pressed.emit()
 
 
-func _on_upgrade_pressed():
+func _on_upgrade_pressed() -> void:
 	visible = false
 	upgrade_pressed.emit()

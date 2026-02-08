@@ -82,7 +82,7 @@ func _get_base_target_indices(context) -> Array[int]:
 
 		Target.ALL_DICE:
 			var indices: Array[int] = []
-			for i in range(context.all_dice.size()):
+			for i in context.all_dice.size():
 				indices.append(i)
 			return indices
 
@@ -143,25 +143,25 @@ func _get_field_value(field: CompareField, dice, idx: int) -> Variant:
 ## 비교 연산 수행
 func _compare(actual: Variant, expected: Variant, op: CompareOp) -> bool:
 	match op:
+		CompareOp.EQ when actual is Array:
+			return expected in actual
 		CompareOp.EQ:
-			if actual is Array:
-				return expected in actual
 			return actual == expected
+		CompareOp.NOT when actual is Array:
+			return expected not in actual
 		CompareOp.NOT:
-			if actual is Array:
-				return expected not in actual
 			return actual != expected
+		CompareOp.IN when expected is Array:
+			return actual in expected
 		CompareOp.IN:
-			if expected is Array:
-				return actual in expected
 			return actual == expected
 		CompareOp.GTE:
 			return actual >= expected
 		CompareOp.LT:
 			return actual < expected
+		CompareOp.MOD when expected == 0:
+			return false
 		CompareOp.MOD:
-			if expected == 0:
-				return false
 			return int(actual) % int(expected) == 0
 	return false
 #endregion

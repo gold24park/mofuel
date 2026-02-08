@@ -71,8 +71,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 
   /ui/                # UI components
     /hud/             # Top status bar
-    /action_buttons/  # Reroll, End Turn buttons
-    /hand_display/    # Hand dice display (bottom center, PRE_ROLL 선택용)
+    /hand_display/    # Hand bar (고정 10슬롯 + DiscardSlot + DrawButton)
     /quick_score/     # Scoring options (유일한 스코어링 UI, Burst 포함)
     /game_over/       # Win/lose screen
     /upgrade_screen/  # Category upgrade UI
@@ -85,19 +84,19 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ### Game Flow
 1. **SETUP**: 게임 초기화, Inventory → Deck(deep-copy) → Hand로 주사위 드로우 (초기 5개)
 2. **PRE_ROLL**: Hand에서 5개를 선택하여 Active로 배치
-   - Hand == 5 & Active == 0 & Discard 모드 아님 → **자동 활성화** (순차 애니메이션)
+   - Hand == 5 & Active == 0 → **자동 활성화** (순차 애니메이션)
    - Hand > 5 → Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
    - Active 주사위 클릭 → Hand로 내려감
-   - **Discard 모드**: 토글 버튼으로 활성화, Hand 주사위 클릭 시 버리기 (최소 5개 유지)
-   - **Draw 버튼**: Deck pool에서 Hand로 1개 드로우 (라운드당 횟수 제한)
+   - **Discard**: Hand 주사위를 DiscardSlot(빨간 X)으로 드래그 앤 드롭 (hand > 5일 때만)
+   - **Draw 버튼**: Hand 바 우측 "+" 버튼, Deck pool에서 Hand로 1개 드로우 (라운드당 횟수 제한)
    - 5개 선택 완료 시 Roll 버튼 활성화
 3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
 4. **POST_ROLL**:
    - **자동 정렬**: 굴림 완료 후 주사위 눈 오름차순으로 자동 정렬 (물리적 위치 이동)
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
    - Click dice to select for reroll (리롤 시에도 정렬 및 효과 재적용)
-   - Reroll selected dice (최대 2회)
-   - Quick Score panel로 점수 선택
+   - REROLL 버튼 (Roll 버튼과 겸용): 선택된 주사위 리롤 (최대 2회)
+   - Quick Score panel로 직접 점수 선택 (End Turn 없음)
 5. **SCORING**: QuickScore에서 카테고리 선택 (ScoreCard 제거됨)
    - 모든 카테고리 무제한 사용 가능
    - **Burst**: 0점으로 턴 넘기기 옵션 (항상 표시)
@@ -248,6 +247,36 @@ SetupState → PreRollState → RollingState → PostRollState
   ```
 - **Region blocks**: Use `#region` / `#endregion` to organize code sections
 - **class_name**: Add `class_name` to classes that are referenced by other scripts for type safety
+- **Match patterns**: 중첩 if 대신 match의 고급 패턴 활용
+  ```gdscript
+  # Pattern guard — 같은 enum을 조건별로 분기
+  match op:
+      CompareOp.EQ when actual is Array:
+          return expected in actual
+      CompareOp.EQ:
+          return actual == expected
+
+  # Array pattern — 구조적 매칭 (정렬된 배열에 적합)
+  var freq = counts.values()
+  freq.sort()
+  match freq:
+      [2, 3], [5]:    # full house or five-of-a-kind
+          return true
+      _:
+          return false
+
+  # Dictionary pattern + var binding — 키 존재 확인 + 구조분해
+  match data:
+      {"material": var mat_path, ..} when mat_path != "":
+          dt.material = load(mat_path)
+
+  # Avoid — match arm 안에 중첩 if/return
+  match op:
+      CompareOp.EQ:
+          if actual is Array:      # 이렇게 하지 말 것
+              return expected in actual
+          return actual == expected
+  ```
 
 ### Type Safety & Null Handling
 - **Return types**: Always specify return types for public functions
@@ -409,19 +438,27 @@ JSON 예시:
  adjacent  adjacent  adjacent
 ```
 
-### Multi-Layer Scoring
+### Scoring Formula (Balatro-style)
+
+모든 주사위가 bonus/multiplier로 기여하는 풀 기반 점수 계산:
 
 ```
-final_score = (base_value + value_bonus) × value_multiplier
-              × permanent_multiplier + permanent_bonus
+final_score = (base + Σ value_bonus) × (1 + Σ extra_mult)
 ```
 
-| 변수 | 지속성 | 설명 |
-|------|--------|------|
-| `value_bonus` | 라운드 | 임시 가산 |
-| `value_multiplier` | 라운드 | 임시 배수 |
-| `permanent_bonus` | 영구 | 게임 전체 가산 |
-| `permanent_multiplier` | 영구 | 게임 전체 배수 |
+- **base**: 카테고리가 결정하는 기본 점수 (패턴 매칭된 주사위의 raw value 합)
+- **Σ value_bonus**: 모든 활성 주사위의 value_bonus 합산
+- **Σ extra_mult**: 모든 활성 주사위의 (value_multiplier - 1) 합산
+  - 기본 배수 1.0을 빼서 합산 → 효과 없는 주사위(×1)는 0 기여
+
+| 풀 | 구성 | 설명 |
+|-----|------|------|
+| `base` | 카테고리별 | 패턴 매칭된 주사위의 raw value 합 (고정점수 카테고리는 fixed_score) |
+| `value_bonus` | 모든 주사위 | 효과에 의한 가산 (양수/음수 모두 가능) |
+| `extra_mult` | 모든 주사위 | value_multiplier - 1 (×3 주사위 → +2 기여) |
+
+예시: 주사위 `[3,3,2,5,6]`, bonus `[+1,+2,0,0,+3]`, mult `[1,1,2,1,1]`, 원페어(3-3)
+→ `(6 + 6) × (1 + 1) = 24`
 
 ### Visual Feedback
 
@@ -513,18 +550,17 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 - 자동 활성화 시 반드시 `set_dice_to_hand_position()` → `animate_single_to_active()` 순서로 호출
 
 ### PRE_ROLL 자동 활성화 조건
-`_try_auto_activate()`는 4가지 조건이 **모두** 충족될 때만 발동:
+`_try_auto_activate()`는 3가지 조건이 **모두** 충족될 때만 발동:
 1. `!_is_animating`
-2. `!discard_mode`
-3. `hand.size() == 5`
-4. `active_dice.size() == 0`
+2. `hand.size() == 5`
+3. `active_dice.size() == 0`
 
-호출 시점: PRE_ROLL 진입 후, Discard 모드 OFF 후, Draw 완료 후
+호출 시점: PRE_ROLL 진입 후, Discard 완료 후, Draw 완료 후
 
 ### Hand/Active 용량 체크
 - `can_draw()`: `hand.size() + active_dice.size() < HAND_MAX` (active 포함!)
 - Draw 시 active를 hand로 되돌리지 않음 — active 상태 유지가 자연스러운 UX
-- Discard는 `hand.size() > 5`일 때만 가능 (데이터 레이어에서 보장)
+- Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭, `hand.size() > 5`일 때만 가능
 
 ### Burst 카테고리
 - CategoryRegistry에 등록되지 않은 특수 ID ("burst")
@@ -535,4 +571,4 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 ### 시그널 연결/해제 대칭
 - State의 `_connect_signals()`/`_disconnect_signals()`는 반드시 대칭이어야 함
 - 시그널 추가 시 양쪽 모두 업데이트 — 한쪽만 하면 disconnect 에러 또는 중복 연결
-- UI 토글 모드 (discard 등)의 시그널은 `discard_mode_changed(bool)` 패턴으로 상태 변화를 전파
+- RollButton은 PRE_ROLL(Roll)과 POST_ROLL(Reroll) 겸용 — phase에 따라 다른 시그널 emit

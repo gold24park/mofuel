@@ -43,7 +43,7 @@ var sound: String = ""
 
 
 ## 다른 결과와 병합 (여러 효과 누적)
-func merge(other) -> void:
+func merge(other: EffectResult) -> void:
 	value_bonus += other.value_bonus
 	value_multiplier *= other.value_multiplier
 	permanent_bonus += other.permanent_bonus

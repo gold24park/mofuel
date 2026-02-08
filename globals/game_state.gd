@@ -36,11 +36,11 @@ var active_dice: Array[DiceInstance]:
 		return deck.active_dice
 
 
-func _ready():
+func _ready() -> void:
 	# 덱 시그널 연결
-	deck.pool_changed.connect(func(): pool_changed.emit())
-	deck.hand_changed.connect(func(): hand_changed.emit())
-	deck.active_changed.connect(func(): active_changed.emit())
+	deck.pool_changed.connect(pool_changed.emit)
+	deck.hand_changed.connect(hand_changed.emit)
+	deck.active_changed.connect(active_changed.emit)
 
 
 #region Hand ↔ Active 이동 (PRE_ROLL에서 개별 클릭)
@@ -63,12 +63,12 @@ func record_score(category_id: String, score: int) -> bool:
 		GameState.score_changed.emit(GameState.total_score)
 		return true
 
-	var upgrade = MetaState.get_upgrade(category_id)
+	var upgrade := MetaState.get_upgrade(category_id)
 	if not upgrade:
 		return false
 
 	# 배수 적용
-	var multiplied_score = int(score * upgrade.get_total_multiplier())
+	var multiplied_score := int(score * upgrade.get_total_multiplier())
 	GameState.total_score += multiplied_score
 	upgrade.use()
 	GameState.score_changed.emit(GameState.total_score)

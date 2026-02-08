@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://entities/table/table.tscn" id="2_table"]
 [ext_resource type="PackedScene" uid="uid://djq8m2fk7xc5l" path="res://entities/dice_manager/dice_manager.tscn" id="3_dice_manager"]
 [ext_resource type="PackedScene" uid="uid://cw8m5hvp2ql7r" path="res://ui/hud/hud.tscn" id="4_hud"]
-[ext_resource type="PackedScene" uid="uid://b6x8qy2k3lpvm" path="res://ui/action_buttons/action_buttons.tscn" id="5_action_buttons"]
 [ext_resource type="PackedScene" uid="uid://cn8vj5d2ql7mx" path="res://ui/game_over/game_over.tscn" id="7_game_over"]
 [ext_resource type="PackedScene" uid="uid://dh7m2xlalp4qv" path="res://ui/upgrade_screen/upgrade_screen.tscn" id="8_upgrade_screen"]
 [ext_resource type="Shader" uid="uid://b30rplgnr3k2" path="res://shaders/pixelate.gdshader" id="9_pixelate"]
@@ -39,7 +38,7 @@ glow_enabled = true
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pixelate"]
 shader = ExtResource("9_pixelate")
 shader_parameter/pixelate_size = 5.00000019
-shader_parameter/reference_height = 1280.0000380000001
+shader_parameter/reference_height = 1280.000038
 shader_parameter/color_levels = 16.0
 
 [node name="Game" type="Control" unique_id=1578359998]
@@ -99,8 +98,6 @@ mouse_filter = 2
 
 [node name="HUD" parent="CanvasLayer" unique_id=909889082 instance=ExtResource("4_hud")]
 
-[node name="ActionButtons" parent="CanvasLayer" unique_id=485455935 instance=ExtResource("5_action_buttons")]
-
 [node name="GameOver" parent="CanvasLayer" unique_id=753122824 instance=ExtResource("7_game_over")]
 
 [node name="UpgradeScreen" parent="CanvasLayer" unique_id=1555253837 instance=ExtResource("8_upgrade_screen")]
@@ -120,6 +117,17 @@ grow_vertical = 2
 [node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]
 
 [node name="InventoryDeck" parent="CanvasLayer" unique_id=334932875 instance=ExtResource("14_inventory_deck")]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -190.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 0
+grow_vertical = 0
 
 [node name="DiceTooltip" parent="CanvasLayer" unique_id=956099878 instance=ExtResource("15_dice_tooltip")]
 

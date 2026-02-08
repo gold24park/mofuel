@@ -6,23 +6,23 @@ extends RefCounted
 ## 단일 효과 적용 정보 (추적용)
 class PendingEffect:
 	var effect: DiceEffectResource
-	var context: EffectContext  # EffectContext
+	var context: EffectContext
 	var target_indices: Array[int]
 
-	func _init(p_effect: DiceEffectResource, p_context: EffectContext, p_targets: Array[int]) -> void:
-		effect = p_effect
-		context = p_context
-		target_indices = p_targets
+	func _init(eff: DiceEffectResource, ctx: EffectContext, targets: Array[int]) -> void:
+		effect = eff
+		context = ctx
+		target_indices = targets
 
 
 ## 모든 효과 처리 (트리거 구분 없음)
 ## 반환: Dictionary - 타겟 인덱스별 효과 결과 배열
 static func process_effects(all_dice: Array) -> Dictionary:
 	# 1. 수집: 모든 효과 수집
-	var pending: Array = []
+	var pending: Array[PendingEffect] = []
 
-	for i in range(all_dice.size()):
-		var dice = all_dice[i]
+	for i in all_dice.size():
+		var dice: DiceInstance = all_dice[i]
 		if dice == null:
 			continue
 
@@ -49,11 +49,11 @@ static func process_effects(all_dice: Array) -> Dictionary:
 	# 2. 적용: 타겟별로 결과 수집
 	var results: Dictionary = {}
 
-	for i in range(all_dice.size()):
+	for i in all_dice.size():
 		results[i] = []
 
 	for pe in pending:
-		var result = pe.effect.evaluate(pe.context)
+		var result := pe.effect.evaluate(pe.context)
 		if result == null or not result.has_effect():
 			continue
 

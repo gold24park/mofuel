@@ -7,7 +7,6 @@ extends Control
 @onready var dice_manager = $SubViewportContainer/SubViewport/World3D/DiceManager
 @onready var camera_3d = $SubViewportContainer/SubViewport/World3D/Camera3D
 @onready var hud = $CanvasLayer/HUD
-@onready var action_buttons = $CanvasLayer/ActionButtons
 @onready var game_over_screen = $CanvasLayer/GameOver
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
 @onready var hand_display = $CanvasLayer/HandDisplay
@@ -18,15 +17,13 @@ extends Control
 @onready var dice_tooltip = $CanvasLayer/DiceTooltip
 @onready var state_machine: GameStateMachine = $StateMachine
 
-var _prev_active_dice: Array = []  ## 이전 라운드의 active dice (애니메이션용)
 
-
-func _ready():
+func _ready() -> void:
 	# State Machine 초기화
 	state_machine.init(self)
 
 	# 툴팁 연결 - 플랫폼에 따라 분기
-	if _is_mobile():
+	if Platform.is_mobile():
 		# 모바일: 터치(클릭)로 툴팁 표시
 		dice_manager.selection_changed.connect(_on_dice_selection_changed)
 	else:
@@ -36,14 +33,9 @@ func _ready():
 
 
 ## 3D 주사위와 UI를 GameState의 active_dice와 동기화
-func _sync_dice_instances():
+func _sync_dice_instances() -> void:
 	dice_manager.set_dice_instances(GameState.active_dice)
 	dice_stats.setup(camera_3d, dice_manager)
-
-
-## 플랫폼 감지
-func _is_mobile() -> bool:
-	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 ## 주사위 선택 변경 시 툴팁 업데이트 (모바일)

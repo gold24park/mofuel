@@ -22,7 +22,7 @@ func _ready() -> void:
 
 
 func _create_option_buttons() -> void:
-	for i in range(MAX_VISIBLE_OPTIONS):
+	for i in MAX_VISIBLE_OPTIONS:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(180, 50)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -70,14 +70,14 @@ func show_options(dice: Array) -> void:
 	})
 
 	# 버튼 업데이트
-	for i in range(MAX_VISIBLE_OPTIONS):
+	for i in MAX_VISIBLE_OPTIONS:
 		var button := _option_buttons[i]
 		if i < _current_options.size():
-			var option := _current_options[i]
-			if option["id"] == "burst":
-				button.text = "Burst  0"
-			else:
-				button.text = "%s  +%d" % [option["name"], option["score"]]
+			match _current_options[i]:
+				{"id": "burst", ..}:
+					button.text = "Burst  0"
+				{"name": var opt_name, "score": var opt_score, ..}:
+					button.text = "%s  +%d" % [opt_name, opt_score]
 			button.visible = true
 			button.disabled = false
 		else:
@@ -98,9 +98,9 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 		CT.HIGH_DICE:
 			# 가장 높은 current_value 주사위 1개 (와일드카드 = 6)
 			var best_idx := 0
-			var best_val: int = 6 if _is_wildcard(dice[0]) else values[0]
+			var best_val: int = 6 if dice[0].is_wildcard() else values[0]
 			for i in range(1, values.size()):
-				var v: int = 6 if _is_wildcard(dice[i]) else values[i]
+				var v: int = 6 if dice[i].is_wildcard() else values[i]
 				if v > best_val:
 					best_val = v
 					best_idx = i
@@ -110,12 +110,12 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 			var best_pair_value := _get_highest_pair_value(values)
 			# 매칭 값 우선, 와일드카드는 부족분만
 			var need := 2
-			for i in range(values.size()):
+			for i in values.size():
 				if values[i] == best_pair_value and need > 0:
 					indices.append(i)
 					need -= 1
-			for i in range(values.size()):
-				if _is_wildcard(dice[i]) and i not in indices and need > 0:
+			for i in values.size():
+				if dice[i].is_wildcard() and i not in indices and need > 0:
 					indices.append(i)
 					need -= 1
 
@@ -129,10 +129,10 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 					pairs.append(v)
 			pairs.sort()
 			pairs.reverse()
-			for pair_idx in range(min(2, pairs.size())):
+			for pair_idx in mini(2, pairs.size()):
 				var pair_value: int = pairs[pair_idx]
 				var counted := 0
-				for i in range(values.size()):
+				for i in values.size():
 					if values[i] == pair_value and counted < 2:
 						indices.append(i)
 						counted += 1
@@ -141,43 +141,43 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 			var target_value := _get_most_common_value(values)
 			# 매칭 값 우선, 와일드카드는 부족분만
 			var need := 3
-			for i in range(values.size()):
+			for i in values.size():
 				if values[i] == target_value and need > 0:
 					indices.append(i)
 					need -= 1
-			for i in range(values.size()):
-				if _is_wildcard(dice[i]) and i not in indices and need > 0:
+			for i in values.size():
+				if dice[i].is_wildcard() and i not in indices and need > 0:
 					indices.append(i)
 					need -= 1
 
 		CT.FOUR_CARD, CT.FIVE_CARD:
 			var target_value := _get_most_common_value(values)
-			for i in range(values.size()):
+			for i in values.size():
 				if values[i] == target_value:
 					indices.append(i)
-			for i in range(values.size()):
-				if _is_wildcard(dice[i]) and i not in indices:
+			for i in values.size():
+				if dice[i].is_wildcard() and i not in indices:
 					indices.append(i)
 
 		CT.FULL_HOUSE:
-			for i in range(values.size()):
+			for i in values.size():
 				indices.append(i)
 
 		CT.SMALL_STRAIGHT, CT.LARGE_STRAIGHT:
 			var is_large: bool = category.category_type == CT.LARGE_STRAIGHT
 			var straight_values := _get_straight_values(values, is_large)
-			for i in range(values.size()):
-				if values[i] in straight_values:
+			# 각 straight value에 대해 주사위 1개만 매칭 (중복값 방지)
+			var remaining := straight_values.duplicate()
+			for i in values.size():
+				if values[i] in remaining:
 					indices.append(i)
-			for i in range(values.size()):
-				if _is_wildcard(dice[i]) and i not in indices:
+					remaining.erase(values[i])
+			for i in values.size():
+				if dice[i].is_wildcard() and i not in indices and remaining.size() > 0:
 					indices.append(i)
+					remaining.remove_at(0)
 
 	return indices
-
-
-func _is_wildcard(d: DiceInstance) -> bool:
-	return d.is_wildcard()
 
 
 func _get_most_common_value(values: Array[int]) -> int:
@@ -217,9 +217,9 @@ func _get_straight_values(values: Array[int], is_large: bool) -> Array[int]:
 
 	var patterns: Array
 	if is_large:
-		patterns = [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]]
+		patterns = [[2, 3, 4, 5, 6], [1, 2, 3, 4, 5]]
 	else:
-		patterns = [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
+		patterns = [[3, 4, 5, 6], [2, 3, 4, 5], [1, 2, 3, 4]]
 
 	for pattern in patterns:
 		var found := true

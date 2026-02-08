@@ -25,7 +25,8 @@
       "Bash(pip3 install:*)",
       "Bash(test:*)",
       "Bash(magick identify:*)",
-      "Bash(timeout 10 \"/Applications/Godot.app/Contents/MacOS/Godot\":*)"
+      "Bash(timeout 10 \"/Applications/Godot.app/Contents/MacOS/Godot\":*)",
+      "Bash(/Applications/Godot.app/Contents/MacOS/Godot:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

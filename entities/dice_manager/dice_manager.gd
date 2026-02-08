@@ -65,14 +65,14 @@ func _get_roll_position(index: int) -> Vector3:
 
 
 func _get_display_position(index: int) -> Vector3:
-	var x_offset = (index - 2) * dice_spacing # -2, -1, 0, 1, 2 기준
+	var x_offset := (index - 2) * dice_spacing # -2, -1, 0, 1, 2 기준
 	return Vector3(x_offset, display_height, display_z)
 #endregion
 
 
 #region 초기화
 func _spawn_dice() -> void:
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die := DICE_SCENE.instantiate() as RigidBody3D
 		die.dice_index = i
 		add_child(die)
@@ -85,7 +85,7 @@ func _spawn_dice() -> void:
 
 
 func set_dice_instances(instances: Array) -> void:
-	for i in range(mini(instances.size(), dice_nodes.size())):
+	for i in mini(instances.size(), dice_nodes.size()):
 		dice_nodes[i].set_dice_instance(instances[i])
 #endregion
 
@@ -94,7 +94,7 @@ func set_dice_instances(instances: Array) -> void:
 
 func roll_dice_radial_burst() -> void:
 	var indices: Array[int] = []
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		indices.append(i)
 	_roll_dice_radial_burst(indices)
 	_reset_state()
@@ -114,7 +114,7 @@ func _roll_dice_radial_burst(indices: Array[int]) -> void:
 	var center := Vector3(0, burst_height, 0)
 	var angle_step := TAU / indices.size()
 
-	for i in range(indices.size()):
+	for i in indices.size():
 		var idx := indices[i]
 		# 각 주사위마다 방사형 방향 계산 (인덱스는 _selected_indices 또는 _get_all_indices에서 보장)
 		var base_angle := angle_step * i
@@ -152,29 +152,29 @@ func _on_dice_finished(dice_index: int, value: int) -> void:
 ## 주사위 눈금 순으로 정렬 및 애니메이션
 func _sort_and_animate_dice() -> void:
 	# 1. 정렬 데이터 준비
-	var sort_data = []
-	for i in range(DICE_COUNT):
+	var sort_data: Array[Dictionary] = []
+	for i in DICE_COUNT:
 		sort_data.append({
 			"old_index": i,
 			"value": _cached_values[i],
 			"node": dice_nodes[i]
 		})
-	
+
 	# 값 오름차순 정렬
 	sort_data.sort_custom(func(a, b): return a.value < b.value)
-	
+
 	# 2. 매핑 및 데이터 갱신
 	var new_dice_nodes: Array[RigidBody3D] = []
 	new_dice_nodes.resize(DICE_COUNT)
 	var new_cached_values: Array[int] = []
 	new_cached_values.resize(DICE_COUNT)
-	var old_to_new = {}
-	
+	var old_to_new := {}
+
 	var new_order_indices: Array[int] = [] # Deck용
-	
-	for new_idx in range(DICE_COUNT):
-		var item = sort_data[new_idx]
-		var old_idx = item.old_index
+
+	for new_idx in DICE_COUNT:
+		var item := sort_data[new_idx]
+		var old_idx: int = item.old_index
 		
 		new_dice_nodes[new_idx] = item.node
 		new_cached_values[new_idx] = item.value
@@ -201,7 +201,7 @@ func _sort_and_animate_dice() -> void:
 	# 6. 애니메이션 (Dice.gd의 내부 상태 업데이트 및 이동)
 	# Tween 대신 set_display_position을 사용하여 Dice 내부의 display_position 변수를 갱신해야 함.
 	# 그렇지 않으면 나중에 클릭/선택 시 이전 위치로 돌아가는 버그(겹침 현상) 발생.
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die = dice_nodes[i]
 		var target = _get_display_position(i)
 		die.set_display_position(target)
@@ -220,7 +220,7 @@ func _process_roll_effects() -> void:
 
 	# 각 주사위에 결과 할당 및 적용
 	var effect_data: Array[Dictionary] = []
-	for i in range(all_dice.size()):
+	for i in all_dice.size():
 		all_dice[i].roll_effects.clear()
 		if results.has(i):
 			for result in results[i]:
@@ -238,16 +238,11 @@ func _process_roll_effects() -> void:
 
 
 ## 모든 주사위 인스턴스 반환
-func _get_all_dice_instances() -> Array:
-	var instances: Array = []
+func _get_all_dice_instances() -> Array[DiceInstance]:
+	var instances: Array[DiceInstance] = []
 	for node in dice_nodes:
-		if node.has_method("get_dice_instance"):
-			var instance = node.get_dice_instance()
-			if instance:
-				instances.append(instance)
-		elif "dice_instance" in node:
-			if node.dice_instance:
-				instances.append(node.dice_instance)
+		if node.dice_instance:
+			instances.append(node.dice_instance)
 	return instances
 #endregion
 
@@ -276,16 +271,16 @@ func apply_scoring_effects() -> void:
 
 	var score_results := EffectProcessor.process_effects(all_dice)
 
-	for i in range(all_dice.size()):
+	for i in all_dice.size():
 		all_dice[i].roll_effects.clear()
 	_add_results_to_dice(score_results, all_dice)
-	for i in range(all_dice.size()):
+	for i in all_dice.size():
 		all_dice[i].apply_roll_effects_from_results()
 
 
 ## 소스별 순차 애니메이션 재생 (왼→오)
 func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable = Callable()) -> void:
-	for src_idx in range(DICE_COUNT):
+	for src_idx in DICE_COUNT:
 		if not source_anims.has(src_idx):
 			continue
 
@@ -324,7 +319,7 @@ func _collect_source_anims(results: Dictionary, out: Dictionary) -> void:
 
 ## 결과를 주사위에 추가 (clear 없이 누적)
 func _add_results_to_dice(results: Dictionary, all_dice: Array) -> void:
-	for i in range(all_dice.size()):
+	for i in all_dice.size():
 		if results.has(i):
 			for result in results[i]:
 				all_dice[i].add_roll_effect(result)
@@ -339,13 +334,13 @@ func get_score_effect_stats() -> Array[Dictionary]:
 
 	if all_dice.is_empty():
 		stats.resize(DICE_COUNT)
-		for i in range(DICE_COUNT):
+		for i in DICE_COUNT:
 			stats[i] = {"bonus": 0, "multiplier": 1}
 		return stats
 
 	var results := EffectProcessor.process_effects(all_dice)
 
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var bonus: int = 0
 		var mult: float = 1.0
 		if results.has(i):
@@ -416,7 +411,7 @@ func _reset_state() -> void:
 
 
 func _reset_all_to_display() -> void:
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		die.set_selected(false)
 		die.set_display_position(_get_display_position(i))
@@ -426,7 +421,7 @@ func _reset_all_to_display() -> void:
 #region 헬퍼
 func _get_all_indices() -> Array[int]:
 	var indices: Array[int] = []
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		indices.append(i)
 	return indices
 
@@ -464,7 +459,7 @@ func unhighlight_all() -> void:
 func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 	var center := Vector3(0, hand_height, hand_z)
 
-	for i in range(dice_nodes.size()):
+	for i in dice_nodes.size():
 		var die := dice_nodes[i]
 		var tween := create_tween()
 		tween.set_ease(Tween.EASE_IN)
@@ -490,7 +485,7 @@ func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 
 ## 화면 아래 중앙 → Active 위치로 상승 + 콜백 (라운드 시작 시)
 func animate_dice_to_active_with_callback(on_each_finished: Callable) -> void:
-	for i in range(dice_nodes.size()):
+	for i in dice_nodes.size():
 		var die := dice_nodes[i]
 		var target := _get_display_position(i)
 		var tween := create_tween()
@@ -512,7 +507,7 @@ func animate_dice_to_active_with_callback(on_each_finished: Callable) -> void:
 ## 모든 주사위를 화면 하단 중앙으로 즉시 이동 (초기 위치 설정용)
 func set_dice_to_hand_position() -> void:
 	var center := Vector3(0, hand_height, hand_z)
-	for i in range(dice_nodes.size()):
+	for i in dice_nodes.size():
 		var die := dice_nodes[i]
 		die.global_position = center
 		die.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
@@ -573,7 +568,7 @@ func animate_single_to_hand(active_index: int) -> void:
 
 ## Active 주사위 재배치 애니메이션 (인덱스 변경 시)
 func reposition_active_dice(count: int) -> void:
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		if i < count:
 			# Active에 있는 주사위 - 표시하고 새 위치로 이동
@@ -594,7 +589,7 @@ func reposition_active_dice(count: int) -> void:
 func reposition_active_dice_async(count: int) -> void:
 	var tweens: Array = []
 
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		if i < count:
 			die.visible = true
@@ -630,7 +625,7 @@ func animate_remove_and_shift(removed_index: int, count: int) -> void:
 	tweens.append(remove_tween)
 
 	# 현재 Active에 해당하는 주사위들: 올바른 위치로 이동
-	for i in range(count):
+	for i in count:
 		var die := dice_nodes[i]
 		die.visible = true
 		var target := _get_display_position(i)
@@ -663,7 +658,7 @@ func set_dice_visible(index: int, visibility: bool) -> void:
 
 ## Active 주사위 즉시 배치 (애니메이션 없음)
 func set_active_positions_immediate(count: int) -> void:
-	for i in range(DICE_COUNT):
+	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		if i < count:
 			die.visible = true

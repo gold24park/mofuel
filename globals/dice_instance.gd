@@ -9,8 +9,8 @@ var roll_count: int = 0
 
 #region Effect Results
 ## 라운드별 효과 결과 (라운드 종료 시 리셋)
-var roll_effects: Array = []
-var score_effects: Array = []
+var roll_effects: Array[EffectResult] = []
+var score_effects: Array[EffectResult] = []
 
 ## 영구 보너스 (게임 전체 유지)
 var permanent_value_bonus: int = 0
@@ -75,31 +75,33 @@ func is_wildcard() -> bool:
 #endregion
 
 
-#region Scoring
-## 모든 효과가 적용된 점수 값 반환
-func get_scoring_value() -> int:
-	var base := get_display_value()
-	var bonus := permanent_value_bonus
-	var mult := permanent_value_multiplier
+#region Scoring (Balatro-style pool)
+## 기본 값 (효과 미적용, base pool용)
+func get_base_value() -> int:
+	return get_display_value()
 
-	# 현재 라운드 효과 적용
+
+## 이 주사위의 총 bonus 기여 (bonus pool용)
+func get_total_bonus() -> int:
+	var bonus := permanent_value_bonus
 	for result in score_effects:
 		bonus += result.value_bonus
-		mult *= result.value_multiplier
+		bonus += result.permanent_bonus
+	return bonus
 
-	return int((base + bonus) * mult)
 
-
-## 모든 효과가 적용된 배수 반환
-func get_total_score_multiplier() -> float:
-	var multiplier := 1.0
-
-	# score_effects의 배수 적용
+## 이 주사위의 총 multiplier (mult pool용)
+func get_total_multiplier() -> float:
+	var mult := permanent_value_multiplier
 	for result in score_effects:
-		multiplier *= result.value_multiplier
-		multiplier *= result.permanent_multiplier
+		mult *= result.value_multiplier
+		mult *= result.permanent_multiplier
+	return mult
 
-	return multiplier * permanent_value_multiplier
+
+## 개별 주사위 최종 점수 (UI 표시용)
+func get_scoring_value() -> int:
+	return int((get_base_value() + get_total_bonus()) * get_total_multiplier())
 #endregion
 
 

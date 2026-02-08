@@ -50,33 +50,24 @@ func _get_variable_value(dice: DiceInstance, index: int) -> Variant:
 ## 비교 연산 수행
 func _compare(target_value: Variant) -> bool:
 	match operator:
+		Operator.EQUALS when variable == Variable.HAS_GROUP:
+			return string_value in (target_value as Array)
 		Operator.EQUALS:
-			if variable == Variable.HAS_GROUP:
-				return string_value in (target_value as Array)
 			return target_value == _get_compare_value()
-
+		Operator.NOT_EQUALS when variable == Variable.HAS_GROUP:
+			return string_value not in (target_value as Array)
 		Operator.NOT_EQUALS:
-			if variable == Variable.HAS_GROUP:
-				return string_value not in (target_value as Array)
 			return target_value != _get_compare_value()
-
 		Operator.GREATER_THAN:
 			return target_value > int_value
-
 		Operator.LESS_THAN:
 			return target_value < int_value
-
 		Operator.GREATER_OR_EQ:
 			return target_value >= int_value
-
 		Operator.LESS_OR_EQ:
 			return target_value <= int_value
-
-		Operator.CONTAINS:
-			if target_value is Array:
-				return string_value in target_value
-			return false
-
+		Operator.CONTAINS when target_value is Array:
+			return string_value in target_value
 	return false
 
 

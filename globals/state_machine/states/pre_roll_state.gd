@@ -2,10 +2,10 @@ class_name PreRollState
 extends GameStateBase
 
 ## PRE_ROLL 상태
-## - 기본: Hand에서 주사위 클릭 → Active로 이동 (기존과 동일)
-## - Discard 모드: 토글 버튼으로 활성화, 클릭 시 Hand에서 버리기
-## - Hand == 5 & Active == 0 & !discard → 자동 활성화 (순차 애니메이션)
-## - Draw 버튼: inventory에서 hand로 드로우
+## - 기본: Hand에서 주사위 클릭 → Active로 이동
+## - Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭
+## - Hand == 5 & Active == 0 → 자동 활성화 (순차 애니메이션)
+## - Draw 버튼: deck pool에서 hand로 드로우
 
 var _is_animating: bool = false
 
@@ -33,8 +33,6 @@ func enter() -> void:
 
 func exit() -> void:
 	_disconnect_signals()
-	game_root.hand_display.exit_discard_mode()
-	game_root.action_buttons.visible = false
 	game_root.roll_button.visible = false
 
 
@@ -42,18 +40,16 @@ func _connect_signals() -> void:
 	game_root.roll_button.roll_pressed.connect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.connect(_on_hand_dice_clicked)
 	game_root.hand_display.dice_discarded.connect(_on_dice_discarded)
-	game_root.hand_display.discard_mode_changed.connect(_on_discard_mode_changed)
 	game_root.dice_manager.active_dice_clicked.connect(_on_active_dice_clicked)
-	game_root.inventory_deck.draw_pressed.connect(_on_draw_pressed)
+	game_root.hand_display.draw_pressed.connect(_on_draw_pressed)
 
 
 func _disconnect_signals() -> void:
 	game_root.roll_button.roll_pressed.disconnect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.disconnect(_on_hand_dice_clicked)
 	game_root.hand_display.dice_discarded.disconnect(_on_dice_discarded)
-	game_root.hand_display.discard_mode_changed.disconnect(_on_discard_mode_changed)
 	game_root.dice_manager.active_dice_clicked.disconnect(_on_active_dice_clicked)
-	game_root.inventory_deck.draw_pressed.disconnect(_on_draw_pressed)
+	game_root.hand_display.draw_pressed.disconnect(_on_draw_pressed)
 
 
 #region Round Transition Animation
@@ -105,11 +101,9 @@ func _animate_return_to_hand() -> void:
 
 
 #region 자동 활성화 (공통 체크)
-## Hand == 5 & Active 비어있음 & Discard 모드 아님 → 순차 애니메이션
+## Hand == 5 & Active 비어있음 → 순차 애니메이션
 func _try_auto_activate() -> void:
 	if _is_animating:
-		return
-	if game_root.hand_display.is_discard_mode():
 		return
 	if GameState.deck.hand.size() != 5:
 		return
@@ -133,7 +127,7 @@ func _try_auto_activate() -> void:
 
 
 func _update_draw_ui() -> void:
-	game_root.inventory_deck.set_draw_enabled(GameState.can_draw())
+	game_root.hand_display.set_draw_enabled(GameState.can_draw())
 #endregion
 
 
@@ -166,17 +160,13 @@ func _on_active_dice_clicked(active_index: int) -> void:
 #endregion
 
 
-#region 버리기 처리
+#region 버리기 처리 (드래그 앤 드롭으로 트리거)
 func _on_dice_discarded(hand_index: int) -> void:
 	if _is_animating or GameState.is_transitioning:
 		return
 	GameState.deck.discard_from_hand(hand_index)
-
-
-## Discard 모드 꺼졌을 때 → 자동 활성화 체크
-func _on_discard_mode_changed(is_active: bool) -> void:
-	if not is_active:
-		_try_auto_activate()
+	_update_draw_ui()
+	_try_auto_activate()
 #endregion
 
 

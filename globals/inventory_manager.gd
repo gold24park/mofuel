@@ -49,8 +49,8 @@ func draw_to_hand(count: int = 1):
 func discard_from_hand(hand_index: int) -> bool:
 	if hand_index < 0 or hand_index >= hand.size():
 		return false
-	# 최소 5개는 남겨야 함
-	if hand.size() <= 5:
+	# 최소 5개는 남겨야 함 (hand + active 합산 — active는 라운드 끝에 hand로 복귀)
+	if hand.size() + active_dice.size() <= 5:
 		return false
 	hand.remove_at(hand_index)
 	hand_changed.emit()
