@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(file:*)",
+      "Bash(ls:*)",
+      "WebSearch",
+      "mcp__godot__run_project",
+      "mcp__godot__get_debug_output",
+      "Bash(git lfs install:*)",
+      "WebFetch(domain:docs.godotengine.org)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:pythonforengineers.com)",
+      "mcp__godot__stop_project",
+      "mcp__godot__get_project_info",
+      "Bash(grep:*)",
+      "Bash(godot:*)",
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "Bash(\"/Applications/Godot.app/Contents/MacOS/Godot\" --headless --path /Users/jieunpark/GodotProjects/mofuel --import)",
+      "WebFetch(domain:pixellab.ai)",
+      "Bash(/Applications/Blender.app/Contents/MacOS/Blender:*)",
+      "Bash(sips:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(test:*)",
+      "Bash(magick identify:*)",
+      "Bash(timeout 10 \"/Applications/Godot.app/Contents/MacOS/Godot\":*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "godot",
+    "blender"
+  ],
+  "disabledMcpjsonServers": [
+    "pixellab"
+  ],
+  "outputStyle": "Explanatory"
+}

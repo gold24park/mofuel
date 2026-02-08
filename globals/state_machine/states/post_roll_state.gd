@@ -42,6 +42,8 @@ func _connect_signals() -> void:
 	game_root.action_buttons.end_turn_pressed.connect(_on_end_turn_pressed)
 	game_root.dice_manager.selection_changed.connect(_on_selection_changed)
 	game_root.quick_score.score_selected.connect(_on_quick_score_selected)
+	game_root.quick_score.option_hovered.connect(_on_quick_score_hovered)
+	game_root.quick_score.option_unhovered.connect(_on_quick_score_unhovered)
 
 
 func _disconnect_signals() -> void:
@@ -49,6 +51,8 @@ func _disconnect_signals() -> void:
 	game_root.action_buttons.end_turn_pressed.disconnect(_on_end_turn_pressed)
 	game_root.dice_manager.selection_changed.disconnect(_on_selection_changed)
 	game_root.quick_score.score_selected.disconnect(_on_quick_score_selected)
+	game_root.quick_score.option_hovered.disconnect(_on_quick_score_hovered)
+	game_root.quick_score.option_unhovered.disconnect(_on_quick_score_unhovered)
 
 
 #region Reroll
@@ -82,3 +86,12 @@ func _on_quick_score_selected(category_id: String, score: int) -> void:
 
 func _on_selection_changed(indices: Array) -> void:
 	game_root.action_buttons.set_selected_count(indices.size())
+
+
+func _on_quick_score_hovered(dice_indices: Array) -> void:
+	game_root.dice_manager.unhighlight_all()
+	game_root.dice_manager.highlight_dice(dice_indices)
+
+
+func _on_quick_score_unhovered() -> void:
+	game_root.dice_manager.unhighlight_all()

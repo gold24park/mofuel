@@ -93,32 +93,85 @@ func _get_relevant_dice_indices(category, dice: Array) -> Array[int]:
 	for d in dice:
 		values.append(d.current_value)
 
+	var CT := CategoryResource.CategoryType
 	match category.category_type:
-		0, 1, 2, 3, 4, 5:  # ONES through SIXES
-			var target: int = category.target_number
+		CT.HIGH_DICE:
+			# 가장 높은 current_value 주사위 1개 (와일드카드 = 6)
+			var best_idx := 0
+			var best_val: int = 6 if _is_wildcard(dice[0]) else values[0]
+			for i in range(1, values.size()):
+				var v: int = 6 if _is_wildcard(dice[i]) else values[i]
+				if v > best_val:
+					best_val = v
+					best_idx = i
+			indices.append(best_idx)
+
+		CT.ONE_PAIR:
+			var best_pair_value := _get_highest_pair_value(values)
+			# 매칭 값 우선, 와일드카드는 부족분만
+			var need := 2
 			for i in range(values.size()):
-				if values[i] == target or _is_wildcard(dice[i]):
+				if values[i] == best_pair_value and need > 0:
+					indices.append(i)
+					need -= 1
+			for i in range(values.size()):
+				if _is_wildcard(dice[i]) and i not in indices and need > 0:
+					indices.append(i)
+					need -= 1
+
+		CT.TWO_PAIR:
+			var counts := {}
+			for v in values:
+				counts[v] = counts.get(v, 0) + 1
+			var pairs: Array[int] = []
+			for v in counts:
+				if counts[v] >= 2:
+					pairs.append(v)
+			pairs.sort()
+			pairs.reverse()
+			for pair_idx in range(min(2, pairs.size())):
+				var pair_value: int = pairs[pair_idx]
+				var counted := 0
+				for i in range(values.size()):
+					if values[i] == pair_value and counted < 2:
+						indices.append(i)
+						counted += 1
+
+		CT.TRIPLE:
+			var target_value := _get_most_common_value(values)
+			# 매칭 값 우선, 와일드카드는 부족분만
+			var need := 3
+			for i in range(values.size()):
+				if values[i] == target_value and need > 0:
+					indices.append(i)
+					need -= 1
+			for i in range(values.size()):
+				if _is_wildcard(dice[i]) and i not in indices and need > 0:
+					indices.append(i)
+					need -= 1
+
+		CT.FOUR_CARD, CT.FIVE_CARD:
+			var target_value := _get_most_common_value(values)
+			for i in range(values.size()):
+				if values[i] == target_value:
+					indices.append(i)
+			for i in range(values.size()):
+				if _is_wildcard(dice[i]) and i not in indices:
 					indices.append(i)
 
-		6, 10:  # FOUR_OF_A_KIND, YACHT
-			var target_value: int = _get_most_common_value(values)
-			for i in range(values.size()):
-				if values[i] == target_value or _is_wildcard(dice[i]):
-					indices.append(i)
-
-		7:  # FULL_HOUSE
+		CT.FULL_HOUSE:
 			for i in range(values.size()):
 				indices.append(i)
 
-		8, 9:  # SMALL_STRAIGHT, LARGE_STRAIGHT
-			var straight_values := _get_straight_values(values, category.category_type == 9)
+		CT.SMALL_STRAIGHT, CT.LARGE_STRAIGHT:
+			var is_large: bool = category.category_type == CT.LARGE_STRAIGHT
+			var straight_values := _get_straight_values(values, is_large)
 			for i in range(values.size()):
-				if values[i] in straight_values or _is_wildcard(dice[i]):
+				if values[i] in straight_values:
 					indices.append(i)
-
-		11:  # CHANCE
 			for i in range(values.size()):
-				indices.append(i)
+				if _is_wildcard(dice[i]) and i not in indices:
+					indices.append(i)
 
 	return indices
 
@@ -135,11 +188,24 @@ func _get_most_common_value(values: Array[int]) -> int:
 	var best_value := 0
 	var best_count := 0
 	for value in counts:
-		if counts[value] > best_count:
+		if counts[value] > best_count or (counts[value] == best_count and value > best_value):
 			best_count = counts[value]
 			best_value = value
 
 	return best_value
+
+
+## 2개 이상 있는 값 중 가장 높은 값 반환
+func _get_highest_pair_value(values: Array[int]) -> int:
+	var counts := {}
+	for v in values:
+		counts[v] = counts.get(v, 0) + 1
+
+	var best := 0
+	for value in counts:
+		if counts[value] >= 2 and value > best:
+			best = value
+	return best
 
 
 func _get_straight_values(values: Array[int], is_large: bool) -> Array[int]:

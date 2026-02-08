@@ -153,8 +153,17 @@ SetupState → PreRollState → RollingState → PostRollState
 - Comparisons(조건부 필터)는 베이스 클래스(DiceEffectResource)에서 공유
 - Extensible via `DiceTypes.ALL` in `globals/dice_types.gd`
 
-### Category System
-- 모든 카테고리 무제한 사용 가능 (`can_use()` → 항상 `true`)
+### Category System (9 카테고리)
+- **하이다이스** (HIGH_DICE): 가장 높은 주사위 1개 점수
+- **원 페어** (ONE_PAIR): 같은 눈 2개의 합
+- **투 페어** (TWO_PAIR): 서로 다른 페어 2쌍의 합
+- **트리플** (TRIPLE): 같은 눈 3개의 합
+- **스몰 스트레이트** (SMALL_STRAIGHT): 연속 4개 → 고정 15점
+- **풀하우스** (FULL_HOUSE): 3+2 조합 → 전체 합
+- **라지 스트레이트** (LARGE_STRAIGHT): 연속 5개 → 고정 30점
+- **포카드** (FOUR_CARD): 같은 눈 4개 → 전체 합
+- **파이브카드** (FIVE_CARD): 같은 눈 5개 → 고정 50점
+- 모든 카테고리 무제한 사용 가능
 - Multiplier upgrade: Increase score multiplier (MetaState 경유)
 - **Burst**: 특수 카테고리 (category_id: "burst"), 0점으로 턴 넘기기. CategoryRegistry에 없고 QuickScore에서 하드코딩
 
@@ -452,8 +461,10 @@ func has_group(group: String) -> bool:
 
 ### New Category
 1. Create `.tres` in `/resources/categories/`
-2. Set scoring rules in `category_type`
-3. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
+2. Set `category_type` to one of 9 types (HIGH_DICE ~ FIVE_CARD)
+3. Set `fixed_score` for fixed-score categories (SMALL_STRAIGHT, LARGE_STRAIGHT, FIVE_CARD)
+4. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
+5. Add scoring logic in `scoring.gd` if new CategoryType added
 
 ### New Effect
 

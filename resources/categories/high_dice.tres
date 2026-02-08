@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1")
-id = "ones"
-display_name = "Ones"
-description = "1의 합계"
+id = "high_dice"
+display_name = "하이다이스"
+description = "가장 높은 주사위 눈"
 category_type = 0
 base_uses = 1
 base_multiplier = 1.0
 max_uses = 3
 max_multiplier = 3.0
 fixed_score = 0
-target_number = 1
+multiplier_upgrade_step = 0.5

@@ -41,17 +41,9 @@ func get_all_categories() -> Array[CategoryResource]:
 	return result
 
 
-func get_number_categories() -> Array[CategoryResource]:
-	return _filter_categories(func(cat: CategoryResource) -> bool: return cat.is_number_category())
-
-
-func get_combination_categories() -> Array[CategoryResource]:
-	return _filter_categories(func(cat: CategoryResource) -> bool: return not cat.is_number_category())
-
-
-func _filter_categories(predicate: Callable) -> Array[CategoryResource]:
+## 카테고리를 enum 순서로 정렬하여 반환
+func get_sorted_categories() -> Array[CategoryResource]:
 	var result: Array[CategoryResource] = []
-	for cat in categories.values():
-		if predicate.call(cat):
-			result.append(cat)
+	result.assign(categories.values())
+	result.sort_custom(func(a, b): return a.category_type < b.category_type)
 	return result
