@@ -67,6 +67,8 @@ func is_wildcard_value(value: int) -> bool:
 func apply_visual(mesh_instance: MeshInstance3D) -> void:
 	if mesh_instance == null:
 		return
+	# 이전 override 제거 — 재사용 메시에서 원본 머티리얼 접근 보장
+	mesh_instance.material_override = null
 	# 베이스 결정: 커스텀 머티리얼 > 메시 기본 머티리얼
 	var base_mat: StandardMaterial3D
 	if material:

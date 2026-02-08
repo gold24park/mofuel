@@ -1,14 +1,24 @@
 class_name Scoring
 extends RefCounted
 
-const NO_MATCH := -1  ## 패턴 미매칭 센티널
+const NO_MATCH := -1 ## 패턴 미매칭 센티널
 
 ## 스트레이트 판정용 패턴 상수
-const SMALL_STRAIGHT_PATTERNS := [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
-const LARGE_STRAIGHT_PATTERNS := [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]]
+const SMALL_STRAIGHT_PATTERNS := [
+	[1, 2, 3, 4],
+	[2, 3, 4, 5],
+	[3, 4, 5, 6]
+]
+const LARGE_STRAIGHT_PATTERNS := [
+	[1, 2, 3, 4, 5],
+	[2, 3, 4, 5, 6]
+]
 const ALL_STRAIGHT_PATTERNS := [
-	[1, 2, 3, 4, 5], [2, 3, 4, 5, 6],
-	[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6],
+	[1, 2, 3, 4, 5],
+	[2, 3, 4, 5, 6],
+	[1, 2, 3, 4],
+	[2, 3, 4, 5],
+	[3, 4, 5, 6],
 ]
 
 
