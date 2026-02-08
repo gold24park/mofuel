@@ -12,22 +12,43 @@ func enter() -> void:
 	GameState.current_phase = GameState.Phase.POST_ROLL
 	GameState.phase_changed.emit(GameState.current_phase)
 
-	# 효과 애니메이션 + DiceStats reveal
+	# 최고 족보 확인 + ScoreDisplay 초기 표시 (base 점수 + 카테고리 배수)
+	var best := Scoring.get_best_category(GameState.active_dice)
+	if not best.is_empty():
+		var category = best["category"]
+		var base := Scoring.get_score_breakdown(category, GameState.active_dice)["base"] as int
+		var upgrade := MetaState.get_upgrade(category.id)
+		var cat_mult := upgrade.get_total_multiplier() if upgrade else 1.0
+		game_root.score_display.show_initial(category.display_name, base, cat_mult)
+
+		# 패턴을 이루는 주사위 하이라이트 (윤곽선)
+		var pattern_indices := Scoring.get_pattern_indices(category, GameState.active_dice)
+		game_root.dice_manager.highlight_dice(pattern_indices)
+
+	# 족보 현황 패널 표시 (모든 유효 족보 + 최고 하이라이트)
+	var all_scores := Scoring.calculate_all_scores(GameState.active_dice)
+	var best_id: String = best["category_id"] if not best.is_empty() else ""
+	game_root.category_breakdown.show_breakdown(all_scores, best_id)
+
+	# DiceStats 준비 (숨김) → 효과 애니메이션
 	var stats: Array[Dictionary] = game_root.dice_manager.get_score_effect_stats()
 	game_root.dice_stats.prepare_stats(stats)
 	GameState.is_transitioning = true
+
+	# 효과 애니메이션 — 각 효과 발동 시 DiceStats reveal + ScoreDisplay 증분 업데이트
 	await game_root.dice_manager.play_effects_animation(
-		game_root.dice_stats.reveal_stat)
+		func(target_idx: int, bonus: int, mult: float):
+			game_root.dice_stats.reveal_stat(target_idx, bonus, mult)
+			if not best.is_empty():
+				game_root.score_display.add_contribution(bonus, mult)
+	)
 	game_root.dice_stats.reveal_all()
 
-	# ScoreDisplay 순차 카운팅 애니메이션
-	var best := Scoring.get_best_category(GameState.active_dice)
+	# 최종 점수 라인 표시 (또는 Burst)
 	if best.is_empty():
 		await game_root.score_display.show_no_score()
 	else:
-		var breakdown := Scoring.get_score_breakdown(
-			best["category"], GameState.active_dice)
-		await game_root.score_display.show_score(breakdown, GameState.is_double_down)
+		await game_root.score_display.show_final(GameState.is_double_down)
 
 	GameState.is_transitioning = false
 
@@ -43,7 +64,9 @@ func enter() -> void:
 func exit() -> void:
 	_disconnect_signals()
 	game_root.dice_manager.stop_all_breathing()
+	game_root.dice_manager.unhighlight_all()
 	game_root.action_bar.hide_bar()
+	game_root.category_breakdown.hide_breakdown()
 	# dice_stats 라벨은 SCORING까지 유지 (scoring_state.exit에서 숨김)
 
 
@@ -69,7 +92,6 @@ func _on_stand_pressed() -> void:
 func _do_stand() -> void:
 	var best := Scoring.get_best_category(GameState.active_dice)
 	if best.is_empty():
-		# 유효 족보 없으면 0점 (burst)
 		GameState.set_pending_score("burst", 0)
 	else:
 		GameState.set_pending_score(best["category_id"], best["score"])

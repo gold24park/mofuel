@@ -14,7 +14,6 @@
 ## 알려진 기존 경고 (무시 가능)
 - `"context" is never used in evaluate()` — dice_effect_resource.gd, modifier_effect.gd
 - `signal "XXX" is declared but never explicitly used` — game_state.gd의 여러 시그널
-- `"_prev_active_dice" is declared but never used` — game.gd
 - `"values" is never used in _on_all_dice_finished()` — rolling_state.gd
 - `"indices" is declared but never used` — post_roll_state.gd
 - `signal "dice_clicked" is declared but never explicitly used` — dice.gd

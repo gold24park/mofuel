@@ -73,6 +73,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     /hud/             # Top status bar
     /hand_display/    # Hand bar (고정 10슬롯 + DiscardSlot + DrawButton)
     /score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
+    /category_breakdown/  # POST_ROLL 족보 현황 패널 (전체 족보 + 최고 하이라이트)
     /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down)
     /game_over/       # Win/lose screen
     /upgrade_screen/  # Category upgrade UI
@@ -97,6 +98,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
    - **ScoreDisplay**: 발라트로 스타일 점수 연출 (카테고리명 → chips × mult → 최종 점수)
    - **자동 족보 선택**: 시스템이 최고 점수 카테고리 자동 선택 (수동 선택 없음)
+   - **CategoryBreakdown**: 좌측 패널에 전체 족보 현황 표시 (매칭된 족보 + 최고 하이라이트)
    - **ActionBar**: Stand / Reroll / Double Down 버튼
      - **Stand**: 현재 최고 족보로 점수 확정
      - **Reroll**: 선택한 주사위 리롤 (리롤 1개 소모)
@@ -160,18 +162,21 @@ SetupState → PreRollState → RollingState → PostRollState
 - Extensible via `DiceTypes.ALL` in `globals/dice_types.gd`
 
 ### Category System (9 카테고리)
-- **하이다이스** (HIGH_DICE): 가장 높은 주사위 1개 점수
-- **원 페어** (ONE_PAIR): 같은 눈 2개의 합
-- **투 페어** (TWO_PAIR): 서로 다른 페어 2쌍의 합
-- **트리플** (TRIPLE): 같은 눈 3개의 합
-- **스몰 스트레이트** (SMALL_STRAIGHT): 연속 4개 → 고정 15점
-- **풀하우스** (FULL_HOUSE): 3+2 조합 → 전체 합
-- **라지 스트레이트** (LARGE_STRAIGHT): 연속 5개 → 고정 30점
-- **포카드** (FOUR_CARD): 같은 눈 4개 → 전체 합
-- **파이브카드** (FIVE_CARD): 같은 눈 5개 → 고정 50점
+- **하이다이스** (HIGH_DICE): base_chips 0 + 가장 높은 주사위 1개
+- **원 페어** (ONE_PAIR): base_chips 2 + 같은 눈 2개의 합
+- **투 페어** (TWO_PAIR): base_chips 4 + 서로 다른 페어 2쌍의 합
+- **트리플** (TRIPLE): base_chips 6 + 같은 눈 3개의 합
+- **스몰 스트레이트** (SMALL_STRAIGHT): base_chips 8 + 패턴값의 합
+- **풀하우스** (FULL_HOUSE): base_chips 8 + 전체 합
+- **라지 스트레이트** (LARGE_STRAIGHT): base_chips 12 + 패턴값의 합
+- **포카드** (FOUR_CARD): base_chips 12 + 전체 합
+- **파이브카드** (FIVE_CARD): base_chips 15 + 전체 합
+- `base_chips`: 카테고리 고유 기본 점수. 족보 계층 보장 (높은 족보 = 높은 base_chips)
+- `NO_MATCH` 센티널 (`-1`): 패턴 미매칭 시 반환, bonus_pool 적용 방지
 - 모든 카테고리 무제한 사용 가능
 - Multiplier upgrade: Increase score multiplier (MetaState 경유)
 - **Burst**: 유효 족보 없을 때 자동 0점 (category_id: "burst"). CategoryRegistry 미등록
+- **CategoryBreakdown** (`ui/category_breakdown/`): POST_ROLL에서 전체 족보 현황 표시, 최고 족보 금색 하이라이트
 
 ### Inventory / Deck System
 - **`Inventory`** (`globals/inventory.gd`): 플레이어의 영구 주사위 컬렉션. 스테이지를 넘어 유지. 상점에서 매매 가능.
@@ -456,22 +461,25 @@ JSON 예시:
 모든 주사위가 bonus/multiplier로 기여하는 풀 기반 점수 계산:
 
 ```
-final_score = (base + Σ value_bonus) × (1 + Σ extra_mult)
+final_score = (base_chips + pattern_value + Σ value_bonus) × (1 + Σ extra_mult) × category_mult × (DD ? 2 : 1)
 ```
 
-- **base**: 카테고리가 결정하는 기본 점수 (패턴 매칭된 주사위의 raw value 합)
+- **base_chips**: 카테고리 고유 기본 점수 (족보 계층 보장용)
+- **pattern_value**: 패턴 매칭된 주사위의 raw value 합
 - **Σ value_bonus**: 모든 활성 주사위의 value_bonus 합산
 - **Σ extra_mult**: 모든 활성 주사위의 (value_multiplier - 1) 합산
   - 기본 배수 1.0을 빼서 합산 → 효과 없는 주사위(×1)는 0 기여
+- **category_mult**: 카테고리 업그레이드 배수 (MetaState 경유)
+- **DD**: Double Down 시 ×2
 
 | 풀 | 구성 | 설명 |
 |-----|------|------|
-| `base` | 카테고리별 | 패턴 매칭된 주사위의 raw value 합 (고정점수 카테고리는 fixed_score) |
+| `base` | `base_chips + pattern_value` | 카테고리 기본점수 + 패턴 매칭된 주사위의 합. NO_MATCH(-1)이면 0점 |
 | `value_bonus` | 모든 주사위 | 효과에 의한 가산 (양수/음수 모두 가능) |
 | `extra_mult` | 모든 주사위 | value_multiplier - 1 (×3 주사위 → +2 기여) |
 
-예시: 주사위 `[3,3,2,5,6]`, bonus `[+1,+2,0,0,+3]`, mult `[1,1,2,1,1]`, 원페어(3-3)
-→ `(6 + 6) × (1 + 1) = 24`
+예시: 주사위 `[3,3,2,5,6]`, bonus `[+1,+2,0,0,+3]`, mult `[1,1,2,1,1]`, 원페어(base_chips=2, 3+3=6)
+→ `(2 + 6 + 6) × (1 + 1) = 28`
 
 ### Visual Feedback
 
@@ -512,7 +520,7 @@ func has_group(group: String) -> bool:
 ### New Category
 1. Create `.tres` in `/resources/categories/`
 2. Set `category_type` to one of 9 types (HIGH_DICE ~ FIVE_CARD)
-3. Set `fixed_score` for fixed-score categories (SMALL_STRAIGHT, LARGE_STRAIGHT, FIVE_CARD)
+3. Set `base_chips` for hierarchy positioning (높은 족보일수록 높은 값)
 4. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
 5. Add scoring logic in `scoring.gd` if new CategoryType added
 

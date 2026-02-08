@@ -66,7 +66,8 @@ func prepare_stats(stats_data: Array[Dictionary]) -> void:
 
 
 ## 단일 주사위 스탯 라벨 표시 (값이 기본값이면 숨김 유지)
-func reveal_stat(index: int) -> void:
+## bonus/mult 파라미터는 콜백 호환용 (사용하지 않음)
+func reveal_stat(index: int, _bonus: int = 0, _mult: float = 1.0) -> void:
 	if _bonus_values[index] != 0:
 		_bonus_labels[index].visible = true
 	if _multiplier_values[index] > 1:

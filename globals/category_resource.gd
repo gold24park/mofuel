@@ -21,5 +21,5 @@ enum CategoryType {
 @export var base_multiplier: float = 1.0 # 기본 배수
 @export var max_uses: int = 3            # 최대 사용 횟수
 @export var max_multiplier: float = 3.0  # 최대 배수
-@export var fixed_score: int = 0         # 고정 점수 (Straights, Five Card)
+@export var base_chips: int = 0          # 카테고리 고유 chips (패턴 복잡도 반영, 주사위 값에 가산)
 @export var multiplier_upgrade_step: float = 0.5  # 배수 업그레이드 단위

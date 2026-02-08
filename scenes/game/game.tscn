@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://ui/inventory_deck/inventory_deck.tscn" id="14_inventory_deck"]
 [ext_resource type="PackedScene" path="res://ui/dice_tooltip/dice_tooltip.tscn" id="15_dice_tooltip"]
 [ext_resource type="PackedScene" path="res://ui/dice_stats/dice_stats.tscn" id="16_dice_stats"]
+[ext_resource type="PackedScene" path="res://ui/category_breakdown/category_breakdown.tscn" id="17_category_breakdown"]
 [ext_resource type="Script" uid="uid://be0n8263vsi7u" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
 [ext_resource type="Script" uid="uid://bgideag8ai4qt" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
 [ext_resource type="Script" uid="uid://bknp5u7rhfdl4" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
@@ -106,6 +107,8 @@ mouse_filter = 2
 [node name="HandDisplay" parent="CanvasLayer" unique_id=1985327070 instance=ExtResource("10_reserve_display")]
 
 [node name="ScoreDisplay" parent="CanvasLayer" instance=ExtResource("11_score_display")]
+
+[node name="CategoryBreakdown" parent="CanvasLayer" instance=ExtResource("17_category_breakdown")]
 
 [node name="ActionBar" parent="CanvasLayer" instance=ExtResource("12_action_bar")]
 

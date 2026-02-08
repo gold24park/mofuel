@@ -279,6 +279,7 @@ func apply_scoring_effects() -> void:
 
 
 ## 소스별 순차 애니메이션 재생 (왼→오)
+## on_target(target_idx: int, bonus: int, mult: float) — 효과 수치 포함 콜백
 func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable = Callable()) -> void:
 	for src_idx in DICE_COUNT:
 		if not source_anims.has(src_idx):
@@ -293,8 +294,10 @@ func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable =
 		for anim_info in anims:
 			var target_idx: int = anim_info["target"]
 			var anim_type: String = anim_info["anim"]
+			var bonus: int = anim_info.get("bonus", 0)
+			var mult: float = anim_info.get("mult", 1.0)
 			if on_target.is_valid():
-				on_target.call(target_idx)
+				on_target.call(target_idx, bonus, mult)
 			if anim_type != "":
 				print("[EffectFX]   target[%d] anim: %s" % [target_idx, anim_type])
 				await dice_nodes[target_idx].play_effect_anim(anim_type)
@@ -303,7 +306,7 @@ func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable =
 		await get_tree().create_timer(0.1).timeout
 
 
-## 결과에서 소스별 애니메이션 정보 추출
+## 결과에서 소스별 애니메이션 정보 추출 (bonus/mult delta 포함)
 func _collect_source_anims(results: Dictionary, out: Dictionary) -> void:
 	for target_idx in results:
 		for result: EffectResult in results[target_idx]:
@@ -314,7 +317,12 @@ func _collect_source_anims(results: Dictionary, out: Dictionary) -> void:
 				continue
 			if not out.has(src):
 				out[src] = []
-			out[src].append({"target": target_idx, "anim": result.anim})
+			out[src].append({
+				"target": target_idx,
+				"anim": result.anim,
+				"bonus": result.value_bonus,
+				"mult": result.value_multiplier,
+			})
 
 
 ## 결과를 주사위에 추가 (clear 없이 누적)
