@@ -28,6 +28,7 @@ var roll_start_position: Vector3 = Vector3.ZERO
 var final_value: int = 0
 var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
+var _spotlight: OmniLight3D = null
 var roll_start_time: float = 0.0
 var _used_burst_mask: bool = false # 버스트 마스크 사용 여부
 
@@ -50,6 +51,7 @@ func _ready():
 	_base_angular_damp = angular_damp
 	input_ray_pickable = true
 	_create_outline()
+	_create_spotlight()
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 
@@ -186,6 +188,7 @@ func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float
 	is_selected = false
 	if outline_mesh:
 		outline_mesh.visible = false
+	set_spotlight(false)
 
 	# 즉시 중앙에 위치
 	current_state = State.ROLLING
@@ -230,6 +233,78 @@ func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float
 		randf_range(-8, 8),
 		randf_range(-8, 8)
 	)) * s
+#endregion
+
+
+#region Spin In Place (Reroll)
+## Tween 기반 제자리 스핀 — 물리 없이 빠르게 회전 후 결과 면에 정착
+func spin_in_place() -> void:
+	if current_state == State.ROLLING:
+		return
+
+	is_selected = false
+	if outline_mesh:
+		outline_mesh.visible = false
+	set_spotlight(false)
+
+	current_state = State.ROLLING
+	roll_start_time = Time.get_ticks_msec() / 1000.0
+
+	# 랜덤 결과 면 (1~6)
+	var target_face := randi_range(1, 6)
+	final_value = target_face
+	if dice_instance:
+		final_value = dice_instance.roll(target_face)
+
+	final_rotation = _get_upright_rotation(target_face)
+	var target_euler := final_rotation.get_euler()
+
+	# 빠르게 시작 → 자연 감속하며 목표 면에 정착 (1.5~2바퀴, 0.55초)
+	var spin_target := target_euler + Vector3(
+		randf_range(1.5, 2.0) * TAU * (1.0 if randf() > 0.5 else -1.0),
+		randf_range(1.0, 1.5) * TAU * (1.0 if randf() > 0.5 else -1.0),
+		randf_range(1.0, 1.5) * TAU * (1.0 if randf() > 0.5 else -1.0)
+	)
+
+	var tween := create_tween()
+	tween.tween_property(self, "rotation", spin_target, 0.55) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+	await tween.finished
+
+	# 최종 정렬
+	transform.basis = final_rotation
+
+	# Phase 3: 탕! 스케일 펀치 + 기울기 (선택 펀치와 동일한 쫀득한 느낌)
+	var tilt := Vector3(
+		randf_range(-0.2, 0.2),
+		0,
+		randf_range(-0.2, 0.2)
+	)
+	var slam := create_tween()
+	# 팽창 + 기울기 (동시)
+	slam.tween_property(dice_mesh, "scale", Vector3.ONE * 1.15, 0.06) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	slam.parallel().tween_property(dice_mesh, "rotation", tilt, 0.06) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	# 수축
+	slam.tween_property(dice_mesh, "scale", Vector3.ONE * 0.92, 0.06) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	# 정착 + 기울기 복귀 (동시)
+	slam.tween_property(dice_mesh, "scale", Vector3.ONE, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	slam.parallel().tween_property(dice_mesh, "rotation", Vector3.ZERO, 0.15) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	await slam.finished
+	dice_mesh.rotation = Vector3.ZERO
+
+	# 결과 확인 대기
+	await get_tree().create_timer(0.5).timeout
+
+	collision_layer = CollisionLayers.ALIGNED_DICE
+	collision_mask = 0
+	current_state = State.IDLE
+	roll_finished.emit(dice_index, final_value)
 #endregion
 
 
@@ -313,17 +388,55 @@ static func _schedule_click_processing() -> void:
 
 
 func set_selected(selected: bool) -> void:
+	if is_selected == selected:
+		return
 	is_selected = selected
-	if outline_mesh:
-		outline_mesh.visible = selected
 	if current_state == State.IDLE:
 		current_state = State.MOVING_TO_DISPLAY
+	_punch_scale()
 
 
 ## 윤곽선만 표시/숨김 (높이 변경 없음, quick score 호버용)
 func set_highlighted(highlighted: bool) -> void:
 	if outline_mesh:
 		outline_mesh.visible = highlighted
+
+
+func set_spotlight(enabled: bool) -> void:
+	if _spotlight:
+		_spotlight.visible = enabled
+		if enabled:
+			# 주사위 회전 역보정 — 월드 기준 항상 위쪽에 위치
+			_spotlight.position = transform.basis.inverse() * Vector3(0, 2.5, 0)
+
+
+## 선택/해제 시 쫀득한 스케일 펀치 + 기울기 (발라트로 스타일)
+func _punch_scale() -> void:
+	var was_breathing := is_breathing
+	is_breathing = false
+
+	# 랜덤 기울기 방향
+	var tilt := Vector3(
+		randf_range(-0.2, 0.2),
+		0,
+		randf_range(-0.2, 0.2)
+	)
+
+	var tween := create_tween()
+	# 팽창 + 기울기 (동시)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.15, 0.06) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.parallel().tween_property(dice_mesh, "rotation", tilt, 0.06) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	# 수축
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 0.92, 0.06) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	# 정착 + 기울기 복귀 (동시)
+	tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	tween.parallel().tween_property(dice_mesh, "rotation", Vector3.ZERO, 0.15) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.finished.connect(func(): is_breathing = was_breathing)
 
 
 func start_breathing() -> void:
@@ -440,6 +553,18 @@ func _create_outline() -> void:
 	mesh_instance.get_parent().add_child(outline_mesh)
 	outline_mesh.transform = mesh_instance.transform
 	outline_mesh.scale = Vector3(1.1, 1.1, 1.1)
+
+
+func _create_spotlight() -> void:
+	_spotlight = OmniLight3D.new()
+	_spotlight.light_energy = 10.0
+	_spotlight.omni_range = 2.0
+	_spotlight.omni_attenuation = 3.0
+	_spotlight.light_color = Color(1.0, 0.95, 0.85) # warm white
+	_spotlight.shadow_enabled = false
+	_spotlight.visible = false
+	_spotlight.position = Vector3(0, 2.5, 0)
+	add_child(_spotlight)
 
 
 func _on_mouse_entered() -> void:

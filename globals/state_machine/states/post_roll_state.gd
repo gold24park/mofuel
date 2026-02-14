@@ -6,6 +6,8 @@ extends GameStateBase
 ## - Reroll: 선택한 주사위 리롤 → RollingState
 ## - Double Down: 리롤 2개 소모, 전체 리롤, ×2 배수
 
+var _pattern_indices: Array = [] ## 패턴 하이라이트 복원용
+
 
 func enter() -> void:
 	_connect_signals()
@@ -13,6 +15,7 @@ func enter() -> void:
 	GameState.phase_changed.emit(GameState.current_phase)
 
 	# 최고 족보 확인 + ScoreDisplay 초기 표시 (base 점수 + 카테고리 배수)
+	_pattern_indices = []
 	var best := Scoring.get_best_category(GameState.active_dice)
 	if not best.is_empty():
 		var category = best["category"]
@@ -22,8 +25,8 @@ func enter() -> void:
 		game_root.score_display.show_initial(category.display_name, base, cat_mult)
 
 		# 패턴을 이루는 주사위 하이라이트 (윤곽선)
-		var pattern_indices := Scoring.get_pattern_indices(category, GameState.active_dice)
-		game_root.dice_manager.highlight_dice(pattern_indices)
+		_pattern_indices = Scoring.get_pattern_indices(category, GameState.active_dice)
+		game_root.dice_manager.highlight_dice(_pattern_indices)
 
 	# 족보 현황 패널 표시 (모든 유효 족보 + 최고 하이라이트)
 	var all_scores := Scoring.calculate_all_scores(GameState.active_dice)
@@ -63,6 +66,7 @@ func enter() -> void:
 
 func exit() -> void:
 	_disconnect_signals()
+	game_root.dice_manager.exit_spotlight_mode()
 	game_root.dice_manager.stop_all_breathing()
 	game_root.dice_manager.unhighlight_all()
 	game_root.action_bar.hide_bar()
@@ -90,6 +94,7 @@ func _on_stand_pressed() -> void:
 
 
 func _do_stand() -> void:
+	game_root.dice_manager.exit_spotlight_mode()
 	var best := Scoring.get_best_category(GameState.active_dice)
 	if best.is_empty():
 		GameState.set_pending_score("burst", 0)
@@ -107,12 +112,13 @@ func _on_reroll_pressed() -> void:
 	if not GameState.can_reroll():
 		return
 
+	game_root.dice_manager.exit_spotlight_mode()
 	GameState.rerolls_remaining -= 1
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 
 	game_root.dice_stats.hide_all()
 	game_root.score_display.hide_display()
-	game_root.dice_manager.reroll_selected_radial_burst()
+	game_root.dice_manager.reroll_spin_in_place()
 	transitioned.emit(self, "RollingState")
 #endregion
 
@@ -122,6 +128,7 @@ func _on_double_down_pressed() -> void:
 	if not GameState.can_double_down():
 		return
 
+	game_root.dice_manager.exit_spotlight_mode()
 	GameState.rerolls_remaining -= GameState.DOUBLE_DOWN_COST
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	GameState.is_double_down = true
@@ -135,3 +142,14 @@ func _on_double_down_pressed() -> void:
 
 func _on_selection_changed(indices: Array) -> void:
 	game_root.action_bar.update_state(indices.size())
+
+	if indices.size() > 0:
+		if not game_root.dice_manager.is_spotlight_active():
+			game_root.dice_manager.enter_spotlight_mode()
+		else:
+			game_root.dice_manager.update_spotlights()
+	else:
+		game_root.dice_manager.exit_spotlight_mode()
+		# 패턴 하이라이트 복원
+		if not _pattern_indices.is_empty():
+			game_root.dice_manager.highlight_dice(_pattern_indices)

@@ -595,6 +595,12 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 - 라운드당 1회 (`can_double_down()`: `rerolls >= 2 and not is_double_down`)
 - `PreRollState.enter()`에서 `is_double_down = false` 리셋
 
+### 자식 노드 Local vs World Space
+- RigidBody3D에 자식으로 추가한 노드(OmniLight3D 등)의 `position`은 **로컬 좌표**
+- 주사위의 `final_rotation`이 적용되면 자식 노드도 함께 회전 → 의도한 위치에서 벗어남
+- 예: `position = Vector3(0, 2.5, 0)` + X축 180° 회전 → 실제로는 Y-2.5 (주사위 아래)
+- **해결**: 활성화 시 `transform.basis.inverse() * 원하는_월드_오프셋`으로 역보정
+
 ### 시그널 연결/해제 대칭
 - State의 `_connect_signals()`/`_disconnect_signals()`는 반드시 대칭이어야 함
 - 시그널 추가 시 양쪽 모두 업데이트 — 한쪽만 하면 disconnect 에러 또는 중복 연결

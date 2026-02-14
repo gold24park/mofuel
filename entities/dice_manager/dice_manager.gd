@@ -39,6 +39,13 @@ var _cached_values: Array[int] = [0, 0, 0, 0, 0]
 ## 선택 상태 관리
 var _selected_indices: Array[int] = []
 
+## 스포트라이트 모드
+var _directional_light: DirectionalLight3D = null
+var _original_light_energy: float = 1.0
+var _environment: Environment = null
+var _original_ambient_energy: float = 1.0
+var _spotlight_active: bool = false
+
 signal all_dice_finished(values: Array[int])
 signal selection_changed(indices: Array[int])
 signal effects_applied(effect_data: Array[Dictionary]) ## UI 연출용 (from, to, name)
@@ -50,6 +57,13 @@ signal active_dice_clicked(active_index: int) ## PRE_ROLL에서 Active 주사위
 
 func _ready() -> void:
 	_spawn_dice()
+	_directional_light = get_parent().get_node_or_null("DirectionalLight3D")
+	if _directional_light:
+		_original_light_energy = _directional_light.light_energy
+	var world_env: WorldEnvironment = get_parent().get_node_or_null("WorldEnvironment")
+	if world_env and world_env.environment:
+		_environment = world_env.environment
+		_original_ambient_energy = _environment.ambient_light_energy
 
 #region 위치 계산
 func _get_roll_position(index: int) -> Vector3:
@@ -104,6 +118,23 @@ func reroll_selected_radial_burst() -> void:
 	if indices.size() > 0:
 		_roll_dice_radial_burst(indices)
 	_reset_state()
+
+
+## 리롤: 선택된 주사위를 제자리 스핀 (물리 없이 Tween 기반, 순차 시작)
+const REROLL_STAGGER: float = 0.12 ## 각 주사위 스핀 시작 간격
+
+func reroll_spin_in_place() -> void:
+	var indices := _selected_indices.duplicate()
+	if indices.is_empty():
+		return
+	_rolling_indices = indices.duplicate()
+	_pending_results.clear()
+	_reset_state()
+	# 순차 스핀 시작 (타-타-탕!)
+	for i in indices.size():
+		if i > 0:
+			await get_tree().create_timer(REROLL_STAGGER).timeout
+		dice_nodes[indices[i]].spin_in_place()
 
 
 func _roll_dice_radial_burst(indices: Array[int]) -> void:
@@ -412,6 +443,7 @@ func _set_dice_selection(index: int, selected: bool) -> void:
 
 #region 상태 관리
 func _reset_state() -> void:
+	exit_spotlight_mode()
 	_reset_all_to_display()
 	_selected_indices.clear()
 	# _cached_values는 초기화하지 않음 (유지해야 안 굴린 주사위 값 보존)
@@ -674,6 +706,57 @@ func set_active_positions_immediate(count: int) -> void:
 			die.rotation = Vector3.ZERO
 		else:
 			die.visible = false
+#endregion
+
+
+#region 스포트라이트 모드
+func enter_spotlight_mode() -> void:
+	if _spotlight_active:
+		return
+	_spotlight_active = true
+
+	# 패턴 하이라이트 제거
+	unhighlight_all()
+
+	# DirectionalLight + ambient dim (tween)
+	var tween := create_tween()
+	if _directional_light:
+		tween.tween_property(_directional_light, "light_energy", 0.03, 0.3) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	if _environment:
+		tween.parallel().tween_property(_environment, "ambient_light_energy", 0.03, 0.3) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+	# 선택된 주사위 스포트라이트 ON
+	update_spotlights()
+
+
+func exit_spotlight_mode() -> void:
+	if not _spotlight_active:
+		return
+	_spotlight_active = false
+
+	# DirectionalLight + ambient 복원 (tween)
+	var tween := create_tween()
+	if _directional_light:
+		tween.tween_property(_directional_light, "light_energy", _original_light_energy, 0.3) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	if _environment:
+		tween.parallel().tween_property(_environment, "ambient_light_energy", _original_ambient_energy, 0.3) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+
+	# 모든 스포트라이트 OFF
+	for die in dice_nodes:
+		die.set_spotlight(false)
+
+
+func update_spotlights() -> void:
+	for i in DICE_COUNT:
+		dice_nodes[i].set_spotlight(i in _selected_indices)
+
+
+func is_spotlight_active() -> bool:
+	return _spotlight_active
 #endregion
 
 
