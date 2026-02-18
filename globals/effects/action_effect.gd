@@ -36,6 +36,9 @@ func _init(config: Dictionary = {}) -> void:
 	self.delta = config.get("delta", 0)
 	self.params = config.get("params", {})
 	effect_name = config.get("effect_name", "")
-	comparisons = config.get("comparisons", [])
+	var raw_comps: Array = config.get("comparisons", [])
+	comparisons = []
+	for c in raw_comps:
+		comparisons.append(c)
 	anim = config.get("anim", "")
 	sound = config.get("sound", "")

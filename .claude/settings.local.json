@@ -26,7 +26,14 @@
       "Bash(test:*)",
       "Bash(magick identify:*)",
       "Bash(timeout 10 \"/Applications/Godot.app/Contents/MacOS/Godot\":*)",
-      "Bash(/Applications/Godot.app/Contents/MacOS/Godot:*)"
+      "Bash(/Applications/Godot.app/Contents/MacOS/Godot:*)",
+      "Bash(while read f)",
+      "Bash(do if grep -q class_name $f)",
+      "Bash(then echo $f fi done)",
+      "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && grep \"\"\"\"^class_name\"\"\"\" {}')",
+      "Bash(git mv:*)",
+      "Bash(/Applications/Godot*.app/Contents/MacOS/Godot)",
+      "Bash(done)"
     ]
   },
   "enableAllProjectMcpServers": true,

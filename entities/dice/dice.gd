@@ -3,8 +3,6 @@ extends RigidBody3D
 @export var dice_index: int = 0
 @onready var dice_mesh: Node3D = $dice
 
-const OUTLINE_SHADER = preload("res://entities/dice/outline.gdshader")
-
 enum State {
 	IDLE,
 	ROLLING,
@@ -20,11 +18,9 @@ var _base_angular_damp: float
 var _physics_scale: float = 1.0
 
 var current_state: State = State.IDLE
-var roll_strength = 20
 var is_selected: bool = false
 var dice_instance: DiceInstance = null
 var display_position: Vector3 = Vector3.ZERO
-var roll_start_position: Vector3 = Vector3.ZERO
 var final_value: int = 0
 var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
@@ -150,9 +146,8 @@ func set_dice_instance(instance: DiceInstance) -> void:
 	_apply_visual()
 
 
-func setup(display_pos: Vector3, roll_pos: Vector3) -> void:
+func setup(display_pos: Vector3) -> void:
 	display_position = display_pos
-	roll_start_position = roll_pos
 	# 초기 위치는 디스플레이 위치
 	global_position = display_pos
 	freeze = true

@@ -21,10 +21,10 @@
 ## 검사 패턴 (Grep)
 ```
 # 구 참조 탐지 — 코드에 없는데 문서에 남은 이름
-Grep: pattern="InventoryManager|inventory_changed|inventory_manager" path=CLAUDE.md
+Grep: pattern="InventoryManager|inventory_changed" path=CLAUDE.md
 ```
 
 ## 주의사항
 - CLAUDE.md는 프로젝트 지침 파일 — 코드 변경과 항상 동기화 필수
 - MEMORY.md는 세션 간 학습 기록 — 실수/패턴/결정 위주
-- 파일명 vs class_name 불일치 (예: inventory_manager.gd → class Deck) 명시적 기록
+- 파일명 vs class_name 불일치가 있으면 명시적 기록

@@ -66,10 +66,6 @@ func set_wildcard_value(value: int) -> void:
 	wildcard_assigned_value = value
 
 
-func clear_wildcard_value() -> void:
-	wildcard_assigned_value = 0
-
-
 func is_wildcard() -> bool:
 	return type.is_wildcard_value(current_value)
 #endregion
@@ -99,9 +95,6 @@ func get_total_multiplier() -> float:
 	return mult
 
 
-## 개별 주사위 최종 점수 (UI 표시용)
-func get_scoring_value() -> int:
-	return int((get_base_value() + get_total_bonus()) * get_total_multiplier())
 #endregion
 
 
@@ -122,15 +115,4 @@ func clear_round_effects() -> void:
 	score_effects.clear()
 
 
-## 모든 효과 초기화 (게임 종료 시 호출)
-func clear_all_effects() -> void:
-	clear_round_effects()
-	permanent_value_bonus = 0
-	permanent_value_multiplier = 1.0
-
-
-## 효과가 있는지 확인
-func has_active_effects() -> bool:
-	return not roll_effects.is_empty() or not score_effects.is_empty() or \
-		   permanent_value_bonus != 0 or permanent_value_multiplier != 1.0
 #endregion

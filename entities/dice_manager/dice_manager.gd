@@ -36,6 +36,9 @@ var _rolling_indices: Array[int] = []
 var _pending_results: Dictionary = {} # {index: value}
 var _cached_values: Array[int] = [0, 0, 0, 0, 0]
 
+## 효과 캐시 (라운드당 1회 계산)
+var _cached_effects: Dictionary = {}
+
 ## 선택 상태 관리
 var _selected_indices: Array[int] = []
 
@@ -48,8 +51,6 @@ var _spotlight_active: bool = false
 
 signal all_dice_finished(values: Array[int])
 signal selection_changed(indices: Array[int])
-signal effects_applied(effect_data: Array[Dictionary]) ## UI 연출용 (from, to, name)
-signal round_transition_finished
 signal dice_hovered(dice_index: int)
 signal dice_unhovered(dice_index: int)
 signal active_dice_clicked(active_index: int) ## PRE_ROLL에서 Active 주사위 클릭 시
@@ -66,18 +67,6 @@ func _ready() -> void:
 		_original_ambient_energy = _environment.ambient_light_energy
 
 #region 위치 계산
-func _get_roll_position(index: int) -> Vector3:
-	# 분산된 시작 위치 (충돌 최소화)
-	var positions: Array[Vector3] = [
-		Vector3(-dice_spacing * 2, roll_height, -dice_spacing),
-		Vector3(dice_spacing * 2, roll_height, -dice_spacing),
-		Vector3(-dice_spacing, roll_height, 0),
-		Vector3(dice_spacing, roll_height, 0),
-		Vector3(0, roll_height, dice_spacing)
-	]
-	return positions[index] if index < positions.size() else Vector3.ZERO
-
-
 func _get_display_position(index: int) -> Vector3:
 	var x_offset := (index - 2) * dice_spacing # -2, -1, 0, 1, 2 기준
 	return Vector3(x_offset, display_height, display_z)
@@ -90,7 +79,7 @@ func _spawn_dice() -> void:
 		var die := DICE_SCENE.instantiate() as RigidBody3D
 		die.dice_index = i
 		add_child(die)
-		die.setup(_get_display_position(i), _get_roll_position(i))
+		die.setup(_get_display_position(i))
 		die.roll_finished.connect(_on_dice_finished)
 		die.dice_clicked.connect(_on_dice_clicked)
 		die.dice_hovered.connect(_on_dice_hovered)
@@ -112,13 +101,6 @@ func roll_dice_radial_burst() -> void:
 		indices.append(i)
 	_roll_dice_radial_burst(indices)
 	_reset_state()
-
-func reroll_selected_radial_burst() -> void:
-	var indices := _selected_indices.duplicate()
-	if indices.size() > 0:
-		_roll_dice_radial_burst(indices)
-	_reset_state()
-
 
 ## 리롤: 선택된 주사위를 제자리 스핀 (물리 없이 Tween 기반, 순차 시작)
 const REROLL_STAGGER: float = 0.12 ## 각 주사위 스핀 시작 간격
@@ -147,7 +129,7 @@ func _roll_dice_radial_burst(indices: Array[int]) -> void:
 
 	for i in indices.size():
 		var idx := indices[i]
-		# 각 주사위마다 방사형 방향 계산 (인덱스는 _selected_indices 또는 _get_all_indices에서 보장)
+		# 각 주사위마다 방사형 방향 계산
 		var base_angle := angle_step * i
 		var random_offset := randf_range(-0.15, 0.15) # 약간의 랜덤
 		var angle := base_angle + random_offset
@@ -241,32 +223,6 @@ func _sort_and_animate_dice() -> void:
 	await get_tree().create_timer(0.6).timeout
 
 
-## 모든 효과 처리 (트리거 구분 없음)
-func _process_roll_effects() -> void:
-	var all_dice := _get_all_dice_instances()
-	if all_dice.is_empty():
-		return
-
-	var results := EffectProcessor.process_effects(all_dice)
-
-	# 각 주사위에 결과 할당 및 적용
-	var effect_data: Array[Dictionary] = []
-	for i in all_dice.size():
-		all_dice[i].roll_effects.clear()
-		if results.has(i):
-			for result in results[i]:
-				all_dice[i].add_roll_effect(result)
-				if result.source_index >= 0 and result.source_index != i:
-					effect_data.append({
-						"from": result.source_index,
-						"to": i,
-						"name": result.effect_name
-					})
-		all_dice[i].apply_roll_effects_from_results()
-
-	if not effect_data.is_empty():
-		effects_applied.emit(effect_data)
-
 
 ## 모든 주사위 인스턴스 반환
 func _get_all_dice_instances() -> Array[DiceInstance]:
@@ -278,18 +234,23 @@ func _get_all_dice_instances() -> Array[DiceInstance]:
 #endregion
 
 
+## 효과 결과를 1회 계산하여 캐시. POST_ROLL 진입 시 호출.
+func compute_effects() -> void:
+	var all_dice := _get_all_dice_instances()
+	if all_dice.is_empty():
+		_cached_effects = {}
+		return
+	_cached_effects = EffectProcessor.process_effects(all_dice)
+
+
 ## 효과 애니메이션만 재생 (데이터 변경 없음, POST_ROLL 미리보기용)
 ## on_target: 타겟 주사위 애니메이션 직전 호출되는 콜백 (index: int)
 func play_effects_animation(on_target: Callable = Callable()) -> void:
-	var all_dice := _get_all_dice_instances()
-	if all_dice.is_empty():
+	if _cached_effects.is_empty():
 		return
 
-	var score_results := EffectProcessor.process_effects(all_dice)
-
 	var source_anims: Dictionary = {}
-	_collect_source_anims(score_results, source_anims)
-	print("[EffectFX] source_anims: %s" % [source_anims])
+	_collect_source_anims(_cached_effects, source_anims)
 
 	await _play_source_anims_sequence(source_anims, on_target)
 
@@ -300,11 +261,9 @@ func apply_scoring_effects() -> void:
 	if all_dice.is_empty():
 		return
 
-	var score_results := EffectProcessor.process_effects(all_dice)
-
 	for i in all_dice.size():
 		all_dice[i].roll_effects.clear()
-	_add_results_to_dice(score_results, all_dice)
+	_add_results_to_dice(_cached_effects, all_dice)
 	for i in all_dice.size():
 		all_dice[i].apply_roll_effects_from_results()
 
@@ -317,7 +276,6 @@ func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable =
 			continue
 
 		var anims: Array = source_anims[src_idx]
-		print("[EffectFX] src[%d] -> %d targets" % [src_idx, anims.size()])
 
 		dice_nodes[src_idx].start_breathing()
 		await get_tree().create_timer(0.15).timeout
@@ -330,7 +288,6 @@ func _play_source_anims_sequence(source_anims: Dictionary, on_target: Callable =
 			if on_target.is_valid():
 				on_target.call(target_idx, bonus, mult)
 			if anim_type != "":
-				print("[EffectFX]   target[%d] anim: %s" % [target_idx, anim_type])
 				await dice_nodes[target_idx].play_effect_anim(anim_type)
 
 		dice_nodes[src_idx].stop_breathing()
@@ -369,21 +326,12 @@ func _add_results_to_dice(results: Dictionary, all_dice: Array) -> void:
 ## 반환: Array[Dictionary] — [{bonus: int, multiplier: int}, ...]
 func get_score_effect_stats() -> Array[Dictionary]:
 	var stats: Array[Dictionary] = []
-	var all_dice := _get_all_dice_instances()
-
-	if all_dice.is_empty():
-		stats.resize(DICE_COUNT)
-		for i in DICE_COUNT:
-			stats[i] = {"bonus": 0, "multiplier": 1}
-		return stats
-
-	var results := EffectProcessor.process_effects(all_dice)
 
 	for i in DICE_COUNT:
 		var bonus: int = 0
 		var mult: float = 1.0
-		if results.has(i):
-			for result: EffectResult in results[i]:
+		if _cached_effects.has(i):
+			for result: EffectResult in _cached_effects[i]:
 				bonus += result.value_bonus
 				mult *= result.value_multiplier
 		stats.append({"bonus": bonus, "multiplier": int(mult)})
@@ -459,13 +407,6 @@ func _reset_all_to_display() -> void:
 
 
 #region 헬퍼
-func _get_all_indices() -> Array[int]:
-	var indices: Array[int] = []
-	for i in DICE_COUNT:
-		indices.append(i)
-	return indices
-
-
 ## External API - indices should be validated by caller but we guard defensively
 func start_breathing(indices: Array) -> void:
 	for i in indices:
@@ -498,6 +439,7 @@ func unhighlight_all() -> void:
 ## Active → 화면 하단 중앙으로 이동 + 콜백 (라운드 종료 시)
 func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 	var center := Vector3(0, hand_height, hand_z)
+	var duration := transition_duration * 0.6
 
 	for i in dice_nodes.size():
 		var die := dice_nodes[i]
@@ -506,42 +448,21 @@ func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
 		tween.set_trans(Tween.TRANS_QUAD)
 		tween.set_parallel(true)
 
-		# 위치 이동 (중앙으로)
-		tween.tween_property(die, "global_position", center, transition_duration)
-		# 회전 (랜덤 방향으로 1~2바퀴)
+		tween.tween_property(die, "global_position", center, duration)
 		var random_rotation := Vector3(
 			randf_range(-TAU, TAU) * 2,
 			randf_range(-TAU, TAU),
 			randf_range(-TAU, TAU) * 2
 		)
-		tween.tween_property(die, "rotation", die.rotation + random_rotation, transition_duration)
+		tween.tween_property(die, "rotation", die.rotation + random_rotation, duration)
+		tween.finished.connect(on_each_finished.bind(i))
 
-		await tween.finished
-		on_each_finished.call(i)
+		if i < dice_nodes.size() - 1:
+			await get_tree().create_timer(stagger_delay).timeout
 
-	# 모든 주사위 내려간 후 잠시 대기
-	await get_tree().create_timer(0.1).timeout
+	# 마지막 주사위 애니메이션 완료 대기
+	await get_tree().create_timer(duration + 0.05).timeout
 
-
-## 화면 아래 중앙 → Active 위치로 상승 + 콜백 (라운드 시작 시)
-func animate_dice_to_active_with_callback(on_each_finished: Callable) -> void:
-	for i in dice_nodes.size():
-		var die := dice_nodes[i]
-		var target := _get_display_position(i)
-		var tween := create_tween()
-		tween.set_ease(Tween.EASE_OUT)
-		tween.set_trans(Tween.TRANS_BACK)
-		tween.set_parallel(true)
-
-		# 위치 이동
-		tween.tween_property(die, "global_position", target, transition_duration)
-		# 회전 (Vector.UP 방향으로 정렬)
-		tween.tween_property(die, "rotation", Vector3.ZERO, transition_duration)
-
-		await tween.finished
-		on_each_finished.call(i)
-
-	round_transition_finished.emit()
 
 
 ## 모든 주사위를 화면 하단 중앙으로 즉시 이동 (초기 위치 설정용)
@@ -580,120 +501,7 @@ func animate_single_to_active(active_index: int) -> void:
 	await tween.finished
 
 
-## 단일 주사위를 Active 위치에서 Hand 위치로 애니메이션 후 숨김
-## @param active_index Active 내 인덱스
-func animate_single_to_hand(active_index: int) -> void:
-	if active_index < 0 or active_index >= DICE_COUNT:
-		return
 
-	var die := dice_nodes[active_index]
-	var hand_center := Vector3(0, hand_height, hand_z)
-
-	var tween := create_tween()
-	tween.set_ease(Tween.EASE_IN)
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.set_parallel(true)
-
-	tween.tween_property(die, "global_position", hand_center, transition_duration * 0.8)
-	var random_rotation := Vector3(
-		randf_range(-TAU, TAU),
-		randf_range(-TAU, TAU),
-		randf_range(-TAU, TAU)
-	)
-	tween.tween_property(die, "rotation", die.rotation + random_rotation, transition_duration * 0.8)
-
-	await tween.finished
-	die.visible = false
-
-
-## Active 주사위 재배치 애니메이션 (인덱스 변경 시)
-func reposition_active_dice(count: int) -> void:
-	for i in DICE_COUNT:
-		var die := dice_nodes[i]
-		if i < count:
-			# Active에 있는 주사위 - 표시하고 새 위치로 이동
-			die.visible = true
-			var target := _get_display_position(i)
-			var tween := create_tween()
-			tween.set_ease(Tween.EASE_OUT)
-			tween.set_trans(Tween.TRANS_QUAD)
-			tween.set_parallel(true)
-			tween.tween_property(die, "global_position", target, transition_duration * 0.5)
-			tween.tween_property(die, "rotation", Vector3.ZERO, transition_duration * 0.5)
-		else:
-			# Active에 없는 주사위 - 숨김
-			die.visible = false
-
-
-## Active 주사위 재배치 (await 가능)
-func reposition_active_dice_async(count: int) -> void:
-	var tweens: Array = []
-
-	for i in DICE_COUNT:
-		var die := dice_nodes[i]
-		if i < count:
-			die.visible = true
-			var target := _get_display_position(i)
-			var tween := create_tween()
-			tween.set_ease(Tween.EASE_OUT)
-			tween.set_trans(Tween.TRANS_QUAD)
-			tween.set_parallel(true)
-			tween.tween_property(die, "global_position", target, transition_duration * 0.4)
-			tween.tween_property(die, "rotation", Vector3.ZERO, transition_duration * 0.4)
-			tweens.append(tween)
-		else:
-			die.visible = false
-
-	# 마지막 트윈 완료 대기
-	if not tweens.is_empty():
-		await tweens[-1].finished
-
-
-## 주사위 제거 + 나머지 밀어서 채우기
-## 데이터 이동 후 호출 - dice_nodes[0..count-1]에 이미 새 데이터가 할당된 상태
-## @param removed_index 제거된 3D 주사위 인덱스 (숨길 대상)
-## @param count 현재 Active 개수
-func animate_remove_and_shift(removed_index: int, count: int) -> void:
-	var duration := 0.15
-	var tweens: Array = []
-
-	# 제거된 인덱스의 3D 주사위: 축소 후 숨김
-	var removed_die := dice_nodes[removed_index]
-	var remove_tween := create_tween()
-	remove_tween.set_trans(Tween.TRANS_LINEAR)
-	remove_tween.tween_property(removed_die, "scale", Vector3.ONE * 0.1, duration)
-	tweens.append(remove_tween)
-
-	# 현재 Active에 해당하는 주사위들: 올바른 위치로 이동
-	for i in count:
-		var die := dice_nodes[i]
-		die.visible = true
-		var target := _get_display_position(i)
-		var tween := create_tween()
-		tween.set_trans(Tween.TRANS_LINEAR)
-		tween.set_parallel(true)
-		tween.tween_property(die, "global_position", target, duration)
-		tween.tween_property(die, "rotation", Vector3.ZERO, duration)
-		tweens.append(tween)
-
-	# count 이상의 주사위 숨김
-	for i in range(count, DICE_COUNT):
-		if i != removed_index: # removed_index는 애니메이션 후 처리
-			dice_nodes[i].visible = false
-
-	# 애니메이션 완료 대기
-	if not tweens.is_empty():
-		await tweens[0].finished
-
-	# 제거된 주사위 숨기고 스케일 복구
-	removed_die.visible = false
-	removed_die.scale = Vector3.ONE
-
-
-## 주사위 표시/숨김 설정
-func set_dice_visible(index: int, visibility: bool) -> void:
-	if index >= 0 and index < DICE_COUNT:
-		dice_nodes[index].visible = visibility
 
 
 ## Active 주사위 즉시 배치 (애니메이션 없음)

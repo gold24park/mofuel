@@ -19,6 +19,7 @@ const MAX_REROLLS: int = 2 ## 라운드당 최대 리롤 횟수
 
 const DOUBLE_DOWN_COST: int = 2
 const DOUBLE_DOWN_MULTIPLIER: float = 2.0
+const BASE_MAX_DRAWS: int = 1
 
 var inventory := Inventory.new()
 var deck := Deck.new()
@@ -80,7 +81,6 @@ func record_score(category_id: String, score: int) -> bool:
 	if is_double_down:
 		multiplied_score = int(multiplied_score * DOUBLE_DOWN_MULTIPLIER)
 	GameState.total_score += multiplied_score
-	upgrade.use()
 	GameState.score_changed.emit(GameState.total_score)
 	return true
 

@@ -15,6 +15,8 @@
 [ext_resource type="PackedScene" path="res://ui/dice_tooltip/dice_tooltip.tscn" id="15_dice_tooltip"]
 [ext_resource type="PackedScene" path="res://ui/dice_stats/dice_stats.tscn" id="16_dice_stats"]
 [ext_resource type="PackedScene" path="res://ui/category_breakdown/category_breakdown.tscn" id="17_category_breakdown"]
+[ext_resource type="PackedScene" path="res://ui/ornament_grid/ornament_grid_ui.tscn" id="18_ornament_grid"]
+[ext_resource type="PackedScene" path="res://ui/ornament_grid/ornament_mini_grid.tscn" id="19_ornament_mini_grid"]
 [ext_resource type="Script" uid="uid://be0n8263vsi7u" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
 [ext_resource type="Script" uid="uid://bgideag8ai4qt" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
 [ext_resource type="Script" uid="uid://bknp5u7rhfdl4" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
@@ -130,6 +132,10 @@ grow_horizontal = 0
 grow_vertical = 0
 
 [node name="DiceTooltip" parent="CanvasLayer" unique_id=956099878 instance=ExtResource("15_dice_tooltip")]
+
+[node name="OrnamentGridUI" parent="CanvasLayer" instance=ExtResource("18_ornament_grid")]
+
+[node name="OrnamentMiniGrid" parent="CanvasLayer" instance=ExtResource("19_ornament_mini_grid")]
 
 [node name="StateMachine" type="Node" parent="." unique_id=2064687143]
 script = ExtResource("state_machine")

@@ -6,6 +6,8 @@ const FACE_WILDCARD := 0 ## 와일드카드 — 스코어링에서 최적값 자
 const FACE_SKULL := 7    ## 해골 — 스코어링에 포함되지 않음
 #endregion
 
+const PS1_SHADER = preload("res://shaders/ps1.gdshader")
+
 var id: String
 var display_name: String
 var description: String
@@ -28,24 +30,6 @@ func has_group(group: String) -> bool:
 	return group in groups
 
 
-func has_any_group(check_groups: Array[String]) -> bool:
-	for g in check_groups:
-		if g in groups:
-			return true
-	return false
-#endregion
-
-
-#region Effect Queries
-func get_effect_of_type(effect_class: Variant) -> DiceEffectResource:
-	for effect in effects:
-		if is_instance_of(effect, effect_class):
-			return effect
-	return null
-
-
-func has_effect_of_type(effect_class: Variant) -> bool:
-	return get_effect_of_type(effect_class) != null
 #endregion
 
 
@@ -67,22 +51,20 @@ func is_wildcard_value(value: int) -> bool:
 func apply_visual(mesh_instance: MeshInstance3D) -> void:
 	if mesh_instance == null:
 		return
-	# 이전 override 제거 — 재사용 메시에서 원본 머티리얼 접근 보장
 	mesh_instance.material_override = null
-	# 베이스 결정: 커스텀 머티리얼 > 메시 기본 머티리얼
-	var base_mat: StandardMaterial3D
-	if material:
-		base_mat = material.duplicate() as StandardMaterial3D
-	elif mesh_instance.get_active_material(0):
-		base_mat = mesh_instance.get_active_material(0).duplicate() as StandardMaterial3D
-	else:
+	# 베이스 색상 추출: 커스텀 머티리얼 > 메시 기본 머티리얼
+	var base_mat: Material = material if material else mesh_instance.get_active_material(0)
+	if base_mat == null:
 		return
-	# 텍스처를 Detail Layer로 적용 (알파 기반 블렌딩)
-	# mix(머티리얼색, 텍스처RGB, 텍스처Alpha) → 투명=머티리얼, 불투명=텍스처색
+	var base_color := Color.WHITE
+	if base_mat is StandardMaterial3D:
+		base_color = (base_mat as StandardMaterial3D).albedo_color
+	# PS1 ShaderMaterial 생성
+	var ps1_mat := ShaderMaterial.new()
+	ps1_mat.shader = PS1_SHADER
+	ps1_mat.set_shader_parameter("albedo_color", base_color)
 	if texture:
-		base_mat.detail_enabled = true
-		base_mat.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
-		base_mat.detail_albedo = texture
-		base_mat.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
-	mesh_instance.material_override = base_mat
+		ps1_mat.set_shader_parameter("detail_texture", texture)
+		ps1_mat.set_shader_parameter("has_detail", true)
+	mesh_instance.material_override = ps1_mat
 #endregion

@@ -3,10 +3,13 @@ extends Node
 signal upgrade_changed(category_id: String)
 
 var category_upgrades: Dictionary[String, CategoryUpgrade] = {}
+var ornament_grid := OrnamentGrid.new()
+var owned_ornaments: Array[OrnamentInstance] = []
 
 
 func _ready() -> void:
 	_init_upgrades()
+	_init_ornaments()
 
 
 func _init_upgrades() -> void:
@@ -34,14 +37,6 @@ func get_upgrade(category_id: String) -> CategoryUpgrade:
 	return null
 
 
-func upgrade_uses(category_id: String) -> bool:
-	var upgrade := get_upgrade(category_id)
-	if upgrade and upgrade.upgrade_uses():
-		upgrade_changed.emit(category_id)
-		return true
-	return false
-
-
 func upgrade_multiplier(category_id: String) -> bool:
 	var upgrade := get_upgrade(category_id)
 	if upgrade and upgrade.upgrade_multiplier():
@@ -50,12 +45,32 @@ func upgrade_multiplier(category_id: String) -> bool:
 	return false
 
 
-func reset_all_uses() -> void:
-	for upgrade in category_upgrades.values():
-		upgrade.reset_uses()
-
-
 func get_all_upgrades() -> Array[CategoryUpgrade]:
 	var result: Array[CategoryUpgrade] = []
 	result.assign(category_upgrades.values())
 	return result
+
+
+#region Ornaments
+func _init_ornaments() -> void:
+	await get_tree().process_frame
+	for ornament_id in OrnamentTypes.STARTING_ORNAMENTS:
+		var instance := OrnamentRegistry.create_instance(ornament_id)
+		if instance:
+			owned_ornaments.append(instance)
+
+
+func get_unplaced_ornaments() -> Array[OrnamentInstance]:
+	var result: Array[OrnamentInstance] = []
+	for ornament in owned_ornaments:
+		if not ornament.is_placed:
+			result.append(ornament)
+	return result
+
+
+func add_ornament(id: String) -> OrnamentInstance:
+	var instance := OrnamentRegistry.create_instance(id)
+	if instance:
+		owned_ornaments.append(instance)
+	return instance
+#endregion

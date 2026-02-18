@@ -4,14 +4,11 @@ extends RefCounted
 ## 플레이어의 영구 주사위 컬렉션
 ## 스테이지를 넘어 유지되며, 상점에서 매매 가능
 
-signal changed
-
 var dice: Array[DiceInstance] = []
 
 
 func add(instance: DiceInstance) -> void:
 	dice.append(instance)
-	changed.emit()
 
 
 func remove(instance: DiceInstance) -> bool:
@@ -19,13 +16,11 @@ func remove(instance: DiceInstance) -> bool:
 	if idx == -1:
 		return false
 	dice.remove_at(idx)
-	changed.emit()
 	return true
 
 
 func clear() -> void:
 	dice.clear()
-	changed.emit()
 
 
 func size() -> int:
@@ -50,4 +45,3 @@ func init_starting_inventory() -> void:
 			var instance := DiceRegistry.create_instance(type_id)
 			if instance:
 				dice.append(instance)
-	changed.emit()

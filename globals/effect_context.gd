@@ -10,13 +10,13 @@ var source_dice: DiceInstance = null
 var source_index: int = -1
 
 ## 모든 활성 주사위 배열
-var all_dice: Array = []
+var all_dice: Array[DiceInstance] = []
 
 
 static func create(
 	dice: DiceInstance,
 	idx: int,
-	dice_array: Array
+	dice_array: Array[DiceInstance]
 ) -> EffectContext:
 	assert(dice != null, "source_dice cannot be null")
 	assert(idx >= 0 and idx < dice_array.size(),
@@ -25,6 +25,15 @@ static func create(
 	var ctx := EffectContext.new()
 	ctx.source_dice = dice
 	ctx.source_index = idx
+	ctx.all_dice = dice_array
+	return ctx
+
+
+## 오너먼트 등 글로벌 효과 소스용 (source_dice 없음)
+static func create_global(dice_array: Array[DiceInstance]) -> EffectContext:
+	var ctx := EffectContext.new()
+	ctx.source_dice = null
+	ctx.source_index = -1
 	ctx.all_dice = dice_array
 	return ctx
 
@@ -56,13 +65,5 @@ func get_matching_group_indices(group: String) -> Array[int]:
 	var indices: Array[int] = []
 	for i in all_dice.size():
 		if i != source_index and all_dice[i].type.has_group(group):
-			indices.append(i)
-	return indices
-
-## 같은 타입의 주사위 인덱스 반환
-func get_matching_type_indices(type_id: String) -> Array[int]:
-	var indices: Array[int] = []
-	for i in all_dice.size():
-		if i != source_index and all_dice[i].type.id == type_id:
 			indices.append(i)
 	return indices

@@ -17,10 +17,18 @@ extends Control
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
 @onready var dice_tooltip = $CanvasLayer/DiceTooltip
+@onready var ornament_grid_ui = $CanvasLayer/OrnamentGridUI
+@onready var ornament_mini_grid = $CanvasLayer/OrnamentMiniGrid
 @onready var state_machine: GameStateMachine = $StateMachine
+var juice_fx: JuiceFX
 
 
 func _ready() -> void:
+	# JuiceFX 초기화
+	juice_fx = JuiceFX.new()
+	add_child(juice_fx)
+	juice_fx.setup(camera_3d, $SubViewportContainer/SubViewport/World3D)
+
 	# State Machine 초기화
 	state_machine.init(self)
 

@@ -38,19 +38,8 @@ func _populate_categories():
 
 		# 현재 상태
 		var status_label = Label.new()
-		status_label.text = "Uses: %d/%d  Mult: x%.1f" % [
-			upgrade.get_total_uses(),
-			cat.max_uses,
-			upgrade.get_total_multiplier()
-		]
-		status_label.custom_minimum_size = Vector2(180, 0)
-
-		# 횟수 강화 버튼
-		var uses_button = Button.new()
-		uses_button.text = "+Uses"
-		uses_button.custom_minimum_size = Vector2(80, 40)
-		uses_button.disabled = not upgrade.can_upgrade_uses()
-		uses_button.pressed.connect(_on_upgrade_uses.bind(cat.id, hbox))
+		status_label.text = "Mult: x%.1f" % upgrade.get_total_multiplier()
+		status_label.custom_minimum_size = Vector2(120, 0)
 
 		# 배수 강화 버튼
 		var mult_button = Button.new()
@@ -61,15 +50,9 @@ func _populate_categories():
 
 		hbox.add_child(name_label)
 		hbox.add_child(status_label)
-		hbox.add_child(uses_button)
 		hbox.add_child(mult_button)
 
 		category_container.add_child(hbox)
-
-
-func _on_upgrade_uses(category_id: String, hbox: HBoxContainer):
-	MetaState.upgrade_uses(category_id)
-	_update_row(category_id, hbox)
 
 
 func _on_upgrade_mult(category_id: String, hbox: HBoxContainer):
@@ -85,16 +68,10 @@ func _update_row(category_id: String, hbox: HBoxContainer):
 
 	# 상태 라벨 업데이트
 	var status_label = hbox.get_child(1) as Label
-	status_label.text = "Uses: %d/%d  Mult: x%.1f" % [
-		upgrade.get_total_uses(),
-		cat.max_uses,
-		upgrade.get_total_multiplier()
-	]
+	status_label.text = "Mult: x%.1f" % upgrade.get_total_multiplier()
 
 	# 버튼 상태 업데이트
-	var uses_button = hbox.get_child(2) as Button
-	var mult_button = hbox.get_child(3) as Button
-	uses_button.disabled = not upgrade.can_upgrade_uses()
+	var mult_button = hbox.get_child(2) as Button
 	mult_button.disabled = not upgrade.can_upgrade_multiplier()
 
 

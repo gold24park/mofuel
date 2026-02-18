@@ -8,6 +8,7 @@ extends GameStateBase
 ## - Draw 버튼: deck pool에서 hand로 드로우
 
 var _is_animating: bool = false
+var _prev_active: Array[DiceInstance] = [] ## 이전 라운드 활성 주사위 (자동 복원용)
 
 
 func enter() -> void:
@@ -19,10 +20,13 @@ func enter() -> void:
 	GameState.round_changed.emit(GameState.current_round)
 
 	GameState.rerolls_remaining = GameState.MAX_REROLLS
-	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	GameState.is_double_down = false
+	GameState.max_draws_per_round = GameState.BASE_MAX_DRAWS
 
-	# 드로우 횟수 리셋
+	# 오너먼트 패시브 효과 적용
+	_apply_ornament_passives()
+
+	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	GameState.draws_remaining = GameState.max_draws_per_round
 	GameState.draws_changed.emit(GameState.draws_remaining)
 
@@ -83,6 +87,7 @@ func _play_first_round_transition() -> void:
 
 
 func _play_next_round_transition() -> void:
+	_prev_active = GameState.active_dice.duplicate()
 	await _animate_return_to_hand()
 	GameState.deck.return_active_to_hand()
 	game_root.dice_manager.set_dice_to_hand_position()
@@ -101,17 +106,32 @@ func _animate_return_to_hand() -> void:
 
 
 #region 자동 활성화 (공통 체크)
-## Hand == 5 & Active 비어있음 → 순차 애니메이션
+## Hand == 5 → 전부 활성화
+## Hand > 5 & 이전 라운드 주사위 존재 → 이전 주사위 자동 활성화
 func _try_auto_activate() -> void:
 	if _is_animating:
-		return
-	if GameState.deck.hand.size() != GameState.DICE_COUNT:
 		return
 	if GameState.active_dice.size() != 0:
 		return
 
+	var hand := GameState.deck.hand
 	var indices: Array[int] = []
-	indices.assign(range(GameState.DICE_COUNT))
+
+	if hand.size() == GameState.DICE_COUNT:
+		# 정확히 5개 — 전부 활성화
+		indices.assign(range(GameState.DICE_COUNT))
+	elif hand.size() > GameState.DICE_COUNT and not _prev_active.is_empty():
+		# 6개 이상 — 이전 라운드 주사위 우선 활성화
+		for prev_dice in _prev_active:
+			var idx := hand.find(prev_dice)
+			if idx >= 0 and idx not in indices:
+				indices.append(idx)
+		_prev_active.clear()
+		if indices.size() != GameState.DICE_COUNT:
+			return # 이전 주사위를 다 찾지 못하면 수동 선택
+	else:
+		return
+
 	GameState.deck.move_hand_to_active(indices)
 
 	game_root._sync_dice_instances()
@@ -198,5 +218,20 @@ func _on_roll_pressed() -> void:
 #endregion
 
 
-func handle_input(_event: InputEvent) -> bool:
-	return false
+#region Ornament Passives
+func _apply_ornament_passives() -> void:
+	var active: Array[OrnamentInstance] = []
+	for effect in MetaState.ornament_grid.get_all_passive_effects():
+		match effect["type"]:
+			"reroll_bonus":
+				GameState.rerolls_remaining += int(effect["delta"])
+			"draw_bonus":
+				GameState.max_draws_per_round += int(effect["delta"])
+
+	# 패시브 보유 오너먼트 하이라이트
+	for ornament in MetaState.ornament_grid.placed_ornaments:
+		if not ornament.type.passive_effects.is_empty():
+			active.append(ornament)
+	if not active.is_empty():
+		game_root.ornament_mini_grid.highlight_ornaments(active)
+#endregion

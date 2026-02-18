@@ -37,7 +37,10 @@ func _init(config: Dictionary = {}) -> void:
 	self.modify_target = config["modify_target"]
 	self.delta = config["delta"]
 	effect_name = config.get("effect_name", "")
-	comparisons = config.get("comparisons", [])
+	var raw_comps: Array = config.get("comparisons", [])
+	comparisons = []
+	for c in raw_comps:
+		comparisons.append(c)
 	anim = config.get("anim", "")
 	sound = config.get("sound", "")
 

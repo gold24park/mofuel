@@ -26,7 +26,7 @@ func init_from_inventory(inv: Inventory) -> void:
 	pool_changed.emit()
 
 
-func draw_initial_hand(count: int = 7):
+func draw_initial_hand(count: int = GameState.DICE_COUNT):
 	for i in range(count):
 		if not pool.is_empty():
 			hand.append(pool.pop_front())
@@ -59,15 +59,6 @@ func discard_from_hand(hand_index: int) -> bool:
 
 func can_draw() -> bool:
 	return not pool.is_empty() and (hand.size() + active_dice.size()) < HAND_MAX
-
-
-func select_random_active(count: int = 5):
-	hand.shuffle()
-	for i in range(count):
-		if not hand.is_empty():
-			active_dice.append(hand.pop_front())
-	active_changed.emit()
-	hand_changed.emit()
 
 
 func return_active_to_hand():

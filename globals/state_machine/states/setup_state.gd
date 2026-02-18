@@ -15,7 +15,6 @@ func enter() -> void:
 	GameState.inventory.init_starting_inventory()
 	GameState.deck.init_from_inventory(GameState.inventory)
 
-	MetaState.reset_all_uses()
 	GameState.deck.draw_initial_hand(GameState.DICE_COUNT)
 
 	# 시그널 발생

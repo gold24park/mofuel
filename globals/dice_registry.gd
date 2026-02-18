@@ -23,9 +23,8 @@ func _parse_dice_type(data: Dictionary) -> DiceTypeResource:
 	dt.description = data["description"]
 
 	# Groups
-	var groups_data: Array = data.get("groups", [])
 	var groups: Array[String] = []
-	for g in groups_data:
+	for g in data.get("groups", []):
 		groups.append(g)
 	dt.groups = groups
 

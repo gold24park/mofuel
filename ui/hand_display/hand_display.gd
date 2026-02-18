@@ -14,7 +14,7 @@ signal slot_animation_finished
 
 const DICE_PREVIEW = preload("res://ui/dice_preview/dice_preview.tscn")
 const SLOT_SIZE := Vector2(48, 48)
-const HAND_MAX := 10
+const HAND_MAX := Deck.HAND_MAX
 
 @onready var container: HBoxContainer = $MarginContainer/HBoxContainer
 @onready var background: ColorRect = $ColorRect
@@ -332,11 +332,4 @@ func animate_temp_slot_appear(index: int) -> void:
 	slot_animation_finished.emit()
 
 
-## 현재 표시된 주사위 수 반환
-func get_visible_count() -> int:
-	var count := 0
-	for p in _slot_previews:
-		if p != null:
-			count += 1
-	return count
 #endregion

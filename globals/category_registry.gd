@@ -39,11 +39,3 @@ func get_all_categories() -> Array[CategoryResource]:
 	var result: Array[CategoryResource] = []
 	result.assign(categories.values())
 	return result
-
-
-## 카테고리를 enum 순서로 정렬하여 반환
-func get_sorted_categories() -> Array[CategoryResource]:
-	var result: Array[CategoryResource] = []
-	result.assign(categories.values())
-	result.sort_custom(func(a, b): return a.category_type < b.category_type)
-	return result

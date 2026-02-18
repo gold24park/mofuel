@@ -36,8 +36,7 @@ enum CompareOp {
 
 
 var target: Target = Target.SELF
-var comparisons: Array = []
-var condition: EffectCondition = null
+var comparisons: Array[Dictionary] = []
 var effect_name: String = ""
 var anim: String = ""
 var sound: String = ""

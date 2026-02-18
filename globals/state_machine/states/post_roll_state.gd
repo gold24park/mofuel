@@ -6,7 +6,7 @@ extends GameStateBase
 ## - Reroll: 선택한 주사위 리롤 → RollingState
 ## - Double Down: 리롤 2개 소모, 전체 리롤, ×2 배수
 
-var _pattern_indices: Array = [] ## 패턴 하이라이트 복원용
+var _pattern_indices: Array[int] = [] ## 패턴 하이라이트 복원용
 
 
 func enter() -> void:
@@ -33,19 +33,34 @@ func enter() -> void:
 	var best_id: String = best["category_id"] if not best.is_empty() else ""
 	game_root.category_breakdown.show_breakdown(all_scores, best_id)
 
-	# DiceStats 준비 (숨김) → 효과 애니메이션
+	# 효과 1회 계산 + DiceStats 준비 (숨김) → 효과 애니메이션
+	game_root.dice_manager.compute_effects()
 	var stats: Array[Dictionary] = game_root.dice_manager.get_score_effect_stats()
 	game_root.dice_stats.prepare_stats(stats)
 	GameState.is_transitioning = true
 
-	# 효과 애니메이션 — 각 효과 발동 시 DiceStats reveal + ScoreDisplay 증분 업데이트
+	# 효과 애니메이션 — 각 효과 발동 시 DiceStats reveal + ScoreDisplay 증분 업데이트 + 쥬스
 	await game_root.dice_manager.play_effects_animation(
 		func(target_idx: int, bonus: int, mult: float):
 			game_root.dice_stats.reveal_stat(target_idx, bonus, mult)
 			if not best.is_empty():
 				game_root.score_display.add_contribution(bonus, mult)
+			# Juice: 플로팅 텍스트 + 히트 프리즈
+			var die_pos: Vector3 = game_root.dice_manager.dice_nodes[target_idx].global_position
+			if bonus != 0:
+				var txt = "+%d" % bonus if bonus > 0 else str(bonus)
+				game_root.juice_fx.floating_text(die_pos, txt,
+					Color.GREEN if bonus > 0 else Color.RED)
+			if mult > 1.0:
+				game_root.juice_fx.floating_text(
+					die_pos + Vector3(1.5, 0, 0), "x%.1f" % mult,
+					Color(1.0, 0.85, 0.2))
+			game_root.juice_fx.freeze(0.03, 0.1)
 	)
 	game_root.dice_stats.reveal_all()
+
+	# 오너먼트 dice_effects 발동 하이라이트
+	_highlight_ornament_effects()
 
 	# 최종 점수 라인 표시 (또는 Burst)
 	if best.is_empty():
@@ -133,10 +148,25 @@ func _on_double_down_pressed() -> void:
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	GameState.is_double_down = true
 
+	# Juice: 더블다운 강조
+	game_root.juice_fx.shake(0.8)
+	game_root.juice_fx.flash(Color(1.0, 0.3, 0.3), 0.5, 0.2)
+
 	game_root.dice_stats.hide_all()
 	game_root.score_display.hide_display()
 	game_root.dice_manager.roll_dice_radial_burst()
 	transitioned.emit(self, "RollingState")
+#endregion
+
+
+#region Ornament Highlight
+func _highlight_ornament_effects() -> void:
+	var active: Array[OrnamentInstance] = []
+	for ornament in MetaState.ornament_grid.placed_ornaments:
+		if not ornament.type.dice_effects.is_empty():
+			active.append(ornament)
+	if not active.is_empty():
+		game_root.ornament_mini_grid.highlight_ornaments(active)
 #endregion
 
 

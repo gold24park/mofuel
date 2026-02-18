@@ -18,7 +18,12 @@ func exit() -> void:
 
 
 func _on_all_dice_finished(_values: Array) -> void:
-	# 항상 PostRollState로 전환 (점수 연출 표시)
+	# 주사위 착지 쥬스 — 카메라 쉐이크 + 먼지 파티클
+	game_root.juice_fx.shake(0.3)
+	for die in game_root.dice_manager.dice_nodes:
+		if die.visible:
+			game_root.juice_fx.dust(die.global_position)
+
 	transitioned.emit(self, "PostRollState")
 
 

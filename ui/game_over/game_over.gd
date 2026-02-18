@@ -2,17 +2,20 @@ extends Control
 
 signal restart_pressed
 signal upgrade_pressed
+signal ornament_pressed
 
 @onready var title_label: Label = $Panel/VBoxContainer/TitleLabel
 @onready var score_label: Label = $Panel/VBoxContainer/ScoreLabel
 @onready var restart_button: Button = $Panel/VBoxContainer/RestartButton
 @onready var upgrade_button: Button = $Panel/VBoxContainer/UpgradeButton
+@onready var ornament_button: Button = $Panel/VBoxContainer/OrnamentButton
 
 
 func _ready() -> void:
 	GameState.game_over.connect(_on_game_over)
 	restart_button.pressed.connect(_on_restart_pressed)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
+	ornament_button.pressed.connect(_on_ornament_pressed)
 	visible = false
 
 
@@ -37,3 +40,8 @@ func _on_restart_pressed() -> void:
 func _on_upgrade_pressed() -> void:
 	visible = false
 	upgrade_pressed.emit()
+
+
+func _on_ornament_pressed() -> void:
+	visible = false
+	ornament_pressed.emit()

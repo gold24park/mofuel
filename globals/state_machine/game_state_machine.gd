@@ -30,16 +30,6 @@ func init(root_node: Control) -> void:
 		push_error("GameStateMachine: Initial state not found - %s" % initial_state_name)
 
 
-func _process(delta: float) -> void:
-	if current_state:
-		current_state.update(delta)
-
-
-func _physics_process(delta: float) -> void:
-	if current_state:
-		current_state.physics_update(delta)
-
-
 func _unhandled_input(event: InputEvent) -> void:
 	if current_state:
 		current_state.handle_input(event)
@@ -58,7 +48,6 @@ func on_child_transitioned(state: GameStateBase, new_state_name: String) -> void
 		current_state.exit()
 
 	current_state = new_state
-	# print("[StateMachine] %s -> %s" % [state.name, new_state_name])
 	current_state.enter()
 
 

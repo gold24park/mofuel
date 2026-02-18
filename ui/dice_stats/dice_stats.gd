@@ -1,7 +1,7 @@
 extends Control
 ## 주사위 코너 스탯 표시 (2D 프로젝션, camera.unproject_position()으로 3D→2D 변환)
 
-const DICE_COUNT := 5
+const DICE_COUNT := GameState.DICE_COUNT
 
 ## 3D 오프셋 (주사위 중심 기준, 카메라가 위에서 아래로 봄)
 const BONUS_OFFSET := Vector3(1.0, 0, -1.0)      ## 오른쪽 위
@@ -80,12 +80,6 @@ func reveal_stat(index: int, _bonus: int = 0, _mult: float = 1.0) -> void:
 func reveal_all() -> void:
 	for i in range(DICE_COUNT):
 		reveal_stat(i)
-
-
-## 준비 + 즉시 전체 표시 (애니메이션 없이 쓸 때)
-func show_stats(stats_data: Array[Dictionary]) -> void:
-	prepare_stats(stats_data)
-	reveal_all()
 
 
 func hide_all() -> void:

@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 
 DiceRegistry="*res://globals/dice_registry.gd"
 CategoryRegistry="*res://globals/category_registry.gd"
+OrnamentRegistry="*res://globals/ornament_registry.gd"
 MetaState="*res://globals/meta_state.gd"
 GameState="*res://globals/game_state.gd"
 

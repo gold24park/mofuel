@@ -34,17 +34,20 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     game_state.gd     # Match state management (inventory + deck 소유)
     meta_state.gd     # Between-match state (upgrades)
     inventory.gd      # Inventory — 영구 주사위 컬렉션 (class_name Inventory)
-    inventory_manager.gd  # Deck — 스테이지 로컬 덱 (class_name Deck)
+    deck.gd              # Deck — 스테이지 로컬 덱
     dice_registry.gd  # Dice type loader
     category_registry.gd  # Category loader
     scoring.gd        # Score calculation
     dice_*.gd         # Dice type/instance classes
     category_*.gd     # Category/upgrade classes
+    ornament_resource.gd  # 오너먼트 타입 정의 (shape, effects)
+    ornament_instance.gd  # 오너먼트 배치 상태 인스턴스
+    ornament_grid.gd      # 6x6 그리드 순수 로직
+    ornament_types.gd     # 오너먼트 데이터 정의 (DiceTypes 패턴)
+    ornament_registry.gd  # 오너먼트 로더 (Autoload)
     effect_context.gd     # 효과 실행 컨텍스트
     effect_result.gd      # 효과 결과 (시각적 피드백 포함)
     effect_processor.gd   # 수집→적용 파이프라인
-    effect_condition.gd   # 조건부 효과 (Resource)
-    composite_condition.gd # AND/OR 복합 조건
     /state_machine/       # Game state machine
       game_state_machine.gd   # State machine controller
       game_state_base.gd      # Base state class
@@ -75,8 +78,9 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     /score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
     /category_breakdown/  # POST_ROLL 족보 현황 패널 (전체 족보 + 최고 하이라이트)
     /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down)
-    /game_over/       # Win/lose screen
+    /game_over/       # Win/lose screen (+ Ornaments 버튼)
     /upgrade_screen/  # Category upgrade UI
+    /ornament_grid/   # 오너먼트 테트리스 배치 UI
 
   /resources/         # Data definitions
     /dice_types/      # (비어있음 — 데이터는 globals/dice_types.gd)
@@ -108,6 +112,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
    - 유효 족보 없으면 자동 0점 (burst)
 6. **라운드 전환**: Active 5개가 Hand로 돌아감 → PRE_ROLL (자동 드로우 없음)
 7. **GAME_OVER**: 100 points in 5 rounds to win
+   - **Ornaments 버튼**: 오너먼트 그리드 배치 화면 (매치 사이 관리)
 
 ### State Management
 
@@ -124,7 +129,7 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
 | `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
 | `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | Stand, Reroll, Double Down |
 | `SCORING` | 자동 점수 기록 | - (자동 처리) |
-| `GAME_OVER` | 승/패 결과 | Restart, Upgrade |
+| `GAME_OVER` | 승/패 결과 | Restart, Upgrade, Ornaments |
 
 **상태 전환 흐름:**
 ```
@@ -147,9 +152,11 @@ SetupState → PreRollState → RollingState → PostRollState
 - **GameStateMachine**: 상태 전환 관리, game.tscn의 자식 노드
 - **GameStateBase**: 상태 베이스 클래스 (enter/exit/update/handle_input)
 - **GameState**: Autoload singleton for match data (Phase, score, rerolls, inventory, deck 등)
-  - 게임 상수: `DICE_COUNT = 5`, `MAX_FACE_VALUE = 6`, `MAX_REROLLS = 2`, `DOUBLE_DOWN_COST = 2`
+  - 게임 상수: `DICE_COUNT = 5`, `MAX_FACE_VALUE = 6`, `MAX_REROLLS = 2`, `DOUBLE_DOWN_COST = 2`, `BASE_MAX_DRAWS = 1`
   - Double Down: `is_double_down`, `can_double_down()`, `DOUBLE_DOWN_MULTIPLIER = 2.0`
-- **MetaState**: Autoload singleton for upgrades (persists between matches)
+- **MetaState**: Autoload singleton for upgrades + ornaments (persists between matches)
+  - `ornament_grid`: OrnamentGrid (6x6 배치 그리드)
+  - `owned_ornaments`: Array[OrnamentInstance] (보유 오너먼트)
 - **Inventory**: 영구 주사위 컬렉션 (RefCounted, `GameState.inventory`)
 - **Deck**: 스테이지 로컬 덱 — pool/hand/active_dice (RefCounted, `GameState.deck`)
 
@@ -183,7 +190,7 @@ SetupState → PreRollState → RollingState → PostRollState
   - `init_starting_inventory()`: 게임 시작 시 `DiceTypes.STARTING_INVENTORY`로 초기 구성
   - `create_stage_copies()`: 모든 주사위를 `clone_for_stage()`로 deep-copy하여 반환
   - `add()` / `remove()`: 상점 매매용
-- **`Deck`** (`globals/inventory_manager.gd`): 스테이지 로컬 덱. pool(draw pile) + hand + active_dice 관리.
+- **`Deck`** (`globals/deck.gd`): 스테이지 로컬 덱. pool(draw pile) + hand + active_dice 관리.
   - `init_from_inventory(inv)`: Inventory에서 deep-copy하여 덱 초기화
   - `HAND_MAX = 10`: hand + active 합계 기준
   - `discard_from_hand()`: hand에서 영구 제거 (최소 DICE_COUNT개 유지)
@@ -194,6 +201,27 @@ SetupState → PreRollState → RollingState → PostRollState
 - Draw: `GameState.draw_one()` → `draws_remaining` 차감, 라운드당 횟수 제한
 - Signal: `pool_changed` (기존 `inventory_changed` → 리네임)
 
+### Ornament System (테트리스 배치)
+- 발라트로 조커처럼 덱을 강화하는 아이템, 6x6 그리드에 테트리스 스타일 배치
+- **접근 시점**: 매치 사이 (GameOverState → Ornaments 버튼)
+- **`OrnamentResource`** (`globals/ornament_resource.gd`): 타입 정의 (shape, color, effects)
+  - `shape`: `Array[Vector2i]` 오프셋 (앵커 = (0,0))
+  - `passive_effects`: 글로벌 패시브 `[{"type": "reroll_bonus"/"draw_bonus", "delta": N}]`
+  - `dice_effects`: `Array[DiceEffectResource]` — EffectProcessor에 주입
+  - `rotate_shape()`: static, `(x,y) → (y,-x)` + normalize
+- **`OrnamentInstance`** (`globals/ornament_instance.gd`): 배치 상태 (RefCounted)
+  - `grid_position`, `rotation` (0~3), `is_placed`, `get_occupied_cells()`
+- **`OrnamentGrid`** (`globals/ornament_grid.gd`): 6x6 순수 로직 (RefCounted)
+  - `can_place()` / `place()` / `remove()` / `get_cell()`
+  - `get_all_passive_effects()` / `get_all_dice_effects()`
+- **`OrnamentTypes`** (`globals/ornament_types.gd`): DiceTypes 패턴, `const ALL` + `STARTING_ORNAMENTS`
+- **`OrnamentRegistry`** (Autoload): 파싱 + `create_instance(id)`
+- **패시브 적용**: `PreRollState._apply_ornament_passives()` — rerolls/draws 보너스
+- **주사위 효과**: `EffectProcessor.process_effects()` — ornament dice_effects 자동 주입
+  - `EffectContext.create_global()`: source_dice=null, source_index=-1 (글로벌 효과용)
+  - 오너먼트 효과는 `ALL_DICE` 타겟만 사용 (SELF/ADJACENT 무의미)
+- **UI**: `ui/ornament_grid/ornament_grid_ui.tscn` — click-to-place, 회전, 제거
+
 ## Godot 4.6 Conventions
 
 - **GDScript style:** Use snake_case for functions/variables, PascalCase for classes
@@ -201,7 +229,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Resources:** `.tres` (text-based resource format)
 - **3D assets:** GLB format (binary glTF 2.0)
 - **Rendering:** Mobile renderer configured
-- **Autoloads:** DiceRegistry, CategoryRegistry, MetaState, GameState (load order matters)
+- **Autoloads:** DiceRegistry, CategoryRegistry, OrnamentRegistry, MetaState, GameState (load order matters)
 
 ## Coding Guidelines
 
@@ -301,9 +329,9 @@ SetupState → PreRollState → RollingState → PostRollState
   ```
 - **Assert for invariants**: Use `assert()` for conditions that must always be true
   ```gdscript
-  func get_total_uses() -> int:
+  func get_total_multiplier() -> float:
       assert(category != null, "CategoryUpgrade not initialized")
-      return category.base_uses + extra_uses
+      return category.base_multiplier + extra_multiplier
   ```
 - **Avoid magic numbers**: Use `GameState` constants for game-wide values
   ```gdscript
@@ -420,7 +448,6 @@ SetupState → PreRollState → RollingState → PostRollState
 | `EffectContext` | 효과 실행 시 컨텍스트 (source_dice, all_dice 등) |
 | `EffectResult` | 효과 결과 + 시각적 피드백 정보 |
 | `EffectProcessor` | 수집→적용 파이프라인 (ModifierEffect만 처리, ActionEffect는 별도) |
-| `EffectCondition` | Resource 기반 조건 (Inspector에서 편집) |
 
 ### Targets (효과 적용 대상)
 
@@ -521,7 +548,7 @@ func has_group(group: String) -> bool:
 1. Create `.tres` in `/resources/categories/`
 2. Set `category_type` to one of 9 types (HIGH_DICE ~ FIVE_CARD)
 3. Set `base_chips` for hierarchy positioning (높은 족보일수록 높은 값)
-4. Configure `base_uses`, `max_uses`, `base_multiplier`, `max_multiplier`
+4. Configure `base_multiplier`, `max_multiplier`, `multiplier_upgrade_step`
 5. Add scoring logic in `scoring.gd` if new CategoryType added
 
 ### New Effect
@@ -552,6 +579,13 @@ func has_group(group: String) -> bool:
 }
 ```
 Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_id"}`)
+
+### New Ornament
+1. Add entry in `globals/ornament_types.gd` → `OrnamentTypes.ALL`
+2. Set `id`, `display_name`, `description`, `color` (Array[float] RGB)
+3. Set `shape` as `Array[Vector2i]` offsets (anchor = (0,0))
+4. Add `passive_effects` for global bonuses (reroll_bonus, draw_bonus)
+5. Add `dice_effects` for score modifications (same format as dice effects)
 
 ### Built-in Effects
 
