@@ -4,8 +4,8 @@ extends Control
 const MATCHED_COLOR := Color(1.0, 1.0, 1.0)
 const BEST_COLOR := Color(1.0, 0.85, 0.2)  ## 금색 하이라이트
 const UNMATCHED_COLOR := Color(0.4, 0.4, 0.4)
-const FONT_SIZE: int = 16
-const ROW_HEIGHT: int = 22
+const FONT_SIZE: int = 8
+const ROW_HEIGHT: int = 10
 
 @onready var panel: PanelContainer = $PanelContainer
 @onready var container: VBoxContainer = $PanelContainer/VBoxContainer
@@ -48,7 +48,7 @@ func _add_row(cat_name: String, score: int, is_best: bool, is_matched: bool) -> 
 	var score_label := Label.new()
 	score_label.text = str(score) if is_matched else "--"
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	score_label.custom_minimum_size.x = 50
+	score_label.custom_minimum_size.x = 20
 	score_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	row.add_child(score_label)
 

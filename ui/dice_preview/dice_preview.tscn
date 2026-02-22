@@ -1,27 +1,28 @@
-[gd_scene load_steps=2 format=3 uid="uid://dk8m3xp7ql2vr"]
+[gd_scene format=3 uid="uid://dk8m3xp7ql2vr"]
 
-[ext_resource type="Script" path="res://ui/dice_preview/dice_preview.gd" id="1"]
+[ext_resource type="Script" uid="uid://ld54ou7bdbvu" path="res://ui/dice_preview/dice_preview.gd" id="1"]
 
-[node name="DicePreview" type="SubViewportContainer"]
-custom_minimum_size = Vector2(40, 40)
+[node name="DicePreview" type="SubViewportContainer" unique_id=496361930]
+custom_minimum_size = Vector2(20, 20)
+mouse_filter = 2
 stretch = true
 script = ExtResource("1")
 
-[node name="SubViewport" type="SubViewport" parent="."]
+[node name="SubViewport" type="SubViewport" parent="." unique_id=1743705694]
 own_world_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(64, 64)
+size = Vector2i(20, 20)
 render_target_update_mode = 4
 
-[node name="Camera3D" type="Camera3D" parent="SubViewport"]
+[node name="Camera3D" type="Camera3D" parent="SubViewport" unique_id=1531548897]
 transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 3, 5)
-current = true
 projection = 1
+current = true
 size = 4.0
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport"]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport" unique_id=350510739]
 transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 5, 5)
 light_energy = 1.5
 
-[node name="DiceHolder" type="Node3D" parent="SubViewport"]
+[node name="DiceHolder" type="Node3D" parent="SubViewport" unique_id=1159354128]

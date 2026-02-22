@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://bbghlajaxfvbi"]
+
+[ext_resource type="Script" uid="uid://cpdolvvi4nkub" path="res://ui/hand_display/slot.gd" id="1_63h8r"]
+[ext_resource type="Texture2D" uid="uid://b5hvq33yri6pb" path="res://assets/ui/slot.png" id="1_ibjdu"]
+[ext_resource type="PackedScene" uid="uid://dk8m3xp7ql2vr" path="res://ui/dice_preview/dice_preview.tscn" id="2_h8kkg"]
+
+[node name="Slot" type="Control" unique_id=1342937300]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_63h8r")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=1033628013]
+layout_mode = 0
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+texture = ExtResource("1_ibjdu")
+stretch_mode = 2
+
+[node name="DicePreview" parent="." unique_id=496361930 instance=ExtResource("2_h8kkg")]
+layout_mode = 0
+mouse_filter = 2

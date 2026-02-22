@@ -2,7 +2,7 @@ extends Control
 ## 게임 플레이 중 우측 하단에 표시되는 오너먼트 미니 그리드
 ## 읽기 전용 — 배치 상태 시각화 + 효과 발동 하이라이트
 
-const CELL_SIZE: int = 18
+const CELL_SIZE: int = 6
 const GRID_SIZE: int = OrnamentGrid.GRID_SIZE
 
 const COLOR_EMPTY := Color(0.2, 0.2, 0.2, 0.3)

@@ -32,8 +32,8 @@ func enter() -> void:
 
 	_is_animating = false
 
-	# 라운드 전환 애니메이션 (비동기)
-	_play_round_transition.call_deferred()
+	# 라운드 전환
+	_play_round_transition()
 
 
 func exit() -> void:
@@ -44,7 +44,7 @@ func exit() -> void:
 func _connect_signals() -> void:
 	game_root.roll_button.roll_pressed.connect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.connect(_on_hand_dice_clicked)
-	game_root.hand_display.dice_discarded.connect(_on_dice_discarded)
+	game_root.hand_display.discard_zone.dice_discarded.connect(_on_dice_discarded)
 	game_root.dice_manager.active_dice_clicked.connect(_on_active_dice_clicked)
 	game_root.hand_display.draw_pressed.connect(_on_draw_pressed)
 
@@ -52,56 +52,28 @@ func _connect_signals() -> void:
 func _disconnect_signals() -> void:
 	game_root.roll_button.roll_pressed.disconnect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.disconnect(_on_hand_dice_clicked)
-	game_root.hand_display.dice_discarded.disconnect(_on_dice_discarded)
+	game_root.hand_display.discard_zone.dice_discarded.disconnect(_on_dice_discarded)
 	game_root.dice_manager.active_dice_clicked.disconnect(_on_active_dice_clicked)
 	game_root.hand_display.draw_pressed.disconnect(_on_draw_pressed)
 
 
 #region Round Transition Animation
 func _play_round_transition() -> void:
-	var is_first_round := GameState.current_round == 1
-
 	GameState.is_transitioning = true
-	game_root.hand_display.enter_manual_mode()
 
-	if is_first_round:
-		await _play_first_round_transition()
+	if GameState.current_round == 1:
+		game_root.dice_manager.set_dice_to_hand_position()
 	else:
-		await _play_next_round_transition()
+		_prev_active = GameState.active_dice.duplicate()
+		GameState.deck.return_active_to_hand()
+		game_root.dice_manager.set_dice_to_hand_position()
 
-	# Cleanup & UI 활성화
-	game_root.hand_display.exit_manual_mode()
 	game_root.dice_manager._reset_state()
 	GameState.is_transitioning = false
 
 	game_root.roll_button.visible = true
 	_update_draw_ui()
 	_try_auto_activate()
-
-
-func _play_first_round_transition() -> void:
-	game_root.dice_manager.set_dice_to_hand_position()
-	game_root.hand_display.exit_manual_mode()
-	game_root.hand_display.enter_manual_mode()
-	await game_root.get_tree().create_timer(0.1).timeout
-
-
-func _play_next_round_transition() -> void:
-	_prev_active = GameState.active_dice.duplicate()
-	await _animate_return_to_hand()
-	GameState.deck.return_active_to_hand()
-	game_root.dice_manager.set_dice_to_hand_position()
-	game_root.hand_display.exit_manual_mode()
-	game_root.hand_display.enter_manual_mode()
-
-
-func _animate_return_to_hand() -> void:
-	game_root.hand_display.prepare_incoming_slots(GameState.DICE_COUNT, GameState.active_dice)
-
-	await game_root.dice_manager.animate_dice_to_hand_with_callback(
-		func(index: int):
-			game_root.hand_display.animate_temp_slot_appear(index)
-	)
 #endregion
 
 

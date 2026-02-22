@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://rytbhxerp4xy"]
+
+[ext_resource type="Theme" uid="uid://c12ajlwoma15d" path="res://resources/theme.tres" id="1_m6s3l"]
+[ext_resource type="Script" uid="uid://001d8obm3qii" path="res://ui/hand_display/draw_button.gd" id="1_script"]
+
+[node name="DrawButton" type="Control" unique_id=1942580834]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")
+
+[node name="Button" type="Button" parent="." unique_id=61317884]
+custom_minimum_size = Vector2(42, 22)
+layout_mode = 0
+offset_right = 47.0
+offset_bottom = 17.0
+theme = ExtResource("1_m6s3l")
+theme_type_variation = &"DrawButton"
+text = "DRAW"

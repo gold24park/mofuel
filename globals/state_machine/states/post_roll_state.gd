@@ -45,7 +45,7 @@ func enter() -> void:
 			game_root.dice_stats.reveal_stat(target_idx, bonus, mult)
 			if not best.is_empty():
 				game_root.score_display.add_contribution(bonus, mult)
-			# Juice: 플로팅 텍스트 + 히트 프리즈
+			# Juice: 플로팅 텍스트 + 히트 프리즈 + 워프 버스트
 			var die_pos: Vector3 = game_root.dice_manager.dice_nodes[target_idx].global_position
 			if bonus != 0:
 				var txt = "+%d" % bonus if bonus > 0 else str(bonus)

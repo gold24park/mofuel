@@ -6,7 +6,7 @@
 layout_mode = 3
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 60.0
+offset_bottom = 20.0
 grow_horizontal = 2
 script = ExtResource("1")
 
@@ -26,14 +26,14 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 3
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 30
+theme_override_constants/separation = 10
 
 [node name="RoundLabel" type="Label" parent="MarginContainer/HBoxContainer"]
 layout_mode = 2

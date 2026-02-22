@@ -27,10 +27,23 @@ OrnamentRegistry="*res://globals/ornament_registry.gd"
 MetaState="*res://globals/meta_state.gd"
 GameState="*res://globals/game_state.gd"
 
+[display]
+
+window/size/viewport_width=384
+window/size/viewport_height=216
+window/size/window_width_override=1152
+window/size/window_height_override=648
+window/stretch/mode="viewport"
+
+[gui]
+
+theme/custom="res://resources/theme.tres"
+
 [physics]
 
 3d/physics_engine="GodotPhysics3D"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="mobile"

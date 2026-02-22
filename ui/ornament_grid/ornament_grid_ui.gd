@@ -4,7 +4,7 @@ extends Control
 
 signal continue_pressed
 
-const CELL_SIZE: int = 56
+const CELL_SIZE: int = 10
 const GRID_SIZE: int = OrnamentGrid.GRID_SIZE
 
 ## 셀 색상 상수
@@ -84,10 +84,10 @@ func _create_cell(pos: Vector2i) -> Panel:
 	style.border_width_right = 1
 	style.border_width_top = 1
 	style.border_width_bottom = 1
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.corner_radius_top_left = 1
+	style.corner_radius_top_right = 1
+	style.corner_radius_bottom_left = 1
+	style.corner_radius_bottom_right = 1
 	cell.add_theme_stylebox_override("panel", style)
 
 	cell.gui_input.connect(_on_cell_input.bind(pos))
@@ -119,7 +119,7 @@ func _build_inventory_list() -> void:
 func _create_inventory_row(ornament: OrnamentInstance) -> Button:
 	var btn := Button.new()
 	btn.text = ornament.type.display_name
-	btn.custom_minimum_size = Vector2(160, 44)
+	btn.custom_minimum_size = Vector2(53, 15)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# 색상 힌트 — 버튼 텍스트 색

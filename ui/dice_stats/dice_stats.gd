@@ -17,8 +17,8 @@ const DURABILITY_OFFSET := Vector3(-1.0, 0, -1.0)  ## 왼쪽 위
 
 ## 라벨 스타일
 @export_group("Style")
-@export var font_size: int = 20
-@export var outline_size: int = 4
+@export var font_size: int = 8
+@export var outline_size: int = 1
 
 var _camera: Camera3D = null
 var _dice_manager: Node3D = null  ## 항상 현재 dice_nodes를 읽기 위해 참조 저장

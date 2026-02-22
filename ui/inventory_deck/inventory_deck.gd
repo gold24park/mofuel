@@ -7,7 +7,7 @@ extends Control
 signal draw_finished
 
 @export var draw_duration: float = 0.3
-@export var card_size: Vector2 = Vector2(60, 80)
+@export var card_size: Vector2 = Vector2(20, 27)
 
 @onready var deck_container: Control = $DeckContainer
 @onready var count_label: Label = $DeckContainer/CountLabel
@@ -59,15 +59,15 @@ func _create_card_visual() -> Control:
 
 	# 테두리 효과용 내부 사각형
 	var inner := ColorRect.new()
-	inner.custom_minimum_size = card_size - Vector2(8, 8)
-	inner.size = card_size - Vector2(8, 8)
-	inner.position = Vector2(4, 4)
+	inner.custom_minimum_size = card_size - Vector2(3, 3)
+	inner.size = card_size - Vector2(3, 3)
+	inner.position = Vector2(1, 1)
 	inner.color = Color(1, 0.98, 0.95)
 	card.add_child(inner)
 
 	# 주사위 아이콘 (간단한 도트)
 	var dots := _create_dice_dots()
-	dots.position = card_size / 2 - Vector2(15, 15)
+	dots.position = card_size / 2 - Vector2(5, 5)
 	card.add_child(dots)
 
 	return card
@@ -75,19 +75,19 @@ func _create_card_visual() -> Control:
 
 func _create_dice_dots() -> Control:
 	var container := Control.new()
-	container.custom_minimum_size = Vector2(30, 30)
+	container.custom_minimum_size = Vector2(10, 10)
 
 	# 5 도트 패턴 (주사위 5)
 	var positions := [
-		Vector2(0, 0), Vector2(24, 0),
-		Vector2(12, 12),
-		Vector2(0, 24), Vector2(24, 24)
+		Vector2(0, 0), Vector2(8, 0),
+		Vector2(4, 4),
+		Vector2(0, 8), Vector2(8, 8)
 	]
 
 	for pos in positions:
 		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(6, 6)
-		dot.size = Vector2(6, 6)
+		dot.custom_minimum_size = Vector2(2, 2)
+		dot.size = Vector2(2, 2)
 		dot.position = pos
 		dot.color = Color(0.3, 0.3, 0.3)
 		container.add_child(dot)

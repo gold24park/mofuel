@@ -435,35 +435,6 @@ func unhighlight_all() -> void:
 #endregion
 
 
-#region 라운드 전환 애니메이션
-## Active → 화면 하단 중앙으로 이동 + 콜백 (라운드 종료 시)
-func animate_dice_to_hand_with_callback(on_each_finished: Callable) -> void:
-	var center := Vector3(0, hand_height, hand_z)
-	var duration := transition_duration * 0.6
-
-	for i in dice_nodes.size():
-		var die := dice_nodes[i]
-		var tween := create_tween()
-		tween.set_ease(Tween.EASE_IN)
-		tween.set_trans(Tween.TRANS_QUAD)
-		tween.set_parallel(true)
-
-		tween.tween_property(die, "global_position", center, duration)
-		var random_rotation := Vector3(
-			randf_range(-TAU, TAU) * 2,
-			randf_range(-TAU, TAU),
-			randf_range(-TAU, TAU) * 2
-		)
-		tween.tween_property(die, "rotation", die.rotation + random_rotation, duration)
-		tween.finished.connect(on_each_finished.bind(i))
-
-		if i < dice_nodes.size() - 1:
-			await get_tree().create_timer(stagger_delay).timeout
-
-	# 마지막 주사위 애니메이션 완료 대기
-	await get_tree().create_timer(duration + 0.05).timeout
-
-
 
 ## 모든 주사위를 화면 하단 중앙으로 즉시 이동 (초기 위치 설정용)
 func set_dice_to_hand_position() -> void:

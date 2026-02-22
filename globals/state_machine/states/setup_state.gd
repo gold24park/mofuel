@@ -15,7 +15,7 @@ func enter() -> void:
 	GameState.inventory.init_starting_inventory()
 	GameState.deck.init_from_inventory(GameState.inventory)
 
-	GameState.deck.draw_initial_hand(GameState.DICE_COUNT)
+	GameState.deck.draw_initial_hand(Deck.HAND_MAX)
 
 	# 시그널 발생
 	GameState.round_changed.emit(GameState.current_round)

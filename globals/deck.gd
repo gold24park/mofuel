@@ -8,7 +8,7 @@ signal pool_changed
 signal hand_changed
 signal active_changed
 
-const HAND_MAX: int = 10
+const HAND_MAX: int = 8
 
 var pool: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []

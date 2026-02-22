@@ -15,8 +15,8 @@ signal score_display_finished
 
 const CYCLE_INTERVAL: float = 0.03 ## 자릿수 순환 속도 (초)
 const SETTLE_DELAY: float = 0.1    ## 자릿수 간 확정 딜레이 (초)
-const DIGIT_FONT_SIZE: int = 32
-const DIGIT_MIN_SIZE := Vector2(20, 40)
+const DIGIT_FONT_SIZE: int = 8
+const DIGIT_MIN_SIZE := Vector2(6, 10)
 const PUNCH_SCALE: float = 1.3
 const CHIPS_COLOR := Color(0.3, 0.55, 1.0)
 const MULT_COLOR := Color(1.0, 0.3, 0.3)

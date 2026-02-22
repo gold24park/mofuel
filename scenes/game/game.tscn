@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" uid="uid://cw8m5hvp2ql7r" path="res://ui/hud/hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" uid="uid://cn8vj5d2ql7mx" path="res://ui/game_over/game_over.tscn" id="7_game_over"]
 [ext_resource type="PackedScene" uid="uid://dh7m2xlalp4qv" path="res://ui/upgrade_screen/upgrade_screen.tscn" id="8_upgrade_screen"]
-[ext_resource type="Shader" uid="uid://b30rplgnr3k2" path="res://shaders/pixelate.gdshader" id="9_pixelate"]
 [ext_resource type="PackedScene" uid="uid://bm7k2xp5ql8vn" path="res://ui/hand_display/hand_display.tscn" id="10_reserve_display"]
 [ext_resource type="PackedScene" path="res://ui/score_display/score_display.tscn" id="11_score_display"]
 [ext_resource type="PackedScene" path="res://ui/action_bar/action_bar.tscn" id="12_action_bar"]
@@ -25,25 +24,14 @@
 [ext_resource type="Script" uid="uid://c0611asothgpk" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
 [ext_resource type="Script" uid="uid://cvia4x0pfap6u" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-
-[sub_resource type="Sky" id="Sky_env"]
-sky_material = SubResource("ProceduralSkyMaterial_sky")
-
 [sub_resource type="Environment" id="Environment_env"]
 background_mode = 1
-background_color = Color(1, 1, 1, 1)
-sky = SubResource("Sky_env")
+background_color = Color(0, 0, 0, 0)
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.15, 0.35, 1)
+ambient_light_energy = 0.4
 tonemap_mode = 2
 glow_enabled = true
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pixelate"]
-shader = ExtResource("9_pixelate")
-shader_parameter/pixelate_size = 5.00000019
-shader_parameter/reference_height = 1280.000038
-shader_parameter/color_levels = 16.0
 
 [node name="Game" type="Control" unique_id=1578359998]
 layout_mode = 3
@@ -53,6 +41,16 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_game")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1888939312]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.0196, 0.0235, 0.0902, 1)
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="." unique_id=1498867438]
 layout_mode = 1
@@ -64,9 +62,11 @@ grow_vertical = 2
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=1495077085]
+transparent_bg = true
 handle_input_locally = false
+scaling_3d_scale = 2.0
 physics_object_picking = true
-size = Vector2i(1152, 648)
+size = Vector2i(384, 216)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport" unique_id=423903647]
@@ -86,37 +86,41 @@ size = 16.98
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=2103781492]
 transform = Transform3D(0.86602527, -0.25000027, 0.43301278, -0.35355353, 0.30618584, 0.8838834, -0.35355356, -0.9185587, 0.17677626, 0, 17, 0)
+light_color = Color(0.85, 0.85, 1, 1)
+light_energy = 1.1
 shadow_enabled = true
-
-[node name="PixelateEffect" type="ColorRect" parent="." unique_id=443855031]
-material = SubResource("ShaderMaterial_pixelate")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=956316046]
 
 [node name="HUD" parent="CanvasLayer" unique_id=909889082 instance=ExtResource("4_hud")]
 
 [node name="GameOver" parent="CanvasLayer" unique_id=753122824 instance=ExtResource("7_game_over")]
+visible = false
 
 [node name="UpgradeScreen" parent="CanvasLayer" unique_id=1555253837 instance=ExtResource("8_upgrade_screen")]
+visible = false
 
 [node name="HandDisplay" parent="CanvasLayer" unique_id=1985327070 instance=ExtResource("10_reserve_display")]
+offset_top = -29.0
+offset_right = -227.0
+offset_bottom = 0.0
 
-[node name="ScoreDisplay" parent="CanvasLayer" instance=ExtResource("11_score_display")]
+[node name="ScoreDisplay" parent="CanvasLayer" unique_id=1212778672 instance=ExtResource("11_score_display")]
+visible = false
 
-[node name="CategoryBreakdown" parent="CanvasLayer" instance=ExtResource("17_category_breakdown")]
+[node name="CategoryBreakdown" parent="CanvasLayer" unique_id=179542077 instance=ExtResource("17_category_breakdown")]
+visible = false
+anchors_preset = -1
+anchor_bottom = 0.3
 
-[node name="ActionBar" parent="CanvasLayer" instance=ExtResource("12_action_bar")]
+[node name="ActionBar" parent="CanvasLayer" unique_id=1469806461 instance=ExtResource("12_action_bar")]
+visible = false
 
 [node name="DiceStats" parent="CanvasLayer" unique_id=551138598 instance=ExtResource("16_dice_stats")]
+visible = false
 
 [node name="RollButton" parent="CanvasLayer" unique_id=1637481334 instance=ExtResource("13_roll_button")]
+visible = false
 
 [node name="InventoryDeck" parent="CanvasLayer" unique_id=334932875 instance=ExtResource("14_inventory_deck")]
 anchors_preset = 3
@@ -124,18 +128,21 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -100.0
-offset_top = -190.0
+offset_left = -33.0
+offset_top = -63.0
 offset_right = 0.0
 offset_bottom = 0.0
 grow_horizontal = 0
 grow_vertical = 0
 
 [node name="DiceTooltip" parent="CanvasLayer" unique_id=956099878 instance=ExtResource("15_dice_tooltip")]
+visible = false
 
-[node name="OrnamentGridUI" parent="CanvasLayer" instance=ExtResource("18_ornament_grid")]
+[node name="OrnamentGridUI" parent="CanvasLayer" unique_id=1884631820 instance=ExtResource("18_ornament_grid")]
+visible = false
 
-[node name="OrnamentMiniGrid" parent="CanvasLayer" instance=ExtResource("19_ornament_mini_grid")]
+[node name="OrnamentMiniGrid" parent="CanvasLayer" unique_id=268230116 instance=ExtResource("19_ornament_mini_grid")]
+visible = false
 
 [node name="StateMachine" type="Node" parent="." unique_id=2064687143]
 script = ExtResource("state_machine")

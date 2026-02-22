@@ -39,12 +39,12 @@ func _populate_categories():
 		# 현재 상태
 		var status_label = Label.new()
 		status_label.text = "Mult: x%.1f" % upgrade.get_total_multiplier()
-		status_label.custom_minimum_size = Vector2(120, 0)
+		status_label.custom_minimum_size = Vector2(40, 0)
 
 		# 배수 강화 버튼
 		var mult_button = Button.new()
 		mult_button.text = "+Mult"
-		mult_button.custom_minimum_size = Vector2(80, 40)
+		mult_button.custom_minimum_size = Vector2(27, 13)
 		mult_button.disabled = not upgrade.can_upgrade_multiplier()
 		mult_button.pressed.connect(_on_upgrade_mult.bind(cat.id, hbox))
 
