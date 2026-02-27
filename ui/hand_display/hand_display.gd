@@ -28,7 +28,7 @@ const HAND_MAX := Deck.HAND_MAX
 ]
 
 
-func _ready():
+func _ready() -> void:
 	GameState.hand_changed.connect(_on_hand_changed)
 	draw_button.draw_pressed.connect(func(): draw_pressed.emit())
 	_build_ui()

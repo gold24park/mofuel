@@ -25,6 +25,11 @@ const ALL_STRAIGHT_PATTERNS := [
 #region Core Scoring
 static func calculate_score(category, dice: Array) -> int:
 	_process_score_effects(dice)
+	return _calculate_score_core(category, dice)
+
+
+## 효과 처리 없이 순수 점수 계산 (효과가 이미 적용된 상태에서 호출)
+static func _calculate_score_core(category, dice: Array) -> int:
 	var values := _get_effective_values(dice, category)
 	var result := _evaluate_pattern(category, values)
 	var base: int = result["base"]
@@ -378,9 +383,15 @@ static func _get_straight_best_value(values: Array) -> int:
 
 #region Public Queries
 static func calculate_all_scores(dice: Array) -> Dictionary:
+	_process_score_effects(dice) # 효과 1회만 처리
 	var results := {}
 	for cat in CategoryRegistry.get_all_categories():
-		results[cat.id] = calculate_score_with_upgrade(cat, dice)
+		var base_score := _calculate_score_core(cat, dice)
+		var upgrade := MetaState.get_upgrade(cat.id)
+		if upgrade:
+			results[cat.id] = int(base_score * upgrade.get_total_multiplier())
+		else:
+			results[cat.id] = base_score
 	return results
 
 

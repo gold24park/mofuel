@@ -1,7 +1,7 @@
 class_name GameOverState
 extends GameStateBase
 
-## 게임 종료 상태: 승/패 결과 화면
+## 게임 종료 상태: 도주 성공(Escaped) / 체포(Busted)
 ## - Restart: SetupState로 전환
 ## - Upgrade: 업그레이드 화면 표시
 
@@ -10,8 +10,11 @@ func enter() -> void:
 	GameState.current_phase = GameState.Phase.GAME_OVER
 	GameState.phase_changed.emit(GameState.current_phase)
 
+	# 타이머 정지
+	GameState.set_timer_running(false)
+
 	# 승/패 판정
-	var won := GameState.total_score >= GameState.target_score
+	var won := GameState.is_game_won()
 	GameState.game_over.emit(won)
 
 	_connect_signals()

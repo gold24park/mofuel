@@ -1,13 +1,16 @@
 class_name RollingState
 extends GameStateBase
 
-## 물리 시뮬레이션 중 상태: 모든 입력 차단
+## 주사위 스핀 중 상태: 모든 입력 차단, 타이머 정지
 ## all_dice_finished 시그널 수신 시 PostRollState로 전환
 
 
 func enter() -> void:
 	GameState.current_phase = GameState.Phase.ROLLING
 	GameState.phase_changed.emit(GameState.current_phase)
+
+	# 주사위 애니메이션 중 타이머 정지 (플레이어 선택이 아님)
+	GameState.set_timer_running(false)
 
 	# 시그널 연결
 	game_root.dice_manager.all_dice_finished.connect(_on_all_dice_finished)

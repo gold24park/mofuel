@@ -26,8 +26,6 @@ var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
 var _spotlight: OmniLight3D = null
 var roll_start_time: float = 0.0
-var _used_burst_mask: bool = false # 버스트 마스크 사용 여부
-
 # Breathing animation
 var is_breathing: bool = false
 var breath_time: float = 0.0
@@ -41,7 +39,7 @@ signal dice_hovered(dice_index: int)
 signal dice_unhovered(dice_index: int)
 
 
-func _ready():
+func _ready() -> void:
 	_base_gravity_scale = gravity_scale
 	_base_linear_damp = linear_damp
 	_base_angular_damp = angular_damp
@@ -68,14 +66,6 @@ func _process_rolling() -> void:
 	if elapsed > ROLL_TIMEOUT:
 		_force_settle()
 
-	# 0.3초 후 주사위끼리 충돌 활성화 (버스트 시에만)
-	if _used_burst_mask and elapsed > 0.3:
-		collision_mask = CollisionLayers.ROLLING_MASK
-		_used_burst_mask = false
-
-	# 스케일 펀치 복구 (버스트 후)
-	if dice_mesh.scale != Vector3.ONE:
-		dice_mesh.scale = dice_mesh.scale.lerp(Vector3.ONE, 0.15)
 
 
 func _process_moving_to_display(delta: float) -> void:
@@ -175,63 +165,7 @@ func set_display_position(new_pos: Vector3) -> void:
 		current_state = State.MOVING_TO_DISPLAY
 
 
-#region Radial Burst
-func roll_dice_radial_burst(center: Vector3, direction: Vector3, strength: float) -> void:
-	if current_state == State.ROLLING:
-		return
-
-	is_selected = false
-	if outline_mesh:
-		outline_mesh.visible = false
-	set_spotlight(false)
-
-	# 즉시 중앙에 위치
-	current_state = State.ROLLING
-	roll_start_time = Time.get_ticks_msec() / 1000.0
-	global_position = center
-
-	# 랜덤 회전
-	transform.basis = Basis(Vector3.RIGHT, randf_range(0, TAU)) * transform.basis
-	transform.basis = Basis(Vector3.UP, randf_range(0, TAU)) * transform.basis
-	transform.basis = Basis(Vector3.FORWARD, randf_range(0, TAU)) * transform.basis
-
-	# 물리 활성화 (버스트 중에는 주사위끼리 충돌 안 함)
-	collision_layer = CollisionLayers.ROLLING_DICE
-	collision_mask = CollisionLayers.BURST_MASK
-	_used_burst_mask = true
-	sleeping = false
-	freeze = false
-	linear_velocity = Vector3.ZERO
-	angular_velocity = Vector3.ZERO
-
-	# 스케일 펀치 (팡! 효과)
-	dice_mesh.scale = Vector3.ONE * 1.5
-
-	# 버스트 임펄스 - 높은 곳에서 떨어뜨리면서 퍼짐
-	var s := _physics_scale
-	var dir: Vector3 = direction.normalized()
-	var horizontal_strength: float = strength * 0.4
-	var downward_speed: float = strength * 0.7
-
-	linear_velocity = Vector3(0, -downward_speed * s, 0) # 아래로 떨어지는 초기 속도
-
-	var impulse := dir * horizontal_strength
-	impulse += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
-	apply_central_impulse(impulse * s)
-
-	# 강한 회전
-	var spin_axis := dir.cross(Vector3.UP)
-	if spin_axis.length() < 0.1:
-		spin_axis = Vector3.RIGHT
-	angular_velocity = (spin_axis.normalized() * strength * 0.7 + Vector3(
-		randf_range(-8, 8),
-		randf_range(-8, 8),
-		randf_range(-8, 8)
-	)) * s
-#endregion
-
-
-#region Spin In Place (Reroll)
+#region Spin In Place
 ## Tween 기반 제자리 스핀 — 물리 없이 빠르게 회전 후 결과 면에 정착
 func spin_in_place() -> void:
 	if current_state == State.ROLLING:

@@ -46,7 +46,7 @@ func _init(config: Dictionary = {}) -> void:
 
 
 ## 효과 평가 — modify_target에 따라 EffectResult 필드 설정
-func evaluate(context) -> EffectResult:
+func evaluate(context: EffectContext) -> EffectResult:
 	var result := EffectResult.new()
 
 	match modify_target:

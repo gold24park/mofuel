@@ -8,7 +8,7 @@ signal pool_changed
 signal hand_changed
 signal active_changed
 
-const HAND_MAX: int = 8
+const HAND_MAX: int = 10
 
 var pool: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []
@@ -26,7 +26,7 @@ func init_from_inventory(inv: Inventory) -> void:
 	pool_changed.emit()
 
 
-func draw_initial_hand(count: int = GameState.DICE_COUNT):
+func draw_initial_hand(count: int = GameState.DICE_COUNT) -> void:
 	for i in range(count):
 		if not pool.is_empty():
 			hand.append(pool.pop_front())
@@ -34,7 +34,7 @@ func draw_initial_hand(count: int = GameState.DICE_COUNT):
 	pool_changed.emit()
 
 
-func draw_to_hand(count: int = 1):
+func draw_to_hand(count: int = 1) -> void:
 	for i in range(count):
 		if pool.is_empty():
 			break
@@ -61,7 +61,7 @@ func can_draw() -> bool:
 	return not pool.is_empty() and (hand.size() + active_dice.size()) < HAND_MAX
 
 
-func return_active_to_hand():
+func return_active_to_hand() -> void:
 	for dice in active_dice:
 		hand.append(dice)
 	active_dice.clear()
@@ -152,6 +152,15 @@ func reorder_active_dice(new_order_indices: Array[int]) -> void:
 
 	active_dice = new_active
 	active_changed.emit()
+
+
+## Hand 전체를 pool로 되돌리고 count개 새로 드로우
+func redraw_hand(count: int) -> void:
+	for dice in hand:
+		pool.append(dice)
+	hand.clear()
+	pool.shuffle()
+	draw_to_hand(count)
 
 
 func get_pool_count() -> int:

@@ -43,3 +43,9 @@ text = "REROLL (2)"
 custom_minimum_size = Vector2(50, 23)
 layout_mode = 2
 text = "DOUBLE DOWN x2"
+
+[node name="RollConfirmButton" type="Button" parent="CenterContainer/HBoxContainer"]
+visible = false
+custom_minimum_size = Vector2(47, 23)
+layout_mode = 2
+text = "ROLL"

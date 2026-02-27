@@ -52,7 +52,7 @@ func _update() -> void:
 			var should_show := not GameState.is_transitioning
 			visible = should_show
 			button.text = "ROLL!"
-			set_enabled(GameState.active_dice.size() == 5)
+			set_enabled(GameState.active_dice.size() == GameState.DICE_COUNT)
 			if should_show:
 				_pulse_time = 0.0
 				button.scale = Vector2.ONE

@@ -7,10 +7,10 @@ const DICE_MODEL = preload("res://assets/dice/dice.glb")
 
 var dice_model: Node3D = null
 var rotation_speed: float = 1.0
-var dice_instance = null
+var dice_instance: DiceInstance = null
 
 
-func _ready():
+func _ready() -> void:
 	_setup_dice()
 
 
@@ -19,7 +19,7 @@ func _process(delta: float):
 		dice_model.rotate_y(rotation_speed * delta)
 
 
-func _setup_dice():
+func _setup_dice() -> void:
 	dice_model = DICE_MODEL.instantiate()
 	dice_holder.add_child(dice_model)
 	dice_model.position = Vector3.ZERO

@@ -33,7 +33,10 @@
       "Bash(xargs -I {} sh -c 'echo \"\"\"\"=== {} ===\"\"\"\" && grep \"\"\"\"^class_name\"\"\"\" {}')",
       "Bash(git mv:*)",
       "Bash(/Applications/Godot*.app/Contents/MacOS/Godot)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__godot__get_uid",
+      "Bash(grep -rn \"func.*->.*:\" /Users/jieunpark/GodotProjects/mofuel --include=\"*.gd\" --exclude-dir=.history 2>/dev/null | grep -v \" -> \" | head -20)",
+      "Bash(wc -l /Users/jieunpark/GodotProjects/mofuel/globals/state_machine/states/*.gd | sort -n)"
     ]
   },
   "enableAllProjectMcpServers": true,

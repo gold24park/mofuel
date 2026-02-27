@@ -11,6 +11,13 @@
       "args": [
         "blender-mcp"
       ]
+    },
+    "pixellab": {
+      "type": "http",
+      "url": "https://api.pixellab.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer 37fc50b0-69bd-4806-8438-5e94e118e071"
+      }
     }
   }
 }

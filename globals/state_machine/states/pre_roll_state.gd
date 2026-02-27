@@ -1,14 +1,15 @@
 class_name PreRollState
 extends GameStateBase
 
-## PRE_ROLL 상태
+## PRE_ROLL 상태 (타이머 진행 — 플레이어 선택 시간)
 ## - 기본: Hand에서 주사위 클릭 → Active로 이동
 ## - Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭
 ## - Hand == 5 & Active == 0 → 자동 활성화 (순차 애니메이션)
 ## - Draw 버튼: deck pool에서 hand로 드로우
+## - Redraw 버튼: Hand 전체 교체 (게임당 2회)
 
 var _is_animating: bool = false
-var _prev_active: Array[DiceInstance] = [] ## 이전 라운드 활성 주사위 (자동 복원용)
+var _prev_active: Array[DiceInstance] = [] ## 이전 활성 주사위 (자동 복원용)
 
 
 func enter() -> void:
@@ -16,18 +17,19 @@ func enter() -> void:
 	GameState.current_phase = GameState.Phase.PRE_ROLL
 	GameState.phase_changed.emit(GameState.current_phase)
 
-	GameState.current_round += 1
-	GameState.round_changed.emit(GameState.current_round)
+	# 타이머 정지 (PRE_ROLL은 준비 시간 — 주사위 선택 중에는 시간이 흐르지 않는다)
+	GameState.set_timer_running(false)
 
-	GameState.rerolls_remaining = GameState.MAX_REROLLS
+	# Double Down 리셋 (매 롤마다)
 	GameState.is_double_down = false
-	GameState.max_draws_per_round = GameState.BASE_MAX_DRAWS
 
-	# 오너먼트 패시브 효과 적용
-	_apply_ornament_passives()
+	# 오너먼트 패시브 효과 적용 (게임 시작 후 첫 진입 시에만)
+	# SetupState 직후에만 true (SetupState가 Phase.SETUP → PreRollState 전환)
+	var is_new_game := GameState.active_dice.size() == 0 and _prev_active.is_empty()
+	if is_new_game:
+		_apply_ornament_passives()
 
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
-	GameState.draws_remaining = GameState.max_draws_per_round
 	GameState.draws_changed.emit(GameState.draws_remaining)
 
 	_is_animating = false
@@ -61,7 +63,8 @@ func _disconnect_signals() -> void:
 func _play_round_transition() -> void:
 	GameState.is_transitioning = true
 
-	if GameState.current_round == 1:
+	# 첫 진입 vs 이후 진입 판단: active가 비어있고 hand가 있으면 첫 진입
+	if GameState.active_dice.size() == 0 and GameState.deck.hand.size() > 0:
 		game_root.dice_manager.set_dice_to_hand_position()
 	else:
 		_prev_active = GameState.active_dice.duplicate()
@@ -79,7 +82,7 @@ func _play_round_transition() -> void:
 
 #region 자동 활성화 (공통 체크)
 ## Hand == 5 → 전부 활성화
-## Hand > 5 & 이전 라운드 주사위 존재 → 이전 주사위 자동 활성화
+## Hand > 5 & 이전 주사위 존재 → 이전 주사위 자동 활성화
 func _try_auto_activate() -> void:
 	if _is_animating:
 		return
@@ -93,7 +96,7 @@ func _try_auto_activate() -> void:
 		# 정확히 5개 — 전부 활성화
 		indices.assign(range(GameState.DICE_COUNT))
 	elif hand.size() > GameState.DICE_COUNT and not _prev_active.is_empty():
-		# 6개 이상 — 이전 라운드 주사위 우선 활성화
+		# 6개 이상 — 이전 주사위 우선 활성화
 		for prev_dice in _prev_active:
 			var idx := hand.find(prev_dice)
 			if idx >= 0 and idx not in indices:
@@ -185,8 +188,8 @@ func _on_draw_pressed() -> void:
 func _on_roll_pressed() -> void:
 	if _is_animating or GameState.is_transitioning:
 		return
-	game_root.dice_manager.roll_dice_radial_burst()
-	transitioned.emit(self , "RollingState")
+	game_root.dice_manager.roll_dice_spin_all()
+	transitioned.emit(self, "RollingState")
 #endregion
 
 
@@ -198,7 +201,7 @@ func _apply_ornament_passives() -> void:
 			"reroll_bonus":
 				GameState.rerolls_remaining += int(effect["delta"])
 			"draw_bonus":
-				GameState.max_draws_per_round += int(effect["delta"])
+				GameState.draws_remaining += int(effect["delta"])
 
 	# 패시브 보유 오너먼트 하이라이트
 	for ornament in MetaState.ornament_grid.placed_ornaments:

@@ -17,11 +17,6 @@ const DICE_COUNT: int = 5
 @export var transition_duration: float = 0.4
 @export var stagger_delay: float = 0.05 ## 각 주사위 간 딜레이
 
-## 방사형 버스트 설정
-@export_group("Radial Burst")
-@export var burst_height: float = 20.0
-@export var burst_strength: float = 28.0
-
 ## 롤 속도 설정
 @export_group("Roll Speed")
 @export var roll_time_scale: float = 2.0
@@ -33,7 +28,7 @@ var dice_nodes: Array[RigidBody3D] = []
 
 ## 롤 상태 관리
 var _rolling_indices: Array[int] = []
-var _pending_results: Dictionary = {} # {index: value}
+var _pending_results: Dictionary[int, int] = {} # {index: value}
 var _cached_values: Array[int] = [0, 0, 0, 0, 0]
 
 ## 효과 캐시 (라운드당 1회 계산)
@@ -41,6 +36,7 @@ var _cached_effects: Dictionary = {}
 
 ## 선택 상태 관리
 var _selected_indices: Array[int] = []
+var _selection_enabled: bool = false
 
 ## 스포트라이트 모드
 var _directional_light: DirectionalLight3D = null
@@ -95,12 +91,19 @@ func set_dice_instances(instances: Array) -> void:
 
 #region 롤 API
 
-func roll_dice_radial_burst() -> void:
+## 전체 롤: 모든 주사위를 제자리 스핀 (Tween 기반, 순차 시작)
+func roll_dice_spin_all() -> void:
 	var indices: Array[int] = []
 	for i in DICE_COUNT:
 		indices.append(i)
-	_roll_dice_radial_burst(indices)
+	_rolling_indices = indices.duplicate()
+	_pending_results.clear()
 	_reset_state()
+	# 순차 스핀 시작 (타-타-탕!)
+	for i in indices.size():
+		if i > 0:
+			await get_tree().create_timer(REROLL_STAGGER).timeout
+		dice_nodes[indices[i]].spin_in_place()
 
 ## 리롤: 선택된 주사위를 제자리 스핀 (물리 없이 Tween 기반, 순차 시작)
 const REROLL_STAGGER: float = 0.12 ## 각 주사위 스핀 시작 간격
@@ -119,23 +122,6 @@ func reroll_spin_in_place() -> void:
 		dice_nodes[indices[i]].spin_in_place()
 
 
-func _roll_dice_radial_burst(indices: Array[int]) -> void:
-	_rolling_indices = indices.duplicate()
-	_pending_results.clear()
-	_set_fast_physics(true)
-
-	var center := Vector3(0, burst_height, 0)
-	var angle_step := TAU / indices.size()
-
-	for i in indices.size():
-		var idx := indices[i]
-		# 각 주사위마다 방사형 방향 계산
-		var base_angle := angle_step * i
-		var random_offset := randf_range(-0.15, 0.15) # 약간의 랜덤
-		var angle := base_angle + random_offset
-
-		var direction := Vector3(cos(angle), 0, sin(angle))
-		dice_nodes[idx].roll_dice_radial_burst(center, direction, burst_strength)
 #endregion
 
 
@@ -181,7 +167,7 @@ func _sort_and_animate_dice() -> void:
 	new_dice_nodes.resize(DICE_COUNT)
 	var new_cached_values: Array[int] = []
 	new_cached_values.resize(DICE_COUNT)
-	var old_to_new := {}
+	var old_to_new: Dictionary[int, int] = {}
 
 	var new_order_indices: Array[int] = [] # Deck용
 
@@ -362,7 +348,9 @@ func _on_dice_clicked(dice_index: int) -> void:
 		return
 
 	if phase == GameState.Phase.POST_ROLL:
-		# POST_ROLL: Reroll용 다중 선택 토글
+		# POST_ROLL: 리롤 모드에서만 선택 가능
+		if not _selection_enabled:
+			return
 		var is_already_selected := dice_index in _selected_indices
 		_set_dice_selection(dice_index, not is_already_selected)
 		selection_changed.emit(_selected_indices.duplicate())
@@ -373,6 +361,19 @@ func get_selected_indices() -> Array[int]:
 
 func get_selected_count() -> int:
 	return _selected_indices.size()
+
+
+func deselect_all() -> void:
+	for i in _selected_indices:
+		dice_nodes[i].set_selected(false)
+	_selected_indices.clear()
+	selection_changed.emit([])
+
+
+func set_selection_enabled(enabled: bool) -> void:
+	_selection_enabled = enabled
+	if not enabled:
+		deselect_all()
 
 
 ## 내부 헬퍼: 선택 상태 변경 및 비주얼 동기화

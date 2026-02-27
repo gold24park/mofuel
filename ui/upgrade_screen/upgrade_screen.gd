@@ -6,17 +6,17 @@ signal continue_pressed
 @onready var continue_button: Button = $Panel/ContinueButton
 
 
-func _ready():
+func _ready() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	visible = false
 
 
-func show_upgrades():
+func show_upgrades() -> void:
 	visible = true
 	_populate_categories()
 
 
-func _populate_categories():
+func _populate_categories() -> void:
 	# 기존 항목 제거
 	for child in category_container.get_children():
 		child.queue_free()
@@ -55,12 +55,12 @@ func _populate_categories():
 		category_container.add_child(hbox)
 
 
-func _on_upgrade_mult(category_id: String, hbox: HBoxContainer):
+func _on_upgrade_mult(category_id: String, hbox: HBoxContainer) -> void:
 	MetaState.upgrade_multiplier(category_id)
 	_update_row(category_id, hbox)
 
 
-func _update_row(category_id: String, hbox: HBoxContainer):
+func _update_row(category_id: String, hbox: HBoxContainer) -> void:
 	var cat = CategoryRegistry.get_category(category_id)
 	var upgrade = MetaState.get_upgrade(category_id)
 	if cat == null or upgrade == null:
@@ -75,6 +75,6 @@ func _update_row(category_id: String, hbox: HBoxContainer):
 	mult_button.disabled = not upgrade.can_upgrade_multiplier()
 
 
-func _on_continue_pressed():
+func _on_continue_pressed() -> void:
 	visible = false
 	continue_pressed.emit()

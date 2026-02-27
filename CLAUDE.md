@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**mofuel** is a Godot 4.6 mobile game project featuring a Yacht-like dice game with physics simulation and meta-progression.
+**mofuel** is a Godot 4.6 mobile game — a roguelike deck-building dice poker with real-time tension.
+
+**핵심 컨셉:** 은행을 턴 후, 경찰의 추격을 따돌리고 베이스 캠프까지 무사히 도주하는 하이 텐션 다이스 레이싱. 플레이어는 주사위를 굴려 점수를 얻고, 그 점수를 **거리 환산**(도주 진행) 또는 **시간 확보**(타이머 연장) 중 하나로 치환하며, 제한 시간 안에 목표 거리를 달성해야 한다.
 
 ## Development Commands
 
@@ -25,7 +27,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ## Architecture
 
 ### Entry Point
-- **Main Scene:** `scenes/game/game.tscn` - Yacht-like dice game
+- **Main Scene:** `scenes/game/game.tscn` - 다이스 레이싱 (은행 도주)
 
 ### Directory Structure
 ```
@@ -40,11 +42,11 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     scoring.gd        # Score calculation
     dice_*.gd         # Dice type/instance classes
     category_*.gd     # Category/upgrade classes
-    ornament_resource.gd  # 오너먼트 타입 정의 (shape, effects)
-    ornament_instance.gd  # 오너먼트 배치 상태 인스턴스
-    ornament_grid.gd      # 6x6 그리드 순수 로직
-    ornament_types.gd     # 오너먼트 데이터 정의 (DiceTypes 패턴)
-    ornament_registry.gd  # 오너먼트 로더 (Autoload)
+    ornament_resource.gd  # 기어(Gear) 타입 정의 (shape, effects)
+    ornament_instance.gd  # 기어 배치 상태 인스턴스
+    ornament_grid.gd      # 트렁크(Trunk) 그리드 순수 로직
+    ornament_types.gd     # 기어 데이터 정의 (DiceTypes 패턴)
+    ornament_registry.gd  # 기어 로더 (Autoload)
     effect_context.gd     # 효과 실행 컨텍스트
     effect_result.gd      # 효과 결과 (시각적 피드백 포함)
     effect_processor.gd   # 수집→적용 파이프라인
@@ -52,12 +54,12 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
       game_state_machine.gd   # State machine controller
       game_state_base.gd      # Base state class
       /states/
-        setup_state.gd        # 게임 초기화
-        pre_roll_state.gd     # 첫 굴림 전 (Hand→Active 선택)
-        rolling_state.gd      # 물리 시뮬레이션 중
-        post_roll_state.gd    # 굴린 후 (Keep/Reroll/Score)
-        scoring_state.gd      # 카테고리 선택
-        game_over_state.gd    # 승/패 결과
+        setup_state.gd        # 게임 초기화 (은행 선택 후)
+        pre_roll_state.gd     # 주사위 드로우 + 5개 선택 (타이머 정지)
+        rolling_state.gd      # 주사위 스핀 애니메이션 (타이머 정지)
+        post_roll_state.gd    # 굴린 후 (Stand/Reroll/DD) (점수연출 중 정지 → ActionBar 표시 후 진행)
+        conversion_state.gd   # 점수→거리/시간 치환 선택
+        game_over_state.gd    # 도주 성공/체포 결과
     /effects/             # Dice effect subclasses
       modifier_effect.gd           # 범용 점수 수정 (Data-driven)
       action_effect.gd             # 게임 상태 변경 (드로우/파괴/변환)
@@ -73,14 +75,16 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
     /world/           # Legacy single-dice demo
 
   /ui/                # UI components
-    /hud/             # Top status bar
-    /hand_display/    # Hand bar (고정 10슬롯 + DiscardSlot + DrawButton)
+    /hud/             # 화면 최상단: 타이머 바 + 남은 거리 시각화
+    /hand_display/    # 화면 하단: Hand bar (고정 10슬롯 + DiscardSlot + RedrawButton)
     /score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
     /category_breakdown/  # POST_ROLL 족보 현황 패널 (전체 족보 + 최고 하이라이트)
-    /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down)
-    /game_over/       # Win/lose screen (+ Ornaments 버튼)
+    /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down + 리롤 모드: Back/Roll)
+    /conversion_ui/   # 점수 치환 선택 UI (거리 환산/시간 확보)
+    /game_over/       # 도주 성공/체포 화면
     /upgrade_screen/  # Category upgrade UI
-    /ornament_grid/   # 오너먼트 테트리스 배치 UI
+    /ornament_grid/   # 트렁크(Trunk) UI — 기어 테트리스 배치 + 로드아웃
+    /chase_bg/        # 도주 배경 (차량 + 경찰차, 타이머 연동 멈춤/채도)
 
   /resources/         # Data definitions
     /dice_types/      # (비어있음 — 데이터는 globals/dice_types.gd)
@@ -88,48 +92,54 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 
 ### Game Flow
-1. **SETUP**: 게임 초기화, Inventory → Deck(deep-copy) → Hand로 주사위 드로우 (초기 5개)
-2. **PRE_ROLL**: Hand에서 5개를 선택하여 Active로 배치
+
+**기획서 기반 핵심 루프 — 실시간 타이머 + 거리 도달 승리 조건**
+
+1. **은행 선택** (TODO): 목표 거리와 난이도, 특성이 다른 은행 중 하나를 선택. 기본 타이머 7초.
+2. **SETUP**: 게임 초기화, Inventory → Deck(deep-copy), 캐릭터 특성 적용
+3. **PRE_ROLL** (타이머 **정지**): 인벤토리에서 무작위 8개를 Hand로 드로우. 5개를 선택하여 Active로 배치.
    - Hand == 5 & Active == 0 → **자동 활성화** (순차 애니메이션)
    - Hand > 5 → Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
    - Active 주사위 클릭 → Hand로 내려감
    - **Discard**: Hand 주사위를 DiscardSlot(빨간 X)으로 드래그 앤 드롭 (hand > 5일 때만)
-   - **Draw 버튼**: Hand 바 우측 "+" 버튼, Deck pool에서 Hand로 1개 드로우 (라운드당 횟수 제한)
+   - **리드로우**: 게임당 2회, Hand 전체를 새로 8개로 교체 (Draw 버튼과 별도)
    - 5개 선택 완료 시 Roll 버튼 활성화
-3. **ROLLING**: Swipe to roll all 5 dice (물리 시뮬레이션 중 입력 차단)
-4. **POST_ROLL**:
+4. **ROLLING** (타이머 **정지**): 5개 주사위 제자리 스핀 (Tween 기반, 물리 없음). 입력 차단.
+5. **POST_ROLL** (점수 연출 중 타이머 **정지** → ActionBar 표시 후 **진행**):
    - **자동 정렬**: 굴림 완료 후 주사위 눈 오름차순으로 자동 정렬 (물리적 위치 이동)
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
    - **ScoreDisplay**: 발라트로 스타일 점수 연출 (카테고리명 → chips × mult → 최종 점수)
    - **자동 족보 선택**: 시스템이 최고 점수 카테고리 자동 선택 (수동 선택 없음)
    - **CategoryBreakdown**: 좌측 패널에 전체 족보 현황 표시 (매칭된 족보 + 최고 하이라이트)
    - **ActionBar**: Stand / Reroll / Double Down 버튼
-     - **Stand**: 현재 최고 족보로 점수 확정
-     - **Reroll**: 선택한 주사위 리롤 (리롤 1개 소모)
+     - **Stand**: 현재 최고 족보로 점수 확정 → ConversionState로
+     - **Reroll**: 리롤 모드 진입 (타이머 정지) → 주사위 선택 → Roll 확정 (리롤 1개 소모, 게임당 3회)
      - **Double Down**: 리롤 2개 소모, 전체 리롤, 점수 ×2 (1회 제한)
    - 리롤 불가 시 자동 Stand (점수 연출만 보여주고 종료)
-5. **SCORING**: PostRollState에서 전달받은 점수를 자동 기록 (UI 선택 없음)
-   - 유효 족보 없으면 자동 0점 (burst)
-6. **라운드 전환**: Active 5개가 Hand로 돌아감 → PRE_ROLL (자동 드로우 없음)
-7. **GAME_OVER**: 100 points in 5 rounds to win
-   - **Ornaments 버튼**: 오너먼트 그리드 배치 화면 (매치 사이 관리)
+6. **CONVERSION** (타이머 **정지**): 점수를 어떻게 사용할지 선택
+   - **거리 환산**: 점수를 소모해 남은 거리를 줄인다
+   - **시간 확보**: 점수를 소모해 타이머에 시간을 추가한다
+   - 유효 족보 없으면 자동 0점 (burst) — 선택 없이 즉시 다음으로
+7. **반복**: Active 5개가 Hand로 돌아감 → PRE_ROLL. 시간이 남아있고 거리 미달이면 반복.
+8. **GAME_OVER**: 거리 달성 → 도주 성공 (베이스 캠프 도착) / 시간 초과 → 체포 (게임 오버)
+   - **베이스 캠프** (TODO): 돈 정산, 상점, 트렁크(기어 배치) + 로드아웃 정비, 특별 NPC
 
 ### State Management
 
 **State Machine 기반 게임 흐름 관리:**
 
 ```
-enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, SCORING, GAME_OVER }
+enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER }
 ```
 
-| Phase | 설명 | 허용 액션 |
-|-------|------|-----------|
-| `SETUP` | 게임 초기화 (1회성) | - |
-| `PRE_ROLL` | 첫 굴림 전 | Hand→Active 선택, Discard, Draw, Roll |
-| `ROLLING` | 물리 시뮬레이션 중 | 입력 차단 |
-| `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | Stand, Reroll, Double Down |
-| `SCORING` | 자동 점수 기록 | - (자동 처리) |
-| `GAME_OVER` | 승/패 결과 | Restart, Upgrade, Ornaments |
+| Phase | 설명 | 타이머 | 허용 액션 |
+|-------|------|--------|-----------|
+| `SETUP` | 게임 초기화 (1회성) | 정지 | - |
+| `PRE_ROLL` | 주사위 드로우 + 5개 선택 | **정지** | Hand→Active 선택, Discard, Redraw, Roll |
+| `ROLLING` | 주사위 스핀 애니메이션 | **정지** | 입력 차단 |
+| `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | 연출 중 **정지** → ActionBar 후 **진행** | Stand, Reroll, Double Down |
+| `CONVERSION` | 점수→거리/시간 치환 선택 | **정지** | 거리 환산, 시간 확보 |
+| `GAME_OVER` | 도주 성공 / 체포 | 정지 | Restart, Base Camp |
 
 **상태 전환 흐름:**
 ```
@@ -138,25 +148,28 @@ SetupState → PreRollState → RollingState → PostRollState
                  │              ├───(reroll)────┤
                  │              └──(dbl down)───┤
                  │                              │ (stand / auto)
-                 └──────────────────────────────┤
-                                                ↓
-                                         ScoringState
-                                                │
-                                    ┌───────────┴───────────┐
-                                    ↓                       ↓
-                              PreRollState            GameOverState
-                              (다음 라운드)
+                 │                              ↓
+                 │                      ConversionState
+                 │                              │
+                 │              ┌───────────────┤
+                 │              │               │
+                 │              ↓ (거리 미달     ↓ (거리 달성 OR
+                 │              & 시간 남음)      시간 초과)
+                 └──────────────┘          GameOverState
 ```
 
 **핵심 클래스:**
 - **GameStateMachine**: 상태 전환 관리, game.tscn의 자식 노드
 - **GameStateBase**: 상태 베이스 클래스 (enter/exit/update/handle_input)
-- **GameState**: Autoload singleton for match data (Phase, score, rerolls, inventory, deck 등)
-  - 게임 상수: `DICE_COUNT = 5`, `MAX_FACE_VALUE = 6`, `MAX_REROLLS = 2`, `DOUBLE_DOWN_COST = 2`, `BASE_MAX_DRAWS = 1`
+- **GameState**: Autoload singleton for match data (Phase, timer, distance, rerolls, inventory, deck 등)
+  - 게임 상수: `DICE_COUNT = 5`, `MAX_FACE_VALUE = 6`, `MAX_REROLLS = 3` (게임당), `DOUBLE_DOWN_COST = 2`, `MAX_REDRAWS = 2` (게임당), `HAND_DRAW_COUNT = 8`
+  - 타이머: `remaining_time`, `timer_running`, `BASE_TIME = 7.0`
+  - 거리: `remaining_distance`, `target_distance`
   - Double Down: `is_double_down`, `can_double_down()`, `DOUBLE_DOWN_MULTIPLIER = 2.0`
-- **MetaState**: Autoload singleton for upgrades + ornaments (persists between matches)
-  - `ornament_grid`: OrnamentGrid (6x6 배치 그리드)
-  - `owned_ornaments`: Array[OrnamentInstance] (보유 오너먼트)
+  - 치환: `convert_to_distance(score)`, `convert_to_time(score)`
+- **MetaState**: Autoload singleton for upgrades + gear (persists between matches)
+  - `ornament_grid`: OrnamentGrid — 트렁크(Trunk) 적재 그리드 (4x4 기본)
+  - `owned_ornaments`: Array[OrnamentInstance] — 보유 기어(Gear) 목록
 - **Inventory**: 영구 주사위 컬렉션 (RefCounted, `GameState.inventory`)
 - **Deck**: 스테이지 로컬 덱 — pool/hand/active_dice (RefCounted, `GameState.deck`)
 
@@ -198,28 +211,37 @@ SetupState → PreRollState → RollingState → PostRollState
 - **`DiceInstance.clone_for_stage()`**: 영구 보너스 유지, 스테이지 로컬 상태 초기화
 - **`GameState.inventory`**: Inventory 인스턴스 (영구)
 - **`GameState.deck`**: Deck 인스턴스 (스테이지 로컬)
-- Draw: `GameState.draw_one()` → `draws_remaining` 차감, 라운드당 횟수 제한
+- **Draw**: `GameState.draw_one()` → `draws_remaining` 차감
+- **Redraw** (NEW): 게임당 2회, Hand 전체를 pool로 되돌리고 `HAND_DRAW_COUNT`(8)개를 새로 드로우
+  - `GameState.redraw()` → `redraws_remaining` 차감, `deck.redraw_hand(HAND_DRAW_COUNT)`
 - Signal: `pool_changed` (기존 `inventory_changed` → 리네임)
 
-### Ornament System (테트리스 배치)
-- 발라트로 조커처럼 덱을 강화하는 아이템, 6x6 그리드에 테트리스 스타일 배치
-- **접근 시점**: 매치 사이 (GameOverState → Ornaments 버튼)
-- **`OrnamentResource`** (`globals/ornament_resource.gd`): 타입 정의 (shape, color, effects)
+### Gear & Trunk System (기어 + 트렁크)
+
+**용어 정리:**
+- **기어(Gear)**: 개별 아이템. 발라트로의 조커카드 역할. 고유한 패시브 효과 보유.
+- **트렁크(Trunk)**: 기어를 배치하는 적재 공간. 4x4(기본) 테트리스 그리드.
+- **로드아웃(Loadout)**: 트렁크에 어떤 기어를 실을지 전략적으로 선택하는 행위/화면.
+
+> 코드에서는 아직 `Ornament*` 네이밍 유지 (리팩토링 시 `Gear*`/`Trunk*`로 변경 예정)
+
+- **접근 시점**: 베이스 캠프 (도주 성공 후 정비 단계)
+- **`OrnamentResource`** (`globals/ornament_resource.gd`): 기어 타입 정의 (shape, color, effects)
   - `shape`: `Array[Vector2i]` 오프셋 (앵커 = (0,0))
   - `passive_effects`: 글로벌 패시브 `[{"type": "reroll_bonus"/"draw_bonus", "delta": N}]`
   - `dice_effects`: `Array[DiceEffectResource]` — EffectProcessor에 주입
   - `rotate_shape()`: static, `(x,y) → (y,-x)` + normalize
-- **`OrnamentInstance`** (`globals/ornament_instance.gd`): 배치 상태 (RefCounted)
+- **`OrnamentInstance`** (`globals/ornament_instance.gd`): 기어 배치 상태 (RefCounted)
   - `grid_position`, `rotation` (0~3), `is_placed`, `get_occupied_cells()`
-- **`OrnamentGrid`** (`globals/ornament_grid.gd`): 6x6 순수 로직 (RefCounted)
+- **`OrnamentGrid`** (`globals/ornament_grid.gd`): 트렁크 그리드 순수 로직 (RefCounted)
   - `can_place()` / `place()` / `remove()` / `get_cell()`
   - `get_all_passive_effects()` / `get_all_dice_effects()`
 - **`OrnamentTypes`** (`globals/ornament_types.gd`): DiceTypes 패턴, `const ALL` + `STARTING_ORNAMENTS`
 - **`OrnamentRegistry`** (Autoload): 파싱 + `create_instance(id)`
 - **패시브 적용**: `PreRollState._apply_ornament_passives()` — rerolls/draws 보너스
-- **주사위 효과**: `EffectProcessor.process_effects()` — ornament dice_effects 자동 주입
+- **주사위 효과**: `EffectProcessor.process_effects()` — 기어의 dice_effects 자동 주입
   - `EffectContext.create_global()`: source_dice=null, source_index=-1 (글로벌 효과용)
-  - 오너먼트 효과는 `ALL_DICE` 타겟만 사용 (SELF/ADJACENT 무의미)
+  - 기어 효과는 `ALL_DICE` 타겟만 사용 (SELF/ADJACENT 무의미)
 - **UI**: `ui/ornament_grid/ornament_grid_ui.tscn` — click-to-place, 회전, 제거
 
 ## Godot 4.6 Conventions
@@ -229,7 +251,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Resources:** `.tres` (text-based resource format)
 - **3D assets:** GLB format (binary glTF 2.0)
 - **Rendering:** Mobile renderer configured
-- **Autoloads:** DiceRegistry, CategoryRegistry, OrnamentRegistry, MetaState, GameState (load order matters)
+- **Autoloads:** DiceRegistry, CategoryRegistry, OrnamentRegistry(=GearRegistry), MetaState, GameState (load order matters)
 
 ## Coding Guidelines
 
@@ -345,7 +367,10 @@ SetupState → PreRollState → RollingState → PostRollState
   ```
   - `GameState.DICE_COUNT` (5): Active 슬롯 수
   - `GameState.MAX_FACE_VALUE` (6): 주사위 최대 눈
-  - `GameState.MAX_REROLLS` (2): 라운드당 최대 리롤
+  - `GameState.MAX_REROLLS` (3): **게임당** 최대 리롤 (라운드당이 아님!)
+  - `GameState.MAX_REDRAWS` (2): **게임당** 리드로우 횟수
+  - `GameState.HAND_DRAW_COUNT` (8): PRE_ROLL에서 Hand로 드로우하는 수
+  - `GameState.BASE_TIME` (7.0): 기본 타이머 초
   - Entity(`dice_manager.gd`)는 자체 `const DICE_COUNT` 유지 (Autoload 미참조)
 
 ### Sanitize on Init
@@ -508,6 +533,16 @@ final_score = (base_chips + pattern_value + Σ value_bonus) × (1 + Σ extra_mul
 예시: 주사위 `[3,3,2,5,6]`, bonus `[+1,+2,0,0,+3]`, mult `[1,1,2,1,1]`, 원페어(base_chips=2, 3+3=6)
 → `(2 + 6 + 6) × (1 + 1) = 28`
 
+### Score Conversion (점수 치환)
+
+점수 계산 후 ConversionState에서 플레이어가 선택:
+```
+거리 환산: remaining_distance -= final_score × distance_factor
+시간 확보: remaining_time    += final_score × time_factor
+```
+- `distance_factor` / `time_factor`: 밸런싱 상수 (캐릭터 특성으로 변동 가능)
+- 핵심 의사결정: 높은 점수일수록 고민 — 거리를 확 줄일까, 시간을 벌어 더 많이 굴릴까?
+
 ### Visual Feedback
 
 `EffectResult`에 출처 정보 포함:
@@ -580,10 +615,10 @@ func has_group(group: String) -> bool:
 ```
 Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_id"}`)
 
-### New Ornament
+### New Gear (기어)
 1. Add entry in `globals/ornament_types.gd` → `OrnamentTypes.ALL`
 2. Set `id`, `display_name`, `description`, `color` (Array[float] RGB)
-3. Set `shape` as `Array[Vector2i]` offsets (anchor = (0,0))
+3. Set `shape` as `Array[Vector2i]` offsets (anchor = (0,0)) — 트렁크에 배치할 테트리스 모양
 4. Add `passive_effects` for global bonuses (reroll_bonus, draw_bonus)
 5. Add `dice_effects` for score modifications (same format as dice effects)
 
@@ -620,14 +655,32 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 ### Burst 카테고리
 - CategoryRegistry에 등록되지 않은 특수 ID ("burst")
 - 유효 족보 없을 때 PostRollState에서 자동 0점 처리
-- `GameState.record_score("burst", 0)`: upgrade 조회 스킵, 점수 0
-- `ScoringState._process_scoring()`: burst일 때 효과 계산 스킵
+- burst 시 ConversionState에서 선택 없이 즉시 다음 PRE_ROLL로 (치환 UI 표시 안 함)
 
 ### Double Down
 - 리롤 2개 소모 (`DOUBLE_DOWN_COST = 2`), 5개 전체 리롤
-- `GameState.is_double_down = true` → `record_score()`에서 `DOUBLE_DOWN_MULTIPLIER (2.0)` 적용
-- 라운드당 1회 (`can_double_down()`: `rerolls >= 2 and not is_double_down`)
+- `GameState.is_double_down = true` → ConversionState에서 `DOUBLE_DOWN_MULTIPLIER (2.0)` 적용
+- 게임당 제한: `can_double_down()`: `rerolls >= 2 and not is_double_down`
 - `PreRollState.enter()`에서 `is_double_down = false` 리셋
+
+### Timer System
+- **타이머 진행 구간** (플레이어 결정 중): POST_ROLL(ActionBar 표시 후만)
+- **타이머 정지 구간**: SETUP, PRE_ROLL, ROLLING, POST_ROLL(점수 연출 중), CONVERSION, GAME_OVER
+- **시각 피드백**: 타이머 정지 시 chase_bg 스크롤/차량 멈춤 + 2D/3D 채도 감소 (부드러운 전환)
+- **원칙**: 플레이어의 실제 결정 순간(Stand/Reroll/DD, 거리/시간 선택)에만 시간이 흐른다
+- **POST_ROLL 세부**: `enter()`에서 정지 → 점수 애니메이션 완료 후 ActionBar 표시 직전에 `set_timer_running(true)`
+- **긴박감 연출**: `remaining_time < 2.0` → HUD 붉은색 표시 (TODO: 화면 점멸 + 사이렌)
+- **시간 초과**: `remaining_time <= 0` → 즉시 GameOverState(체포)로 전환
+- 타이머는 `GameState._process(delta)`에서 `timer_running` 플래그로 제어
+- 각 State의 `enter()`에서 `GameState.set_timer_running(bool)` 호출
+
+### Conversion System (NEW)
+- PostRollState에서 Stand 후 ConversionState 진입
+- 플레이어가 직접 버튼을 눌러 선택 (게임 타이머 정지 상태)
+- **거리 환산**: `remaining_distance -= score × distance_factor`
+- **시간 확보**: `remaining_time += score × time_factor`
+- 미선택 시 자동 거리 환산 (기본값)
+- 환산 후: 거리 달성 → GameOver(성공), 시간 남음 → PreRoll, 시간 초과 → GameOver(체포)
 
 ### 자식 노드 Local vs World Space
 - RigidBody3D에 자식으로 추가한 노드(OmniLight3D 등)의 `position`은 **로컬 좌표**
@@ -639,3 +692,68 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 - State의 `_connect_signals()`/`_disconnect_signals()`는 반드시 대칭이어야 함
 - 시그널 추가 시 양쪽 모두 업데이트 — 한쪽만 하면 disconnect 에러 또는 중복 연결
 - RollButton은 PRE_ROLL 전용 (ROLL! 만). POST_ROLL 액션은 ActionBar가 담당
+
+### 타이머 정지/재개 대칭
+- State의 `enter()`에서 `set_timer_running(true/false)` 호출 시 `exit()`에서 반대 동작 불필요
+  - 다음 State의 `enter()`에서 자신의 타이머 상태를 설정하므로
+- **타이머 원칙**: 플레이어의 실제 결정 순간(Stand/Reroll/DD, 거리/시간)에만 진행
+- **POST_ROLL 예외**: `enter()`에서 정지 → 점수 애니메이션 끝 → `set_timer_running(true)` → ActionBar 표시
+
+### 리롤 모드 (낙장불입)
+- **흐름**: ActionBar에서 REROLL 클릭 → 리롤 모드 진입 (타이머 정지, 취소 불가) → 주사위 선택 → ROLL 확정
+- **주사위 선택**: `dice_manager.set_selection_enabled(true/false)`로 제어. 리롤 모드에서만 활성화
+- **ActionBar 모드**: 일반(Stand/Reroll/DD) ↔ 리롤(Roll만 표시)
+- **낙장불입**: 리롤 모드 진입 시 Back 버튼 없음. 반드시 주사위를 선택하고 Roll 해야 함
+
+### 리롤 vs 리드로우 구분
+- **리롤** (Reroll): POST_ROLL 리롤 모드에서 선택한 주사위만 다시 굴림 (게임당 3회)
+- **리드로우** (Redraw): PRE_ROLL에서 Hand 전체를 pool로 되돌리고 8개 새로 드로우 (게임당 2회)
+- 별도 카운터: `rerolls_remaining` vs `redraws_remaining`
+- UI도 별도: ActionBar의 Reroll 버튼 vs HandDisplay의 Redraw 버튼
+
+### 라운드 없는 반복 구조
+- 라운드 개념 없음 — `current_round` / `max_rounds` 삭제됨
+- 루프 종료 조건: `remaining_distance <= 0` (성공) 또는 `remaining_time <= 0` (실패)
+- 리롤/리드로우는 **게임 전체** 공유 리소스 (PreRollState에서 리셋하지 않음)
+
+## UI Layout (기획서 기준)
+
+| 위치 | 내용 |
+|------|------|
+| **화면 최상단** | 남은 시간 타이머, 베이스 캠프까지 남은 거리 시각화 |
+| **화면 중앙** | 주사위 및 족보 이펙트, 결정 버튼들 |
+| **화면 중앙하단 (배경)** | 도주하는 차량과 쫓아오는 경찰차 (2D). 시간 임박 시 거리 좁혀짐 (TODO) |
+| **화면 하단** | 주사위 핸드, 리드로우 버튼 |
+| **화면 우 하단** | 트렁크 그리드. 점수 확정 시 기어가 영향 주면 반짝이며 게임 쥬스 |
+
+### 긴박감 연출 (TODO)
+- 시간 2초 미만: 화면 붉은 점멸 + 사이렌 볼륨 상승
+- 성공 시: 플레이어 차가 화면 밖으로 가속 탈출
+- 실패 시: 반대편에서 경찰차가 막아서며 체포
+
+## Character System (TODO)
+
+게임 시작 시 갱단을 창설하고 캐릭터를 선택. 각 캐릭터는 고유 특성:
+
+| 캐릭터 | 특성 |
+|--------|------|
+| **Driver** | 거리 환산 보너스 (`distance_factor` 상승) |
+| **Thug** | 더블 다운 점수 배율 상승 (`DOUBLE_DOWN_MULTIPLIER` 증가) |
+| **Mastermind** | 리드로우 1회 추가 (`MAX_REDRAWS` + 1) |
+
+구현 시 `GameState`에 캐릭터 특성 적용 메서드 추가, `SetupState`에서 적용.
+
+## Bank Selection (TODO)
+
+은행마다 목표 거리, 난이도, 특수 조건이 다름:
+- `target_distance`: 베이스 캠프까지 거리
+- `base_time`: 기본 타이머 (기본 7초, 은행마다 다를 수 있음)
+- `bank_traits`: 특수 조건 (예: 리롤 -1, 거리 보너스 등)
+
+## Base Camp (TODO)
+
+도주 성공 후 베이스 캠프에서 다음 습격을 준비:
+- **상점**: 주사위 및 기어 구매/판매
+- **트렁크 (적재 공간)**: 4x4(기본) 그리드에 기어를 테트리스 배치 (기존 OrnamentGridUI)
+- **로드아웃**: 트렁크에 어떤 기어를 실을지 전략적으로 선택
+- **특별 NPC**: 무작위 이벤트로 주사위/족보 업그레이드 기회, 트렁크 확장 등

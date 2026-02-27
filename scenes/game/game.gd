@@ -11,16 +11,22 @@ extends Control
 @onready var upgrade_screen = $CanvasLayer/UpgradeScreen
 @onready var hand_display = $CanvasLayer/HandDisplay
 @onready var score_display = $CanvasLayer/ScoreDisplay
-@onready var category_breakdown = $CanvasLayer/CategoryBreakdown
 @onready var action_bar = $CanvasLayer/ActionBar
-@onready var dice_stats = $CanvasLayer/DiceStats
 @onready var roll_button = $CanvasLayer/RollButton
 @onready var inventory_deck = $CanvasLayer/InventoryDeck
 @onready var dice_tooltip = $CanvasLayer/DiceTooltip
 @onready var ornament_grid_ui = $CanvasLayer/OrnamentGridUI
 @onready var ornament_mini_grid = $CanvasLayer/OrnamentMiniGrid
+@onready var conversion_ui = $CanvasLayer/ConversionUI
+@onready var chase_bg = $ChaseBg
+@onready var world_env: WorldEnvironment = $SubViewportContainer/SubViewport/World3D/WorldEnvironment
 @onready var state_machine: GameStateMachine = $StateMachine
 var juice_fx: JuiceFX
+
+## 채도 전환 (타이머 정지 시 3D 영역 탈색)
+const DESAT_SPEED := 4.0
+const PAUSED_SATURATION_3D := 0.4
+var _target_saturation_3d := 1.0
 
 
 func _ready() -> void:
@@ -28,6 +34,12 @@ func _ready() -> void:
 	juice_fx = JuiceFX.new()
 	add_child(juice_fx)
 	juice_fx.setup(camera_3d, $SubViewportContainer/SubViewport/World3D)
+
+	# 타이머 정지/재개 시 3D 채도 조절
+	GameState.timer_running_changed.connect(_on_timer_running_changed)
+	# Environment adjustment 활성화
+	world_env.environment.adjustment_enabled = true
+	world_env.environment.adjustment_saturation = 1.0
 
 	# State Machine 초기화
 	state_machine.init(self)
@@ -42,10 +54,21 @@ func _ready() -> void:
 		dice_manager.dice_unhovered.connect(_on_dice_unhovered)
 
 
+func _process(delta: float) -> void:
+	# 3D 채도 보간
+	var current_sat: float = world_env.environment.adjustment_saturation
+	var new_sat := move_toward(current_sat, _target_saturation_3d, DESAT_SPEED * delta)
+	if current_sat != new_sat:
+		world_env.environment.adjustment_saturation = new_sat
+
+
+func _on_timer_running_changed(running: bool) -> void:
+	_target_saturation_3d = 1.0 if running else PAUSED_SATURATION_3D
+
+
 ## 3D 주사위와 UI를 GameState의 active_dice와 동기화
 func _sync_dice_instances() -> void:
 	dice_manager.set_dice_instances(GameState.active_dice)
-	dice_stats.setup(camera_3d, dice_manager)
 
 
 ## 주사위 선택 변경 시 툴팁 업데이트 (모바일)
