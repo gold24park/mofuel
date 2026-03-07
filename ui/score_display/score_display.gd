@@ -105,8 +105,9 @@ func hide_display() -> void:
 
 #region Odometer Animation
 
-## 풀 오도미터: 자릿수 순환 후 왼→오 순차 확정 (await 가능)
-func _animate_odometer(container: HBoxContainer, text: String, color: Color, gen: int) -> void:
+## 오도미터 공통 셋업: 자릿수 라벨 생성 + 순환 시작
+func _setup_odometer(container: HBoxContainer, text: String, color: Color,
+		gen: int) -> Dictionary:
 	var cgen := _bump_container_gen(container)
 	_clear_container(container)
 
@@ -127,6 +128,16 @@ func _animate_odometer(container: HBoxContainer, text: String, color: Color, gen
 			lbl.text = text[i]
 			digit_map.append(-1)
 
+	return {"labels": labels, "cycling": cycling, "digit_map": digit_map, "cgen": cgen}
+
+
+## 풀 오도미터: 자릿수 순환 후 왼→오 순차 확정 (await 가능)
+func _animate_odometer(container: HBoxContainer, text: String, color: Color, gen: int) -> void:
+	var info := _setup_odometer(container, text, color, gen)
+	var labels: Array[Label] = info["labels"]
+	var cycling: Array[bool] = info["cycling"]
+	var digit_map: Array[int] = info["digit_map"]
+
 	for i in labels.size():
 		if digit_map[i] == -1:
 			continue
@@ -139,27 +150,9 @@ func _animate_odometer(container: HBoxContainer, text: String, color: Color, gen
 
 ## fire-and-forget 오도미터: 증분 업데이트 시 사용 (await 없이 즉시 반환)
 func _animate_odometer_fire(container: HBoxContainer, text: String, color: Color) -> void:
-	var cgen := _bump_container_gen(container)
-	_clear_container(container)
-
-	var labels: Array[Label] = []
-	var cycling: Array[bool] = []
-	var digit_map: Array[int] = []
-
-	for i in text.length():
-		var lbl := _make_char_label(color)
-		container.add_child(lbl)
-		labels.append(lbl)
-		if text[i].is_valid_int():
-			lbl.text = "0"
-			digit_map.append(cycling.size())
-			cycling.append(true)
-			_run_cycle(lbl, cycling, cycling.size() - 1, _gen, container, cgen)
-		else:
-			lbl.text = text[i]
-			digit_map.append(-1)
-
-	_settle_digits_async(labels, digit_map, cycling, text, _gen, container, cgen)
+	var info := _setup_odometer(container, text, color, _gen)
+	_settle_digits_async(info["labels"], info["digit_map"], info["cycling"],
+		text, _gen, container, info["cgen"])
 
 
 ## 자릿수 순차 확정 (별도 coroutine)

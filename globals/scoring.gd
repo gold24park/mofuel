@@ -2,6 +2,7 @@ class_name Scoring
 extends RefCounted
 
 const NO_MATCH := -1 ## 패턴 미매칭 센티널
+const BURST_ID := "burst" ## 유효 족보 없을 때의 센티널 ID
 
 ## 스트레이트 판정용 패턴 상수
 const SMALL_STRAIGHT_PATTERNS := [

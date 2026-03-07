@@ -28,7 +28,7 @@ func enter() -> void:
 		return
 
 	# Burst = 0점 → 선택 없이 즉시 다음으로
-	if pending.hand_rank_id == "burst":
+	if pending.hand_rank_id == Scoring.BURST_ID:
 		_check_and_transition()
 		return
 
@@ -75,16 +75,20 @@ func _disconnect_signals() -> void:
 
 
 func _on_distance_selected() -> void:
-	if _waiting_transition:
-		return
-	GameState.convert_to_distance(_final_score)
-	_delayed_transition()
+	_apply_conversion(true)
 
 
 func _on_time_selected() -> void:
+	_apply_conversion(false)
+
+
+func _apply_conversion(is_distance: bool) -> void:
 	if _waiting_transition:
 		return
-	GameState.convert_to_time(_final_score)
+	if is_distance:
+		GameState.convert_to_distance(_final_score)
+	else:
+		GameState.convert_to_time(_final_score)
 	_delayed_transition()
 
 

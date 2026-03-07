@@ -153,7 +153,7 @@ func _do_stand() -> void:
 	game_root.dice_manager.exit_spotlight_mode()
 	var best := Scoring.get_best_hand_rank(GameState.active_dice)
 	if best.is_empty():
-		GameState.set_pending_score("burst", 0)
+		GameState.set_pending_score(Scoring.BURST_ID, 0)
 	else:
 		GameState.set_pending_score(best["hand_rank_id"], best["score"])
 	game_root.score_display.hide_display()
