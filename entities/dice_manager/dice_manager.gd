@@ -68,6 +68,11 @@ func _ready() -> void:
 		_original_ambient_energy = _environment.ambient_light_energy
 
 #region 위치 계산
+## Hand 영역 중심 좌표
+func _get_hand_center() -> Vector3:
+	return Vector3(0, hand_height, hand_z)
+
+
 ## Fan layout 위치 계산 — 가상 pivot 아래에서 원호를 그림
 ## 반환: {position: Vector3, rotation_y: float}
 func _get_fan_position(index: int, count: int) -> Dictionary:
@@ -87,6 +92,13 @@ func _get_fan_position(index: int, count: int) -> Dictionary:
 	var rot_y := -angle * fan_tilt_strength # 접선 방향 기울기
 
 	return {"position": Vector3(x, y, z), "rotation_y": rot_y}
+
+
+## 단일 주사위를 fan 위치로 이동 (fan_rotation_y + set_display_position)
+func _apply_fan_position(die: RigidBody3D, index: int, count: int) -> void:
+	var fan := _get_fan_position(index, count)
+	die.fan_rotation_y = fan.rotation_y
+	die.set_display_position(fan.position)
 #endregion
 
 
@@ -224,10 +236,7 @@ func _sort_and_animate_dice() -> void:
 	# Tween 대신 set_display_position을 사용하여 Dice 내부의 display_position 변수를 갱신해야 함.
 	# 그렇지 않으면 나중에 클릭/선택 시 이전 위치로 돌아가는 버그(겹침 현상) 발생.
 	for i in DICE_COUNT:
-		var die = dice_nodes[i]
-		var fan := _get_fan_position(i, DICE_COUNT)
-		die.fan_rotation_y = fan.rotation_y
-		die.set_display_position(fan.position)
+		_apply_fan_position(dice_nodes[i], i, DICE_COUNT)
 
 	# 이동 시간 대기 (Dice.gd의 이동 속도 고려)
 	await get_tree().create_timer(0.6).timeout
@@ -426,11 +435,8 @@ func reset_state() -> void:
 
 func _reset_all_to_display() -> void:
 	for i in DICE_COUNT:
-		var die := dice_nodes[i]
-		die.set_selected(false)
-		var fan := _get_fan_position(i, DICE_COUNT)
-		die.fan_rotation_y = fan.rotation_y
-		die.set_display_position(fan.position)
+		dice_nodes[i].set_selected(false)
+		_apply_fan_position(dice_nodes[i], i, DICE_COUNT)
 #endregion
 
 
@@ -466,7 +472,7 @@ func unhighlight_all() -> void:
 
 ## 모든 주사위를 화면 하단 중앙으로 즉시 이동 (초기 위치 설정용)
 func set_dice_to_hand_position() -> void:
-	var center := Vector3(0, hand_height, hand_z)
+	var center := _get_hand_center()
 	for i in dice_nodes.size():
 		var die := dice_nodes[i]
 		die.global_position = center
@@ -485,18 +491,14 @@ func animate_single_to_active(active_index: int, total_count: int = DICE_COUNT) 
 	for i in total_count:
 		if i == active_index:
 			continue
-		var existing := dice_nodes[i]
-		if existing.visible:
-			var ef := _get_fan_position(i, total_count)
-			existing.fan_rotation_y = ef.rotation_y
-			existing.set_display_position(ef.position)
+		if dice_nodes[i].visible:
+			_apply_fan_position(dice_nodes[i], i, total_count)
 
 	# 새 주사위 애니메이션
 	var die := dice_nodes[active_index]
-	var hand_center := Vector3(0, hand_height, hand_z)
 	var fan := _get_fan_position(active_index, total_count)
 
-	die.global_position = hand_center
+	die.global_position = _get_hand_center()
 	die.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
 	die.fan_rotation_y = fan.rotation_y
 	die.visible = true
@@ -527,6 +529,33 @@ func set_active_positions_immediate(count: int) -> void:
 			die.transform.basis = die.get_fan_basis()
 		else:
 			die.visible = false
+
+
+## Active에서 주사위 제거 후 남은 주사위를 fan 대형으로 애니메이션
+## dice_nodes 배열을 재정렬하므로, 호출 후 _sync_dice_instances()를 해야 함
+## @param removed_index 제거된 주사위의 (이전) Active 인덱스
+## @param new_count 제거 후 남은 Active 주사위 수
+func animate_remove_from_active(removed_index: int, new_count: int) -> void:
+	var removed_die := dice_nodes[removed_index]
+
+	# 제거된 주사위의 이동 상태 정리 (lerp 충돌 방지)
+	removed_die.force_idle()
+
+	# 제거된 주사위를 Hand 위치로 날려보냄
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(removed_die, "global_position", _get_hand_center(), transition_duration * 0.6)
+	tween.tween_callback(func(): removed_die.visible = false)
+
+	# dice_nodes 재정렬: 제거된 노드를 끝으로 이동 (active_dice 순서와 일치)
+	dice_nodes.remove_at(removed_index)
+	dice_nodes.append(removed_die)
+	for i in dice_nodes.size():
+		dice_nodes[i].dice_index = i
+
+	# 남은 주사위를 새 fan 위치로 이동
+	for i in new_count:
+		_apply_fan_position(dice_nodes[i], i, new_count)
 #endregion
 
 

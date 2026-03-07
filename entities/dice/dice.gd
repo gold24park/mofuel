@@ -387,6 +387,12 @@ func stop_breathing() -> void:
 	# scale 복귀 후 _process_breathing에서 _update_process_enabled() 호출
 
 
+## 외부에서 이동/롤 상태를 강제로 중단하고 IDLE로 복귀
+func force_idle() -> void:
+	current_state = State.IDLE
+	_update_process_enabled()
+
+
 ## _process 토글: 활성 상태(ROLLING/MOVING/breathing)일 때만 true
 func _update_process_enabled() -> void:
 	set_process(current_state != State.IDLE or is_breathing)

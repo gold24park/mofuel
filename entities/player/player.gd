@@ -29,3 +29,6 @@ func _physics_process(delta: float) -> void:
 
 	# 3. 이동 + 충돌 해결
 	move_and_slide()
+
+	# 4. 픽셀 스냅 — 서브픽셀 위치로 인한 스프라이트 떨림 방지
+	global_position = global_position.round()

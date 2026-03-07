@@ -155,8 +155,9 @@ func _on_active_dice_clicked(active_index: int) -> void:
 		return
 
 	GameState.move_single_to_hand(active_index)
+	# animate_remove가 dice_nodes를 재정렬하므로 sync는 그 뒤에
+	game_root.dice_manager.animate_remove_from_active(active_index, GameState.active_dice.size())
 	game_root._sync_dice_instances()
-	game_root.dice_manager.set_active_positions_immediate(GameState.active_dice.size())
 #endregion
 
 
