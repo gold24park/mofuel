@@ -118,7 +118,7 @@ func _try_auto_activate() -> void:
 		if GameState.current_phase != GameState.Phase.PRE_ROLL:
 			_is_animating = false
 			return
-		game_root.dice_manager.animate_single_to_active(i)
+		game_root.dice_manager.animate_single_to_active(i, GameState.DICE_COUNT)
 		await game_root.get_tree().create_timer(0.08).timeout
 	_is_animating = false
 
@@ -142,7 +142,7 @@ func _on_hand_dice_clicked(hand_index: int) -> void:
 
 	_is_animating = true
 	game_root._sync_dice_instances()
-	await game_root.dice_manager.animate_single_to_active(active_index)
+	await game_root.dice_manager.animate_single_to_active(active_index, GameState.active_dice.size())
 	_is_animating = false
 #endregion
 

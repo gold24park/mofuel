@@ -1,13 +1,17 @@
 class_name PostRollState
 extends GameStateBase
 
-## POST_ROLL 상태: ScoreDisplay 연출 후 Stand/Reroll/DoubleDown 선택
-## - Stand: 최고 족보로 점수 확정 → ConversionState
-## - Reroll: 리롤 모드 진입 (낙장불입) → 주사위 선택 → Roll 확정 → RollingState
-## - Double Down: 리롤 2개 소모, 전체 리롤, ×2 배수
+## POST_ROLL 상태: ScoreDisplay 연출 후 Nitro/Smoke/Reroll 선택
+## - Nitro: 점수 → 거리 환산 (즉시)
+## - Smoke: 점수 → 시간 확보 (즉시)
+## - Reroll: 리롤 모드 진입 (낙장불입) → 주사위 선택 → Roll/Double Down
+
+const TRANSITION_DELAY := 1.0  ## 치환 후 차량 애니메이션 대기 (초)
 
 var _pattern_indices: Array[int] = [] ## 패턴 하이라이트 복원용
 var _reroll_mode: bool = false
+var _final_score: int = 0 ## 계산된 최종 점수 (Nitro/Smoke용)
+var _final_hand_rank_id: String = "" ## 최고 족보 ID
 
 
 func get_phase() -> GameState.Phase:
@@ -17,6 +21,8 @@ func get_phase() -> GameState.Phase:
 func enter() -> void:
 	super.enter()
 	_reroll_mode = false
+	_final_score = 0
+	_final_hand_rank_id = ""
 	_connect_signals()
 
 	# 주사위 선택 비활성화 (리롤 모드 진입 전까지)
@@ -83,22 +89,24 @@ func enter() -> void:
 
 	GameState.is_transitioning = false
 
-	# 더블다운 후에는 무조건 Stand (올인 결정 — 추가 선택 없음)
+	# 최종 점수 계산 (Nitro/Smoke 미리보기 + 즉시 치환용)
+	_compute_final_score(best)
+
+	# 더블다운 후에는 무조건 거리 환산 (올인 결정 — 추가 선택 없음)
 	if GameState.is_double_down:
-		_do_stand()
+		_do_conversion(true)
 		return
 
 	# 점수 연출 완료 → 타이머 시작 전 시간 초과 체크 (BUG-2 방지)
-	# remaining_time ≈ 0 상태에서 POST_ROLL 진입 시, await 후 이미 만료될 수 있음
 	if GameState.is_time_up():
 		_do_time_expired()
 		return
 
 	# 타이머 시작 (플레이어 선택 시간)
-	# 리롤 불가 시에도 Stand 버튼을 눌러야 넘어감 (타이머 긴장감 유지)
 	GameState.set_timer_running(true)
 
-	# ActionBar 표시 (리롤 불가 시 Reroll/DD 비활성, Stand만 활성)
+	# ActionBar 표시 (미리보기 수치 포함)
+	game_root.action_bar.set_score_preview(_final_score)
 	game_root.action_bar.show_bar()
 
 
@@ -113,7 +121,8 @@ func exit() -> void:
 
 
 func _connect_signals() -> void:
-	game_root.action_bar.stand_pressed.connect(_on_stand_pressed)
+	game_root.action_bar.nitro_pressed.connect(_on_nitro_pressed)
+	game_root.action_bar.smoke_pressed.connect(_on_smoke_pressed)
 	game_root.action_bar.reroll_pressed.connect(_on_reroll_pressed)
 	game_root.action_bar.reroll_confirmed.connect(_on_reroll_confirmed)
 	game_root.action_bar.double_down_pressed.connect(_on_double_down_pressed)
@@ -122,12 +131,43 @@ func _connect_signals() -> void:
 
 
 func _disconnect_signals() -> void:
-	game_root.action_bar.stand_pressed.disconnect(_on_stand_pressed)
+	game_root.action_bar.nitro_pressed.disconnect(_on_nitro_pressed)
+	game_root.action_bar.smoke_pressed.disconnect(_on_smoke_pressed)
 	game_root.action_bar.reroll_pressed.disconnect(_on_reroll_pressed)
 	game_root.action_bar.reroll_confirmed.disconnect(_on_reroll_confirmed)
 	game_root.action_bar.double_down_pressed.disconnect(_on_double_down_pressed)
 	game_root.dice_manager.selection_changed.disconnect(_on_selection_changed)
 	GameState.time_changed.disconnect(_on_time_changed)
+
+
+#region Score Calculation
+## 최종 점수 계산 — 효과 적용 + Hand Rank 배수 + Double Down 배수
+func _compute_final_score(best: Dictionary) -> void:
+	if best.is_empty():
+		_final_score = 0
+		_final_hand_rank_id = Scoring.BURST_ID
+		return
+
+	_final_hand_rank_id = best["hand_rank_id"] as String
+	var hand_rank = best["hand_rank"]
+
+	# 효과 데이터 적용
+	game_root.dice_manager.apply_scoring_effects()
+
+	# 점수 재계산 (효과 적용 후)
+	var score := Scoring.calculate_score(hand_rank, GameState.active_dice)
+
+	# Hand Rank 배수 적용
+	var upgrade := MetaState.get_upgrade(_final_hand_rank_id)
+	if upgrade:
+		score = int(score * upgrade.get_total_multiplier())
+
+	# Double Down 배수 적용
+	if GameState.is_double_down:
+		score = int(score * GameState.DOUBLE_DOWN_MULTIPLIER)
+
+	_final_score = score
+#endregion
 
 
 #region Timer Expiry
@@ -139,25 +179,51 @@ func _on_time_changed(time: float) -> void:
 func _do_time_expired() -> void:
 	game_root.score_display.hide_display()
 	game_root.dice_manager.exit_spotlight_mode()
-	# 시간 초과 → 점수 없이 직접 GameOverState로 (ConversionState 우회)
 	transitioned.emit(self, "GameOverState")
 #endregion
 
 
-#region Stand
-func _on_stand_pressed() -> void:
-	_do_stand()
+#region Nitro / Smoke (점수 치환)
+func _on_nitro_pressed() -> void:
+	_do_conversion(true)
 
 
-func _do_stand() -> void:
+func _on_smoke_pressed() -> void:
+	_do_conversion(false)
+
+
+func _do_conversion(is_distance: bool) -> void:
+	GameState.set_timer_running(false)
 	game_root.dice_manager.exit_spotlight_mode()
-	var best := Scoring.get_best_hand_rank(GameState.active_dice)
-	if best.is_empty():
-		GameState.set_pending_score(Scoring.BURST_ID, 0)
-	else:
-		GameState.set_pending_score(best["hand_rank_id"], best["score"])
 	game_root.score_display.hide_display()
-	transitioned.emit(self, "ConversionState")
+	game_root.action_bar.hide_bar()
+
+	if _final_score > 0:
+		if is_distance:
+			GameState.convert_to_distance(_final_score)
+		else:
+			GameState.convert_to_time(_final_score)
+
+	await _delayed_check_and_transition()
+#endregion
+
+
+#region Transition Helper
+func _delayed_check_and_transition() -> void:
+	await game_root.get_tree().create_timer(TRANSITION_DELAY).timeout
+	# 코루틴 안전 가드
+	if GameState.current_phase != GameState.Phase.POST_ROLL:
+		return
+	_check_and_transition()
+
+
+func _check_and_transition() -> void:
+	if GameState.is_game_won():
+		transitioned.emit(self, "GameOverState")
+	elif GameState.is_time_up():
+		transitioned.emit(self, "GameOverState")
+	else:
+		transitioned.emit(self, "PreRollState")
 #endregion
 
 
@@ -182,9 +248,6 @@ func _on_reroll_confirmed() -> void:
 		return
 
 	_reroll_mode = false
-	# NOTE: set_selection_enabled(false) / exit_spotlight_mode()를 여기서 호출하면
-	# _selected_indices가 비워져 reroll_spin_in_place()가 빈 배열을 읽는 버그 발생.
-	# 둘 다 reroll_spin_in_place() 내부의 reset_state()에서 처리됨.
 	GameState.rerolls_remaining -= 1
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 

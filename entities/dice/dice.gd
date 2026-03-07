@@ -22,7 +22,13 @@ var is_selected: bool = false
 var dice_instance: DiceInstance = null
 var display_position: Vector3 = Vector3.ZERO
 var final_value: int = 0
-var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
+var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장 (면 방향만)
+var fan_rotation_y: float = 0.0 # Fan layout Y축 기울기
+
+
+## 면 방향 + fan tilt 합성 Basis
+func get_fan_basis() -> Basis:
+	return Basis(Vector3.UP, fan_rotation_y) * final_rotation
 var outline_mesh: MeshInstance3D = null
 var _spotlight: OmniLight3D = null
 var _active_mesh_tween: Tween = null  ## dice_mesh.scale 트윈 충돌 방지
@@ -76,12 +82,13 @@ func _process_moving_to_display(delta: float) -> void:
 
 	global_position = global_position.lerp(target_pos, delta * 10.0)
 
-	# 반듯한 회전으로 정렬
-	transform.basis = transform.basis.slerp(final_rotation, delta * 10.0)
+	# 반듯한 회전 + fan tilt 합성
+	var target_basis := get_fan_basis()
+	transform.basis = transform.basis.slerp(target_basis, delta * 10.0)
 
 	if global_position.distance_to(target_pos) < 0.05:
 		global_position = target_pos
-		transform.basis = final_rotation
+		transform.basis = target_basis
 		collision_layer = CollisionLayers.ALIGNED_DICE
 		collision_mask = 0
 		current_state = State.IDLE
@@ -209,8 +216,8 @@ func spin_in_place() -> void:
 
 	await tween.finished
 
-	# 최종 정렬
-	transform.basis = final_rotation
+	# 최종 정렬 (면 방향 + fan tilt)
+	transform.basis = get_fan_basis()
 
 	# Phase 3: 탕! 스케일 펀치 + 기울기 (선택 펀치와 동일한 쫀득한 느낌)
 	var slam := _create_punch_tween()

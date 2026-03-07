@@ -57,8 +57,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 		setup_state.gd        # 게임 초기화 (은행 선택 후)
 		pre_roll_state.gd     # 주사위 드로우 + 5개 선택 (타이머 정지)
 		rolling_state.gd      # 주사위 스핀 애니메이션 (타이머 정지)
-		post_roll_state.gd    # 굴린 후 (Stand/Reroll/DD) (점수연출 중 정지 → ActionBar 표시 후 진행)
-		conversion_state.gd   # 점수→거리/시간 치환 선택
+		post_roll_state.gd    # 굴린 후 (Nitro/Smoke/Reroll) + 점수→거리/시간 즉시 치환
 		game_over_state.gd    # 도주 성공/체포 결과
 	/effects/             # Dice effect subclasses
 	  modifier_effect.gd           # 범용 점수 수정 (Data-driven)
@@ -76,8 +75,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 	/hud/             # 화면 최상단: 타이머 바 + 남은 거리 시각화
 	/hand_display/    # 화면 하단: Hand bar (고정 8슬롯 + DrawButton)
 	/score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
-	/action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down + 리롤 모드: Back/Roll)
-	/conversion_ui/   # 점수 치환 선택 UI (거리 환산/시간 확보)
+	/action_bar/      # POST_ROLL 액션 (Nitro/Smoke/Reroll + 리롤 모드: Roll/Double Down)
 	/game_over/       # 도주 성공/체포 화면
 	/upgrade_screen/  # Hand Rank upgrade UI
 	/gear_grid/       # 트렁크(Trunk) UI — 기어 테트리스 배치 + 로드아웃
@@ -106,17 +104,15 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
    - **ScoreDisplay**: 발라트로 스타일 점수 연출 (Hand Rank명 → chips × mult → 최종 점수)
    - **자동 족보 선택**: 시스템이 최고 점수 Hand Rank 자동 선택 (수동 선택 없음)
-   - **ActionBar**: Stand / Reroll / Double Down 버튼
-	 - **Stand**: 현재 최고 족보로 점수 확정 → ConversionState로
-	 - **Reroll**: 리롤 모드 진입 (타이머 정지) → 주사위 선택 → Roll 확정 (리롤 1개 소모, 게임당 3회)
-	 - **Double Down**: 리롤 2개 소모, 전체 리롤, 점수 ×2 (1회 제한)
-   - 리롤 불가 시 자동 Stand (점수 연출만 보여주고 종료)
-6. **CONVERSION** (타이머 **정지**): 점수를 어떻게 사용할지 선택
-   - **거리 환산**: 점수를 소모해 남은 거리를 줄인다
-   - **시간 확보**: 점수를 소모해 타이머에 시간을 추가한다
+   - **ActionBar**: Smoke / Reroll / Nitro 버튼 (1단계 의사결정)
+	 - **Nitro** (거리 환산): 점수를 거리로 즉시 치환
+	 - **Smoke** (시간 확보): 점수를 시간으로 즉시 치환
+	 - **Reroll**: 리롤 모드 진입 (타이머 정지) → 주사위 선택 → Roll/Double Down
+   - 리롤 모드: Roll 확정 (리롤 1개 소모) / Double Down (리롤 2개 소모, 전체 리롤, 점수 ×2)
    - 유효 족보 없으면 자동 0점 (burst) — 선택 없이 즉시 다음으로
-7. **반복**: Active 5개가 Hand로 돌아감 → PRE_ROLL. 시간이 남아있고 거리 미달이면 반복.
-8. **GAME_OVER**: 거리 달성 → 도주 성공 (베이스 캠프 도착) / 시간 초과 → 체포 (게임 오버)
+   - 더블다운 후에는 무조건 거리 환산 (올인 결정)
+6. **반복**: Active 5개가 Hand로 돌아감 → PRE_ROLL. 시간이 남아있고 거리 미달이면 반복.
+7. **GAME_OVER**: 거리 달성 → 도주 성공 (베이스 캠프 도착) / 시간 초과 → 체포 (게임 오버)
    - **베이스 캠프** (TODO): 돈 정산, 상점, 트렁크(기어 배치) + 로드아웃 정비, 특별 NPC
 
 ### State Management
@@ -124,7 +120,7 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 **State Machine 기반 게임 흐름 관리:**
 
 ```
-enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER }
+enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, GAME_OVER }
 ```
 
 | Phase | 설명 | 타이머 | 허용 액션 |
@@ -132,8 +128,7 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER }
 | `SETUP` | 게임 초기화 (1회성) | 정지 | - |
 | `PRE_ROLL` | 주사위 드로우 + 5개 선택 | **정지** | Hand→Active 선택, Redraw, Roll |
 | `ROLLING` | 주사위 스핀 애니메이션 | **정지** | 입력 차단 |
-| `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | 연출 중 **정지** → ActionBar 후 **진행** | Stand, Reroll, Double Down |
-| `CONVERSION` | 점수→거리/시간 치환 선택 | **정지** | 거리 환산, 시간 확보 |
+| `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar + 즉시 치환) | 연출 중 **정지** → ActionBar 후 **진행** | Nitro, Smoke, Reroll, Double Down |
 | `GAME_OVER` | 도주 성공 / 체포 | 정지 | Restart, Base Camp |
 
 **상태 전환 흐름:**
@@ -142,10 +137,7 @@ SetupState → PreRollState → RollingState → PostRollState
 				 ↑              ↑               │
 				 │              ├───(reroll)────┤
 				 │              └──(dbl down)───┤
-				 │                              │ (stand / auto)
-				 │                              ↓
-				 │                      ConversionState
-				 │                              │
+				 │                              │ (nitro/smoke/auto)
 				 │              ┌───────────────┤
 				 │              │               │
 				 │              ↓ (거리 미달     ↓ (거리 달성 OR
@@ -526,7 +518,7 @@ final_score = (base_chips + pattern_value + Σ value_bonus) × (1 + Σ extra_mul
 
 ### Score Conversion (점수 치환)
 
-점수 계산 후 ConversionState에서 플레이어가 선택:
+점수 계산 후 PostRollState에서 Nitro/Smoke 버튼으로 즉시 치환:
 ```
 거리 환산: remaining_distance -= final_score × distance_factor
 시간 확보: remaining_time    += final_score × time_factor
@@ -645,32 +637,31 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 ### Burst Hand Rank
 - HandRankRegistry에 등록되지 않은 특수 ID ("burst")
 - 유효 족보 없을 때 PostRollState에서 자동 0점 처리
-- burst 시 ConversionState에서 선택 없이 즉시 다음 PRE_ROLL로 (치환 UI 표시 안 함)
+- burst 시 PostRollState에서 선택 없이 즉시 다음 PRE_ROLL로
 
 ### Double Down
 - 리롤 2개 소모 (`DOUBLE_DOWN_COST = 2`), 5개 전체 리롤
-- `GameState.is_double_down = true` → ConversionState에서 `DOUBLE_DOWN_MULTIPLIER (2.0)` 적용
+- `GameState.is_double_down = true` → PostRollState에서 `DOUBLE_DOWN_MULTIPLIER (2.0)` 적용 → 자동 거리 환산
 - 게임당 제한: `can_double_down()`: `rerolls >= 2 and not is_double_down`
 - `PreRollState.enter()`에서 `is_double_down = false` 리셋
 
 ### Timer System
 - **타이머 진행 구간** (플레이어 결정 중): POST_ROLL(ActionBar 표시 후만)
-- **타이머 정지 구간**: SETUP, PRE_ROLL, ROLLING, POST_ROLL(점수 연출 중), CONVERSION, GAME_OVER
+- **타이머 정지 구간**: SETUP, PRE_ROLL, ROLLING, POST_ROLL(점수 연출 중), GAME_OVER
 - **시각 피드백**: 타이머 정지 시 chase_bg 스크롤/차량 멈춤 + 2D/3D 채도 감소 (부드러운 전환)
-- **원칙**: 플레이어의 실제 결정 순간(Stand/Reroll/DD, 거리/시간 선택)에만 시간이 흐른다
+- **원칙**: 플레이어의 실제 결정 순간(Nitro/Smoke/Reroll/DD)에만 시간이 흐른다
 - **POST_ROLL 세부**: `enter()`에서 정지 → 점수 애니메이션 완료 후 ActionBar 표시 직전에 `set_timer_running(true)`
 - **긴박감 연출**: `remaining_time < 2.0` → HUD 붉은색 표시 (TODO: 화면 점멸 + 사이렌)
 - **시간 초과**: `remaining_time <= 0` → 즉시 GameOverState(체포)로 전환
 - 타이머는 `GameState._process(delta)`에서 `timer_running` 플래그로 제어
 - 각 State의 `enter()`에서 `GameState.set_timer_running(bool)` 호출
 
-### Conversion System (NEW)
-- PostRollState에서 Stand 후 ConversionState 진입
-- 플레이어가 직접 버튼을 눌러 선택 (게임 타이머 정지 상태)
-- **거리 환산**: `remaining_distance -= score × distance_factor`
-- **시간 확보**: `remaining_time += score × time_factor`
-- 미선택 시 자동 거리 환산 (기본값)
-- 환산 후: 거리 달성 → GameOver(성공), 시간 남음 → PreRoll, 시간 초과 → GameOver(체포)
+### Nitro/Smoke System (점수 즉시 치환)
+- PostRollState에서 Nitro(거리)/Smoke(시간) 버튼으로 즉시 치환 (별도 상태 없음)
+- **Nitro** (거리 환산): `remaining_distance -= score × distance_factor`
+- **Smoke** (시간 확보): `remaining_time += score × time_factor`
+- 더블다운 후에는 무조건 Nitro (거리 환산)
+- 치환 후: 거리 달성 → GameOver(성공), 시간 남음 → PreRoll, 시간 초과 → GameOver(체포)
 
 ### 자식 노드 Local vs World Space
 - RigidBody3D에 자식으로 추가한 노드(OmniLight3D 등)의 `position`은 **로컬 좌표**

@@ -31,4 +31,3 @@ func _on_interact_range_area_exited(area: Area2D) -> void:
 	current_interactions.erase(area)
 	_needs_sort = true
 	area.unfocused.emit()
-

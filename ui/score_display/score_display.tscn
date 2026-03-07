@@ -1,72 +1,28 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://ui/score_display/score_display.gd" id="1_script"]
-[ext_resource type="FontFile" uid="uid://bly8tupl4xb65" path="res://assets/fonts/Not Jam Mono Clean 8.ttf" id="2_title_font"]
 
 [node name="ScoreDisplay" type="Control"]
 layout_mode = 3
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -53.0
-offset_top = 33.0
-offset_right = 53.0
-offset_bottom = 107.0
+offset_left = -60.0
+offset_top = 30.0
+offset_right = 60.0
+offset_bottom = 90.0
 grow_horizontal = 2
+mouse_filter = 2
 script = ExtResource("1_script")
 
-[node name="PanelContainer" type="PanelContainer" parent="."]
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer"]
-layout_mode = 2
-theme_override_constants/separation = 3
-alignment = 1
-
-[node name="HandRankLabel" type="Label" parent="PanelContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_fonts/font = ExtResource("2_title_font")
-horizontal_alignment = 1
-text = ""
-
-[node name="ScoreLine" type="HBoxContainer" parent="PanelContainer/VBoxContainer"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 1
-
-[node name="ChipsContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/ScoreLine"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="MultSign" type="Label" parent="PanelContainer/VBoxContainer/ScoreLine"]
-layout_mode = 2
-horizontal_alignment = 1
-text = " x "
-
-[node name="MultContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/ScoreLine"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="FinalLine" type="HBoxContainer" parent="PanelContainer/VBoxContainer"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 1
-
-[node name="EqualSign" type="Label" parent="PanelContainer/VBoxContainer/FinalLine"]
-layout_mode = 2
-horizontal_alignment = 1
-text = "= "
-
-[node name="FinalContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/FinalLine"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="DoubleDownLabel" type="Label" parent="PanelContainer/VBoxContainer/FinalLine"]
-layout_mode = 2
-theme_override_colors/font_color = Color(1.0, 0.8, 0.0, 1.0)
-text = ""
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false

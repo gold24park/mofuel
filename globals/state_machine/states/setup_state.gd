@@ -20,7 +20,6 @@ func enter() -> void:
 	GameState.redraws_remaining = GameState.MAX_REDRAWS
 	GameState.is_double_down = false
 	GameState.draws_remaining = 1
-	GameState.consume_pending_score()  # 이전 게임의 stale 데이터 정리
 
 	GameState.inventory.init_starting_inventory()
 	GameState.deck.init_from_inventory(GameState.inventory)

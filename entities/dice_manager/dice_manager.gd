@@ -7,10 +7,15 @@ const DICE_COUNT: int = 5
 @export_group("Positions")
 @export var roll_height: float = 25.0
 @export var display_height: float = 1.0
-@export var display_z: float = 0.0
-@export var dice_spacing: float = 3.0
+@export var display_z: float = -3.0
 @export var hand_height: float = 1.0 ## Hand 영역 높이
 @export var hand_z: float = 12.0 ## 화면 하단 (카메라 기준 아래쪽)
+
+## Fan Layout (Active 주사위 부채꼴 배치)
+@export_group("Fan Layout")
+@export var fan_radius: float = 30.0 ## 가상 원의 반지름 (클수록 완만한 호)
+@export var fan_total_angle: float = 20.0 ## 전체 펼침 각도 (도)
+@export var fan_tilt_strength: float = 1.0 ## 접선 기울기 강도 (0=기울기 없음, 1=완전 접선)
 
 ## 애니메이션 설정
 @export_group("Animation")
@@ -63,9 +68,25 @@ func _ready() -> void:
 		_original_ambient_energy = _environment.ambient_light_energy
 
 #region 위치 계산
-func _get_display_position(index: int) -> Vector3:
-	var x_offset := (index - 2) * dice_spacing # -2, -1, 0, 1, 2 기준
-	return Vector3(x_offset, display_height, display_z)
+## Fan layout 위치 계산 — 가상 pivot 아래에서 원호를 그림
+## 반환: {position: Vector3, rotation_y: float}
+func _get_fan_position(index: int, count: int) -> Dictionary:
+	if count <= 1:
+		return {"position": Vector3(0, display_height, display_z), "rotation_y": 0.0}
+
+	var total_rad := deg_to_rad(fan_total_angle)
+	# t: -0.5 ~ 0.5 (중앙 기준 정규화)
+	var t := float(index) / float(count - 1) - 0.5
+	var angle := t * total_rad # 중앙이 0
+
+	# pivot은 display 위치에서 radius만큼 아래(Z+)에 위치
+	var x := fan_radius * sin(angle)
+	var z := display_z - fan_radius * cos(angle) + fan_radius # cos(0)=1이므로 중앙이 display_z
+	var y := display_height
+
+	var rot_y := -angle * fan_tilt_strength # 접선 방향 기울기
+
+	return {"position": Vector3(x, y, z), "rotation_y": rot_y}
 #endregion
 
 
@@ -75,7 +96,9 @@ func _spawn_dice() -> void:
 		var die := DICE_SCENE.instantiate() as RigidBody3D
 		die.dice_index = i
 		add_child(die)
-		die.setup(_get_display_position(i))
+		var fan := _get_fan_position(i, DICE_COUNT)
+		die.setup(fan.position)
+		die.fan_rotation_y = fan.rotation_y
 		die.roll_finished.connect(_on_dice_finished)
 		die.dice_clicked.connect(_on_dice_clicked)
 		die.dice_hovered.connect(_on_dice_hovered)
@@ -202,9 +225,10 @@ func _sort_and_animate_dice() -> void:
 	# 그렇지 않으면 나중에 클릭/선택 시 이전 위치로 돌아가는 버그(겹침 현상) 발생.
 	for i in DICE_COUNT:
 		var die = dice_nodes[i]
-		var target = _get_display_position(i)
-		die.set_display_position(target)
-		
+		var fan := _get_fan_position(i, DICE_COUNT)
+		die.fan_rotation_y = fan.rotation_y
+		die.set_display_position(fan.position)
+
 	# 이동 시간 대기 (Dice.gd의 이동 속도 고려)
 	await get_tree().create_timer(0.6).timeout
 
@@ -404,7 +428,9 @@ func _reset_all_to_display() -> void:
 	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		die.set_selected(false)
-		die.set_display_position(_get_display_position(i))
+		var fan := _get_fan_position(i, DICE_COUNT)
+		die.fan_rotation_y = fan.rotation_y
+		die.set_display_position(fan.position)
 #endregion
 
 
@@ -450,17 +476,29 @@ func set_dice_to_hand_position() -> void:
 
 ## 단일 주사위를 Hand 위치에서 Active 위치로 애니메이션
 ## @param active_index Active 내 인덱스 (표시 위치 결정용)
-func animate_single_to_active(active_index: int) -> void:
+## @param total_count 현재 Active 주사위 총 수 (fan 계산용)
+func animate_single_to_active(active_index: int, total_count: int = DICE_COUNT) -> void:
 	if active_index < 0 or active_index >= DICE_COUNT:
 		return
 
+	# 기존 active 주사위들을 새 fan 레이아웃으로 재배치
+	for i in total_count:
+		if i == active_index:
+			continue
+		var existing := dice_nodes[i]
+		if existing.visible:
+			var ef := _get_fan_position(i, total_count)
+			existing.fan_rotation_y = ef.rotation_y
+			existing.set_display_position(ef.position)
+
+	# 새 주사위 애니메이션
 	var die := dice_nodes[active_index]
 	var hand_center := Vector3(0, hand_height, hand_z)
-	var target := _get_display_position(active_index)
+	var fan := _get_fan_position(active_index, total_count)
 
-	# 시작 위치 설정 (Hand 중앙)
 	die.global_position = hand_center
 	die.rotation = Vector3(randf() * TAU, randf() * TAU, randf() * TAU)
+	die.fan_rotation_y = fan.rotation_y
 	die.visible = true
 
 	var tween := create_tween()
@@ -468,8 +506,8 @@ func animate_single_to_active(active_index: int) -> void:
 	tween.set_trans(Tween.TRANS_BACK)
 	tween.set_parallel(true)
 
-	tween.tween_property(die, "global_position", target, transition_duration)
-	tween.tween_property(die, "rotation", Vector3.ZERO, transition_duration)
+	tween.tween_property(die, "global_position", fan.position, transition_duration)
+	tween.tween_property(die, "transform:basis", die.get_fan_basis(), transition_duration)
 
 	await tween.finished
 
@@ -482,9 +520,11 @@ func set_active_positions_immediate(count: int) -> void:
 	for i in DICE_COUNT:
 		var die := dice_nodes[i]
 		if i < count:
+			var fan := _get_fan_position(i, count)
+			die.fan_rotation_y = fan.rotation_y
 			die.visible = true
-			die.global_position = _get_display_position(i)
-			die.rotation = Vector3.ZERO
+			die.global_position = fan.position
+			die.transform.basis = die.get_fan_basis()
 		else:
 			die.visible = false
 #endregion

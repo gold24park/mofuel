@@ -17,7 +17,6 @@ extends Control
 @onready var dice_tooltip = $CanvasLayer/DiceTooltip
 @onready var gear_grid_ui = $CanvasLayer/GearGridUI
 @onready var gear_mini_grid = $CanvasLayer/GearMiniGrid
-@onready var conversion_ui = $CanvasLayer/ConversionUI
 @onready var chase_bar = $CanvasLayer/ChaseBar
 @onready var chase_bg = $ChaseBg
 @onready var world_env: WorldEnvironment = $SubViewportContainer/SubViewport/World3D/WorldEnvironment

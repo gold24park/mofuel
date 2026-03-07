@@ -13,7 +13,7 @@ signal distance_changed(distance: float)
 signal redraws_changed(remaining: int)
 signal timer_running_changed(running: bool)
 
-enum Phase {SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER}
+enum Phase {SETUP, PRE_ROLL, ROLLING, POST_ROLL, GAME_OVER}
 
 const DICE_COUNT: int = 5 ## Active 슬롯 수 (동시에 굴리는 주사위 개수)
 const MAX_FACE_VALUE: int = 6 ## 주사위 최대 눈 (6면체)
@@ -180,24 +180,3 @@ func can_reroll() -> bool:
 
 func can_double_down() -> bool:
 	return rerolls_remaining >= DOUBLE_DOWN_COST and not is_double_down
-
-
-#region Pending Score (PostRollState → ConversionState 전달용)
-class PendingScore:
-	var hand_rank_id: String
-	var score: int
-
-	func _init(hr_id: String, s: int) -> void:
-		hand_rank_id = hr_id
-		score = s
-
-var _pending_score: PendingScore = null
-
-func set_pending_score(hand_rank_id: String, score: int) -> void:
-	_pending_score = PendingScore.new(hand_rank_id, score)
-
-func consume_pending_score() -> PendingScore:
-	var result := _pending_score
-	_pending_score = null
-	return result
-#endregion

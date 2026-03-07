@@ -19,8 +19,6 @@
 [ext_resource type="Script" uid="uid://bgideag8ai4qt" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
 [ext_resource type="Script" uid="uid://bknp5u7rhfdl4" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
 [ext_resource type="Script" uid="uid://cssakh1hta1cp" path="res://globals/state_machine/states/rolling_state.gd" id="rolling_state"]
-[ext_resource type="Script" path="res://globals/state_machine/states/conversion_state.gd" id="conversion_state"]
-[ext_resource type="PackedScene" path="res://ui/conversion_ui/conversion_ui.tscn" id="21_conversion_ui"]
 [ext_resource type="Script" uid="uid://c0611asothgpk" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
 [ext_resource type="Script" uid="uid://cvia4x0pfap6u" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
 [ext_resource type="Shader" path="res://shaders/pixel_outline.gdshader" id="pixel_outline_shader"]
@@ -155,9 +153,6 @@ visible = false
 [node name="GearMiniGrid" parent="CanvasLayer" unique_id=268230116 instance=ExtResource("19_gear_mini_grid")]
 visible = false
 
-[node name="ConversionUI" parent="CanvasLayer" instance=ExtResource("21_conversion_ui")]
-visible = false
-
 [node name="StateMachine" type="Node" parent="." unique_id=2064687143]
 script = ExtResource("state_machine")
 
@@ -172,9 +167,6 @@ script = ExtResource("rolling_state")
 
 [node name="PostRollState" type="Node" parent="StateMachine" unique_id=1914421397]
 script = ExtResource("post_roll_state")
-
-[node name="ConversionState" type="Node" parent="StateMachine" unique_id=880554659]
-script = ExtResource("conversion_state")
 
 [node name="GameOverState" type="Node" parent="StateMachine" unique_id=73281343]
 script = ExtResource("game_over_state")

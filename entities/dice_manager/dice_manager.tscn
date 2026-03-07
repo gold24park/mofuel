@@ -4,3 +4,5 @@
 
 [node name="DiceManager" type="Node3D" unique_id=257002367]
 script = ExtResource("1")
+display_z = -2.0
+fan_total_angle = 22.0
