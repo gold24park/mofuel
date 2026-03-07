@@ -25,6 +25,7 @@ var final_value: int = 0
 var final_rotation: Basis = Basis.IDENTITY # 굴린 후의 회전 저장
 var outline_mesh: MeshInstance3D = null
 var _spotlight: OmniLight3D = null
+var _active_mesh_tween: Tween = null  ## dice_mesh.scale 트윈 충돌 방지
 var roll_start_time: float = 0.0
 # Breathing animation
 var is_breathing: bool = false
@@ -48,6 +49,7 @@ func _ready() -> void:
 	_create_spotlight()
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
+	set_process(false)
 
 
 func _process(delta: float) -> void:
@@ -83,6 +85,7 @@ func _process_moving_to_display(delta: float) -> void:
 		collision_layer = CollisionLayers.ALIGNED_DICE
 		collision_mask = 0
 		current_state = State.IDLE
+		_update_process_enabled()
 
 
 func _process_breathing(delta: float) -> void:
@@ -92,6 +95,9 @@ func _process_breathing(delta: float) -> void:
 		dice_mesh.scale = Vector3.ONE * scale_factor
 	elif dice_mesh.scale != Vector3.ONE:
 		dice_mesh.scale = dice_mesh.scale.lerp(Vector3.ONE, delta * 10.0)
+		if dice_mesh.scale.is_equal_approx(Vector3.ONE):
+			dice_mesh.scale = Vector3.ONE
+			_update_process_enabled()
 
 
 # 주사위 모델 기준 반듯한 회전 계산
@@ -163,6 +169,7 @@ func set_display_position(new_pos: Vector3) -> void:
 	# IDLE 상태면 바로 이동 시작
 	if current_state == State.IDLE:
 		current_state = State.MOVING_TO_DISPLAY
+		set_process(true)
 
 
 #region Spin In Place
@@ -177,6 +184,7 @@ func spin_in_place() -> void:
 	set_spotlight(false)
 
 	current_state = State.ROLLING
+	set_process(true)
 	roll_start_time = Time.get_ticks_msec() / 1000.0
 
 	# 랜덤 결과 면 (1~6)
@@ -205,25 +213,7 @@ func spin_in_place() -> void:
 	transform.basis = final_rotation
 
 	# Phase 3: 탕! 스케일 펀치 + 기울기 (선택 펀치와 동일한 쫀득한 느낌)
-	var tilt := Vector3(
-		randf_range(-0.2, 0.2),
-		0,
-		randf_range(-0.2, 0.2)
-	)
-	var slam := create_tween()
-	# 팽창 + 기울기 (동시)
-	slam.tween_property(dice_mesh, "scale", Vector3.ONE * 1.15, 0.06) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	slam.parallel().tween_property(dice_mesh, "rotation", tilt, 0.06) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	# 수축
-	slam.tween_property(dice_mesh, "scale", Vector3.ONE * 0.92, 0.06) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	# 정착 + 기울기 복귀 (동시)
-	slam.tween_property(dice_mesh, "scale", Vector3.ONE, 0.12) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
-	slam.parallel().tween_property(dice_mesh, "rotation", Vector3.ZERO, 0.15) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	var slam := _create_punch_tween()
 	await slam.finished
 	dice_mesh.rotation = Vector3.ZERO
 
@@ -233,6 +223,7 @@ func spin_in_place() -> void:
 	collision_layer = CollisionLayers.ALIGNED_DICE
 	collision_mask = 0
 	current_state = State.IDLE
+	_update_process_enabled()
 	roll_finished.emit(dice_index, final_value)
 #endregion
 
@@ -243,6 +234,7 @@ func _on_sleeping_state_changed() -> void:
 
 	# 상태를 먼저 변경하여 중복 호출 방지
 	current_state = State.MOVING_TO_DISPLAY
+	set_process(true)
 	set_physics_scale(1.0)
 
 	# 회전 행렬에서 윗면 계산
@@ -265,6 +257,7 @@ func _on_sleeping_state_changed() -> void:
 
 func _force_settle() -> void:
 	current_state = State.MOVING_TO_DISPLAY
+	set_process(true)
 	set_physics_scale(1.0)
 
 	# 물리 정지
@@ -343,46 +336,62 @@ func set_spotlight(enabled: bool) -> void:
 func _punch_scale() -> void:
 	var was_breathing := is_breathing
 	is_breathing = false
+	var tween := _create_punch_tween()
+	tween.finished.connect(func(): is_breathing = was_breathing)
 
-	# 랜덤 기울기 방향
-	var tilt := Vector3(
-		randf_range(-0.2, 0.2),
-		0,
-		randf_range(-0.2, 0.2)
-	)
 
-	var tween := create_tween()
+## 공유 펀치 트윈 생성 — spin_in_place, _punch_scale, 효과 애니메이션에서 사용
+## 기존 mesh 트윈을 kill하고 새로 생성
+func _create_punch_tween() -> Tween:
+	_kill_mesh_tween()
+	var tilt := Vector3(randf_range(-0.2, 0.2), 0, randf_range(-0.2, 0.2))
+	_active_mesh_tween = create_tween()
 	# 팽창 + 기울기 (동시)
-	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.15, 0.06) \
+	_active_mesh_tween.tween_property(dice_mesh, "scale", Vector3.ONE * 1.15, 0.06) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tween.parallel().tween_property(dice_mesh, "rotation", tilt, 0.06) \
+	_active_mesh_tween.parallel().tween_property(dice_mesh, "rotation", tilt, 0.06) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	# 수축
-	tween.tween_property(dice_mesh, "scale", Vector3.ONE * 0.92, 0.06) \
+	_active_mesh_tween.tween_property(dice_mesh, "scale", Vector3.ONE * 0.92, 0.06) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	# 정착 + 기울기 복귀 (동시)
-	tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.12) \
+	_active_mesh_tween.tween_property(dice_mesh, "scale", Vector3.ONE, 0.12) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
-	tween.parallel().tween_property(dice_mesh, "rotation", Vector3.ZERO, 0.15) \
+	_active_mesh_tween.parallel().tween_property(dice_mesh, "rotation", Vector3.ZERO, 0.15) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tween.finished.connect(func(): is_breathing = was_breathing)
+	return _active_mesh_tween
+
+
+## dice_mesh 관련 트윈 충돌 방지 — 새 트윈 생성 전 기존 것을 kill
+func _kill_mesh_tween() -> void:
+	if _active_mesh_tween and _active_mesh_tween.is_running():
+		_active_mesh_tween.kill()
+	_active_mesh_tween = null
 
 
 func start_breathing() -> void:
 	is_breathing = true
 	breath_time = 0.0
+	set_process(true)
 
 
 func stop_breathing() -> void:
 	is_breathing = false
+	# scale 복귀 후 _process_breathing에서 _update_process_enabled() 호출
+
+
+## _process 토글: 활성 상태(ROLLING/MOVING/breathing)일 때만 true
+func _update_process_enabled() -> void:
+	set_process(current_state != State.IDLE or is_breathing)
 
 
 #region Effect Animations
 ## 효과 애니메이션 재생 (await 가능, breathing과 충돌 방지)
 func play_effect_anim(anim_type: String) -> void:
-	# breathing 일시 정지 (둘 다 dice_mesh.scale을 건드리므로)
+	# breathing 일시 정지 + 기존 mesh 트윈 정리 (충돌 방지)
 	var was_breathing := is_breathing
 	is_breathing = false
+	_kill_mesh_tween()
 	dice_mesh.scale = Vector3.ONE
 
 	match anim_type:

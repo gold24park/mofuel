@@ -12,9 +12,12 @@ var _final_score: int = 0
 var _waiting_transition := false
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.CONVERSION
+
+
 func enter() -> void:
-	GameState.current_phase = GameState.Phase.CONVERSION
-	GameState.phase_changed.emit(GameState.current_phase)
+	super.enter()
 
 	# 타이머 정지 (플레이어가 버튼을 누를 때까지 대기)
 	GameState.set_timer_running(false)
@@ -25,7 +28,7 @@ func enter() -> void:
 		return
 
 	# Burst = 0점 → 선택 없이 즉시 다음으로
-	if pending.category_id == "burst":
+	if pending.hand_rank_id == "burst":
 		_check_and_transition()
 		return
 
@@ -33,11 +36,11 @@ func enter() -> void:
 	game_root.dice_manager.apply_scoring_effects()
 
 	# 점수 재계산 (효과 적용 후)
-	var category = CategoryRegistry.get_category(pending.category_id)
-	var score := Scoring.calculate_score(category, GameState.active_dice)
+	var hand_rank = HandRankRegistry.get_hand_rank(pending.hand_rank_id)
+	var score := Scoring.calculate_score(hand_rank, GameState.active_dice)
 
-	# 카테고리 배수 적용
-	var upgrade := MetaState.get_upgrade(pending.category_id)
+	# Hand Rank 배수 적용
+	var upgrade := MetaState.get_upgrade(pending.hand_rank_id)
 	if upgrade:
 		score = int(score * upgrade.get_total_multiplier())
 
@@ -90,6 +93,9 @@ func _delayed_transition() -> void:
 	_disconnect_signals()
 	game_root.conversion_ui.hide_conversion()
 	await game_root.get_tree().create_timer(TRANSITION_DELAY).timeout
+	# 코루틴 안전 가드: await 중 상태가 바뀌었으면 중단
+	if GameState.current_phase != GameState.Phase.CONVERSION:
+		return
 	_waiting_transition = false
 	_check_and_transition()
 

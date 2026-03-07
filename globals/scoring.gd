@@ -23,15 +23,15 @@ const ALL_STRAIGHT_PATTERNS := [
 
 
 #region Core Scoring
-static func calculate_score(category, dice: Array) -> int:
+static func calculate_score(hand_rank, dice: Array) -> int:
 	_process_score_effects(dice)
-	return _calculate_score_core(category, dice)
+	return _calculate_score_core(hand_rank, dice)
 
 
 ## 효과 처리 없이 순수 점수 계산 (효과가 이미 적용된 상태에서 호출)
-static func _calculate_score_core(category, dice: Array) -> int:
-	var values := _get_effective_values(dice, category)
-	var result := _evaluate_pattern(category, values)
+static func _calculate_score_core(hand_rank, dice: Array) -> int:
+	var values := _get_effective_values(dice, hand_rank)
+	var result := _evaluate_pattern(hand_rank, values)
 	var base: int = result["base"]
 	if base == NO_MATCH:
 		return 0
@@ -49,9 +49,9 @@ static func _process_score_effects(dice: Array) -> void:
 				dice[i].score_effects.append(r)
 
 
-static func calculate_score_with_upgrade(category, dice: Array) -> int:
-	var base_score := calculate_score(category, dice)
-	var upgrade := MetaState.get_upgrade(category.id)
+static func calculate_score_with_upgrade(hand_rank, dice: Array) -> int:
+	var base_score := calculate_score(hand_rank, dice)
+	var upgrade := MetaState.get_upgrade(hand_rank.id)
 	if upgrade:
 		return int(base_score * upgrade.get_total_multiplier())
 	return base_score
@@ -71,7 +71,7 @@ static func _collect_pools(dice: Array) -> Dictionary:
 #region Effective Values (와일드카드 최적 할당)
 ## 주사위 인덱스 순서를 유지한 effective values 반환
 ## (와일드카드가 원래 위치에 배치됨 — get_pattern_indices에서 인덱스 대응 필요)
-static func _get_effective_values(dice: Array, category) -> Array:
+static func _get_effective_values(dice: Array, hand_rank) -> Array:
 	var values: Array[int] = []
 	var wildcard_indices: Array[int] = []
 
@@ -90,7 +90,7 @@ static func _get_effective_values(dice: Array, category) -> Array:
 			assigned.append(values[i])
 
 	for wc_idx in wildcard_indices:
-		var best_value := _find_best_wildcard_value(assigned, category)
+		var best_value := _find_best_wildcard_value(assigned, hand_rank)
 		values[wc_idx] = best_value
 		dice[wc_idx].set_wildcard_value(best_value)
 		assigned.append(best_value)
@@ -98,9 +98,9 @@ static func _get_effective_values(dice: Array, category) -> Array:
 	return values
 
 
-static func _find_best_wildcard_value(current_values: Array, category) -> int:
-	var CT := CategoryResource.CategoryType
-	match category.category_type:
+static func _find_best_wildcard_value(current_values: Array, hand_rank) -> int:
+	var CT := HandRankResource.HandRankType
+	match hand_rank.hand_rank_type:
 		CT.HIGH_DICE:
 			return GameState.MAX_FACE_VALUE
 
@@ -123,11 +123,11 @@ static func _find_best_wildcard_value(current_values: Array, category) -> int:
 #region Pattern Evaluation
 ## 패턴 평가: {"base": int, "indices": Array[int]} 반환
 ## base == NO_MATCH이면 패턴 미매칭
-static func _evaluate_pattern(category, values: Array) -> Dictionary:
-	var chips: int = category.base_chips
-	var CT := CategoryResource.CategoryType
+static func _evaluate_pattern(hand_rank, values: Array) -> Dictionary:
+	var chips: int = hand_rank.base_chips
+	var CT := HandRankResource.HandRankType
 
-	match category.category_type:
+	match hand_rank.hand_rank_type:
 		CT.HIGH_DICE:
 			return {"base": chips + values.max(),
 					"indices": _indices_of_max(values)}
@@ -385,35 +385,35 @@ static func _get_straight_best_value(values: Array) -> int:
 static func calculate_all_scores(dice: Array) -> Dictionary:
 	_process_score_effects(dice) # 효과 1회만 처리
 	var results := {}
-	for cat in CategoryRegistry.get_all_categories():
-		var base_score := _calculate_score_core(cat, dice)
-		var upgrade := MetaState.get_upgrade(cat.id)
+	for hr in HandRankRegistry.get_all_hand_ranks():
+		var base_score := _calculate_score_core(hr, dice)
+		var upgrade := MetaState.get_upgrade(hr.id)
 		if upgrade:
-			results[cat.id] = int(base_score * upgrade.get_total_multiplier())
+			results[hr.id] = int(base_score * upgrade.get_total_multiplier())
 		else:
-			results[cat.id] = base_score
+			results[hr.id] = base_score
 	return results
 
 
 ## 최고 점수 카테고리 반환. 없으면 빈 Dictionary
-static func get_best_category(dice: Array) -> Dictionary:
+static func get_best_hand_rank(dice: Array) -> Dictionary:
 	var all_scores := calculate_all_scores(dice)
 	var best_id: String = ""
 	var best_score: int = 0
-	for cat_id in all_scores:
-		if all_scores[cat_id] > best_score:
-			best_score = all_scores[cat_id]
-			best_id = cat_id
+	for hr_id in all_scores:
+		if all_scores[hr_id] > best_score:
+			best_score = all_scores[hr_id]
+			best_id = hr_id
 	if best_id == "":
 		return {}
-	return {"category_id": best_id, "score": best_score,
-			"category": CategoryRegistry.get_category(best_id)}
+	return {"hand_rank_id": best_id, "score": best_score,
+			"hand_rank": HandRankRegistry.get_hand_rank(best_id)}
 
 
 ## 패턴을 이루는 주사위 인덱스 반환 (하이라이트용)
-static func get_pattern_indices(category, dice: Array) -> Array[int]:
-	var values := _get_effective_values(dice, category)
-	var result := _evaluate_pattern(category, values)
+static func get_pattern_indices(hand_rank, dice: Array) -> Array[int]:
+	var values := _get_effective_values(dice, hand_rank)
+	var result := _evaluate_pattern(hand_rank, values)
 	var indices: Array[int] = []
 	if result["base"] != NO_MATCH:
 		indices.assign(result["indices"])
@@ -421,18 +421,18 @@ static func get_pattern_indices(category, dice: Array) -> Array[int]:
 
 
 ## ScoreDisplay용 분해 데이터 반환
-static func get_score_breakdown(category, dice: Array) -> Dictionary:
+static func get_score_breakdown(hand_rank, dice: Array) -> Dictionary:
 	_process_score_effects(dice)
-	var values := _get_effective_values(dice, category)
-	var result := _evaluate_pattern(category, values)
+	var values := _get_effective_values(dice, hand_rank)
+	var result := _evaluate_pattern(hand_rank, values)
 	var base: int = result["base"]
 
 	if base == NO_MATCH:
-		return {"category_name": category.display_name, "base": 0,
+		return {"hand_rank_name": hand_rank.display_name, "base": 0,
 				"bonus_pool": 0, "mult_pool": 1.0, "final": 0}
 
 	var pools := _collect_pools(dice)
-	return {"category_name": category.display_name, "base": base,
+	return {"hand_rank_name": hand_rank.display_name, "base": base,
 			"bonus_pool": pools["bonus"], "mult_pool": pools["mult"],
 			"final": int((base + pools["bonus"]) * pools["mult"])}
 #endregion

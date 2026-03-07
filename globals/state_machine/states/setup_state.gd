@@ -5,23 +5,27 @@ extends GameStateBase
 ## 타이머/거리/리소스 초기화 후 PreRollState로 전환
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.SETUP
+
+
 func enter() -> void:
-	GameState.current_phase = GameState.Phase.SETUP
-	GameState.phase_changed.emit(GameState.current_phase)
+	super.enter()
 
 	# 게임 상태 초기화
 	GameState.remaining_time = GameState.BASE_TIME
 	GameState.remaining_distance = GameState.target_distance
-	GameState.timer_running = false
+	GameState.set_timer_running(false)
 	GameState.rerolls_remaining = GameState.MAX_REROLLS
 	GameState.redraws_remaining = GameState.MAX_REDRAWS
 	GameState.is_double_down = false
 	GameState.draws_remaining = 1
+	GameState.consume_pending_score()  # 이전 게임의 stale 데이터 정리
 
 	GameState.inventory.init_starting_inventory()
 	GameState.deck.init_from_inventory(GameState.inventory)
 
-	GameState.deck.draw_initial_hand(GameState.HAND_DRAW_COUNT)
+	GameState.deck.draw_to_hand(GameState.HAND_DRAW_COUNT, false)
 
 	# 시그널 발생
 	GameState.time_changed.emit(GameState.remaining_time)

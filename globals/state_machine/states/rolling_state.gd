@@ -5,9 +5,12 @@ extends GameStateBase
 ## all_dice_finished 시그널 수신 시 PostRollState로 전환
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.ROLLING
+
+
 func enter() -> void:
-	GameState.current_phase = GameState.Phase.ROLLING
-	GameState.phase_changed.emit(GameState.current_phase)
+	super.enter()
 
 	# 주사위 애니메이션 중 타이머 정지 (플레이어 선택이 아님)
 	GameState.set_timer_running(false)

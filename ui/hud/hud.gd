@@ -8,6 +8,8 @@ extends Control
 @onready var draws_label: Label = $DrawsLabel
 @onready var redraws_label: Label = $RedrawsLabel
 
+var _was_urgent: bool = false
+
 
 func _ready() -> void:
 	GameState.time_changed.connect(_on_time_changed)
@@ -33,11 +35,14 @@ func _update_all() -> void:
 
 func _on_time_changed(time: float) -> void:
 	timer_label.text = "Time: %.1f" % time
-	# 긴박감 표시: 2초 미만이면 붉은색
-	if time < 2.0:
-		timer_label.add_theme_color_override("font_color", Color.RED)
-	else:
-		timer_label.remove_theme_color_override("font_color")
+	# 긴박감 표시: 2초 미만이면 붉은색 (상태 변경 시에만 theme override 호출)
+	var is_urgent := time < 2.0
+	if is_urgent != _was_urgent:
+		_was_urgent = is_urgent
+		if is_urgent:
+			timer_label.add_theme_color_override("font_color", Color.RED)
+		else:
+			timer_label.remove_theme_color_override("font_color")
 
 
 func _on_distance_changed(distance: float) -> void:

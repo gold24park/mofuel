@@ -28,7 +28,7 @@ layout_mode = 2
 theme_override_constants/separation = 3
 alignment = 1
 
-[node name="CategoryLabel" type="Label" parent="PanelContainer/VBoxContainer"]
+[node name="HandRankLabel" type="Label" parent="PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_title_font")
 horizontal_alignment = 1

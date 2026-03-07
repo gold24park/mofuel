@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://c8m2k4l7xpqvr"]
 
 [ext_resource type="Script" uid="uid://dqnnqwtb4yhr" path="res://scenes/game/game.gd" id="1_game"]
-[ext_resource type="PackedScene" uid="uid://c6x7rwkm2h8jt" path="res://entities/table/table.tscn" id="2_table"]
 [ext_resource type="PackedScene" uid="uid://djq8m2fk7xc5l" path="res://entities/dice_manager/dice_manager.tscn" id="3_dice_manager"]
 [ext_resource type="PackedScene" uid="uid://cw8m5hvp2ql7r" path="res://ui/hud/hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" uid="uid://cn8vj5d2ql7mx" path="res://ui/game_over/game_over.tscn" id="7_game_over"]
@@ -12,9 +11,10 @@
 [ext_resource type="PackedScene" uid="uid://b4tec2ymj0kbv" path="res://ui/roll_button/roll_button.tscn" id="13_roll_button"]
 [ext_resource type="PackedScene" path="res://ui/inventory_deck/inventory_deck.tscn" id="14_inventory_deck"]
 [ext_resource type="PackedScene" path="res://ui/dice_tooltip/dice_tooltip.tscn" id="15_dice_tooltip"]
-[ext_resource type="PackedScene" path="res://ui/ornament_grid/ornament_grid_ui.tscn" id="18_ornament_grid"]
-[ext_resource type="PackedScene" path="res://ui/ornament_grid/ornament_mini_grid.tscn" id="19_ornament_mini_grid"]
+[ext_resource type="PackedScene" path="res://ui/gear_grid/gear_grid_ui.tscn" id="18_gear_grid"]
+[ext_resource type="PackedScene" path="res://ui/gear_grid/gear_mini_grid.tscn" id="19_gear_mini_grid"]
 [ext_resource type="PackedScene" path="res://ui/chase_bg/chase_bg.tscn" id="20_chase_bg"]
+[ext_resource type="PackedScene" path="res://ui/chase_bar/chase_bar.tscn" id="22_chase_bar"]
 [ext_resource type="Script" uid="uid://be0n8263vsi7u" path="res://globals/state_machine/states/game_over_state.gd" id="game_over_state"]
 [ext_resource type="Script" uid="uid://bgideag8ai4qt" path="res://globals/state_machine/states/post_roll_state.gd" id="post_roll_state"]
 [ext_resource type="Script" uid="uid://bknp5u7rhfdl4" path="res://globals/state_machine/states/pre_roll_state.gd" id="pre_roll_state"]
@@ -23,6 +23,17 @@
 [ext_resource type="PackedScene" path="res://ui/conversion_ui/conversion_ui.tscn" id="21_conversion_ui"]
 [ext_resource type="Script" uid="uid://c0611asothgpk" path="res://globals/state_machine/states/setup_state.gd" id="setup_state"]
 [ext_resource type="Script" uid="uid://cvia4x0pfap6u" path="res://globals/state_machine/game_state_machine.gd" id="state_machine"]
+[ext_resource type="Shader" path="res://shaders/pixel_outline.gdshader" id="pixel_outline_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
+render_priority = 1
+shader = ExtResource("pixel_outline_shader")
+shader_parameter/outline_color = Color(0, 0, 0, 1)
+shader_parameter/outline_strength = 0.85
+shader_parameter/depth_threshold = 0.25
+
+[sub_resource type="QuadMesh" id="QuadMesh_outline"]
+size = Vector2(32, 18)
 
 [sub_resource type="Environment" id="Environment_env"]
 background_mode = 1
@@ -76,8 +87,6 @@ render_target_update_mode = 4
 [node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/World3D" unique_id=372904548]
 environment = SubResource("Environment_env")
 
-[node name="Table" parent="SubViewportContainer/SubViewport/World3D" unique_id=2050281813 instance=ExtResource("2_table")]
-
 [node name="DiceManager" parent="SubViewportContainer/SubViewport/World3D" unique_id=1544377139 instance=ExtResource("3_dice_manager")]
 
 [node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1091647069]
@@ -85,6 +94,12 @@ transform = Transform3D(1, 0, 0, 0, 2.3841858e-07, 1, 0, -1, 2.3841858e-07, 0, 3
 projection = 1
 current = true
 size = 16.98
+
+[node name="OutlinePostProcess" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.5)
+mesh = SubResource("QuadMesh_outline")
+material_override = SubResource("ShaderMaterial_outline")
+extra_cull_margin = 16384.0
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=2103781492]
 transform = Transform3D(0.86602527, -0.25000027, 0.43301278, -0.35355353, 0.30618584, 0.8838834, -0.35355356, -0.9185587, 0.17677626, 0, 17, 0)
@@ -95,6 +110,8 @@ shadow_enabled = true
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=956316046]
 
 [node name="HUD" parent="CanvasLayer" unique_id=909889082 instance=ExtResource("4_hud")]
+
+[node name="ChaseBar" parent="CanvasLayer" instance=ExtResource("22_chase_bar")]
 
 [node name="GameOver" parent="CanvasLayer" unique_id=753122824 instance=ExtResource("7_game_over")]
 visible = false
@@ -132,10 +149,10 @@ grow_vertical = 0
 [node name="DiceTooltip" parent="CanvasLayer" unique_id=956099878 instance=ExtResource("15_dice_tooltip")]
 visible = false
 
-[node name="OrnamentGridUI" parent="CanvasLayer" unique_id=1884631820 instance=ExtResource("18_ornament_grid")]
+[node name="GearGridUI" parent="CanvasLayer" unique_id=1884631820 instance=ExtResource("18_gear_grid")]
 visible = false
 
-[node name="OrnamentMiniGrid" parent="CanvasLayer" unique_id=268230116 instance=ExtResource("19_ornament_mini_grid")]
+[node name="GearMiniGrid" parent="CanvasLayer" unique_id=268230116 instance=ExtResource("19_gear_mini_grid")]
 visible = false
 
 [node name="ConversionUI" parent="CanvasLayer" instance=ExtResource("21_conversion_ui")]

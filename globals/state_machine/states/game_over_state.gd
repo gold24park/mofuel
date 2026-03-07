@@ -6,9 +6,12 @@ extends GameStateBase
 ## - Upgrade: 업그레이드 화면 표시
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.GAME_OVER
+
+
 func enter() -> void:
-	GameState.current_phase = GameState.Phase.GAME_OVER
-	GameState.phase_changed.emit(GameState.current_phase)
+	super.enter()
 
 	# 타이머 정지
 	GameState.set_timer_running(false)
@@ -29,16 +32,16 @@ func _connect_signals() -> void:
 	game_root.game_over_screen.restart_pressed.connect(_on_restart_pressed)
 	game_root.game_over_screen.upgrade_pressed.connect(_on_upgrade_pressed)
 	game_root.upgrade_screen.continue_pressed.connect(_on_upgrade_continue)
-	game_root.game_over_screen.ornament_pressed.connect(_on_ornament_pressed)
-	game_root.ornament_grid_ui.continue_pressed.connect(_on_ornament_continue)
+	game_root.game_over_screen.gear_pressed.connect(_on_gear_pressed)
+	game_root.gear_grid_ui.continue_pressed.connect(_on_gear_continue)
 
 
 func _disconnect_signals() -> void:
 	game_root.game_over_screen.restart_pressed.disconnect(_on_restart_pressed)
 	game_root.game_over_screen.upgrade_pressed.disconnect(_on_upgrade_pressed)
 	game_root.upgrade_screen.continue_pressed.disconnect(_on_upgrade_continue)
-	game_root.game_over_screen.ornament_pressed.disconnect(_on_ornament_pressed)
-	game_root.ornament_grid_ui.continue_pressed.disconnect(_on_ornament_continue)
+	game_root.game_over_screen.gear_pressed.disconnect(_on_gear_pressed)
+	game_root.gear_grid_ui.continue_pressed.disconnect(_on_gear_continue)
 
 
 func _on_restart_pressed() -> void:
@@ -53,9 +56,9 @@ func _on_upgrade_continue() -> void:
 	transitioned.emit(self, "SetupState")
 
 
-func _on_ornament_pressed() -> void:
-	game_root.ornament_grid_ui.show_screen()
+func _on_gear_pressed() -> void:
+	game_root.gear_grid_ui.show_screen()
 
 
-func _on_ornament_continue() -> void:
+func _on_gear_continue() -> void:
 	game_root.game_over_screen.visible = true

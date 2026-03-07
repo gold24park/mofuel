@@ -41,15 +41,15 @@ static func process_effects(all_dice: Array[DiceInstance]) -> Dictionary:
 
 			pending.append(PendingEffect.new(effect, ctx, targets))
 
-	# 1b. 오너먼트 주사위 효과 수집
-	var ornament_effects := MetaState.ornament_grid.get_all_dice_effects()
-	for orn_effect in ornament_effects:
-		if orn_effect is ActionEffect:
+	# 1b. 기어 주사위 효과 수집
+	var gear_effects := MetaState.gear_grid.get_all_dice_effects()
+	for gear_effect in gear_effects:
+		if gear_effect is ActionEffect:
 			continue
 		var ctx := EffectContext.create_global(all_dice)
-		var targets := orn_effect.get_target_indices(ctx)
+		var targets := gear_effect.get_target_indices(ctx)
 		if not targets.is_empty():
-			pending.append(PendingEffect.new(orn_effect, ctx, targets))
+			pending.append(PendingEffect.new(gear_effect, ctx, targets))
 
 	# 2. 적용: 타겟별로 결과 수집
 	var results: Dictionary = {}
@@ -64,7 +64,7 @@ static func process_effects(all_dice: Array[DiceInstance]) -> Dictionary:
 
 		# 출처 정보 설정
 		result.source_index = pe.context.source_index
-		result.source_name = pe.context.source_dice.type.display_name if pe.context.source_dice else "Ornament"
+		result.source_name = pe.context.source_dice.type.display_name if pe.context.source_dice else "Gear"
 		result.effect_name = pe.effect.effect_name
 
 		# 각 타겟에 결과 추가

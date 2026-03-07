@@ -9,6 +9,7 @@ signal hand_changed
 signal active_changed
 
 const HAND_MAX: int = 10
+const ACTIVE_MAX: int = 5  ## Active 슬롯 수 (ACTIVE_MAX와 동일, Autoload 미참조)
 
 var pool: Array[DiceInstance] = []
 var hand: Array[DiceInstance] = []
@@ -26,35 +27,18 @@ func init_from_inventory(inv: Inventory) -> void:
 	pool_changed.emit()
 
 
-func draw_initial_hand(count: int = GameState.DICE_COUNT) -> void:
-	for i in range(count):
-		if not pool.is_empty():
-			hand.append(pool.pop_front())
-	hand_changed.emit()
-	pool_changed.emit()
-
-
-func draw_to_hand(count: int = 1) -> void:
+## pool에서 hand로 드로우 (초기/일반 통합)
+## check_capacity=true: HAND_MAX 체크 (일반 드로우)
+## check_capacity=false: 초기 드로우 (HAND_MAX 무시)
+func draw_to_hand(count: int = 1, check_capacity: bool = true) -> void:
 	for i in range(count):
 		if pool.is_empty():
 			break
-		if hand.size() >= HAND_MAX:
+		if check_capacity and hand.size() >= HAND_MAX:
 			break
 		hand.append(pool.pop_front())
 	hand_changed.emit()
 	pool_changed.emit()
-
-
-## Hand에서 주사위 제거 (게임에서 완전 제거, pool로 돌아가지 않음)
-func discard_from_hand(hand_index: int) -> bool:
-	if hand_index < 0 or hand_index >= hand.size():
-		return false
-	# 최소 DICE_COUNT개는 남겨야 함 (hand + active 합산 — active는 라운드 끝에 hand로 복귀)
-	if hand.size() + active_dice.size() <= GameState.DICE_COUNT:
-		return false
-	hand.remove_at(hand_index)
-	hand_changed.emit()
-	return true
 
 
 func can_draw() -> bool:
@@ -74,7 +58,7 @@ func return_active_to_hand() -> void:
 ## @return 성공 여부
 func move_hand_to_active(hand_indices: Array[int]) -> bool:
 	# 검증: DICE_COUNT개여야 하며, 모든 인덱스가 유효해야 함
-	if hand_indices.size() != GameState.DICE_COUNT:
+	if hand_indices.size() != ACTIVE_MAX:
 		return false
 	for idx in hand_indices:
 		if idx < 0 or idx >= hand.size():
@@ -110,7 +94,7 @@ func move_hand_to_active(hand_indices: Array[int]) -> bool:
 func move_single_to_active(hand_index: int) -> int:
 	if hand_index < 0 or hand_index >= hand.size():
 		return -1
-	if active_dice.size() >= GameState.DICE_COUNT:
+	if active_dice.size() >= ACTIVE_MAX:
 		return -1
 
 	var dice := hand[hand_index]

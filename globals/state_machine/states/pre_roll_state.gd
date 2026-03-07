@@ -3,7 +3,6 @@ extends GameStateBase
 
 ## PRE_ROLL 상태 (타이머 진행 — 플레이어 선택 시간)
 ## - 기본: Hand에서 주사위 클릭 → Active로 이동
-## - Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭
 ## - Hand == 5 & Active == 0 → 자동 활성화 (순차 애니메이션)
 ## - Draw 버튼: deck pool에서 hand로 드로우
 ## - Redraw 버튼: Hand 전체 교체 (게임당 2회)
@@ -12,10 +11,13 @@ var _is_animating: bool = false
 var _prev_active: Array[DiceInstance] = [] ## 이전 활성 주사위 (자동 복원용)
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.PRE_ROLL
+
+
 func enter() -> void:
+	super.enter()
 	_connect_signals()
-	GameState.current_phase = GameState.Phase.PRE_ROLL
-	GameState.phase_changed.emit(GameState.current_phase)
 
 	# 타이머 정지 (PRE_ROLL은 준비 시간 — 주사위 선택 중에는 시간이 흐르지 않는다)
 	GameState.set_timer_running(false)
@@ -23,11 +25,11 @@ func enter() -> void:
 	# Double Down 리셋 (매 롤마다)
 	GameState.is_double_down = false
 
-	# 오너먼트 패시브 효과 적용 (게임 시작 후 첫 진입 시에만)
+	# 기어 패시브 효과 적용 (게임 시작 후 첫 진입 시에만)
 	# SetupState 직후에만 true (SetupState가 Phase.SETUP → PreRollState 전환)
 	var is_new_game := GameState.active_dice.size() == 0 and _prev_active.is_empty()
 	if is_new_game:
-		_apply_ornament_passives()
+		_apply_gear_passives()
 
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 	GameState.draws_changed.emit(GameState.draws_remaining)
@@ -46,7 +48,6 @@ func exit() -> void:
 func _connect_signals() -> void:
 	game_root.roll_button.roll_pressed.connect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.connect(_on_hand_dice_clicked)
-	game_root.hand_display.discard_zone.dice_discarded.connect(_on_dice_discarded)
 	game_root.dice_manager.active_dice_clicked.connect(_on_active_dice_clicked)
 	game_root.hand_display.draw_pressed.connect(_on_draw_pressed)
 
@@ -54,7 +55,6 @@ func _connect_signals() -> void:
 func _disconnect_signals() -> void:
 	game_root.roll_button.roll_pressed.disconnect(_on_roll_pressed)
 	game_root.hand_display.dice_clicked.disconnect(_on_hand_dice_clicked)
-	game_root.hand_display.discard_zone.dice_discarded.disconnect(_on_dice_discarded)
 	game_root.dice_manager.active_dice_clicked.disconnect(_on_active_dice_clicked)
 	game_root.hand_display.draw_pressed.disconnect(_on_draw_pressed)
 
@@ -71,7 +71,7 @@ func _play_round_transition() -> void:
 		GameState.deck.return_active_to_hand()
 		game_root.dice_manager.set_dice_to_hand_position()
 
-	game_root.dice_manager._reset_state()
+	game_root.dice_manager.reset_state()
 	GameState.is_transitioning = false
 
 	game_root.roll_button.visible = true
@@ -114,6 +114,10 @@ func _try_auto_activate() -> void:
 
 	_is_animating = true
 	for i in GameState.DICE_COUNT:
+		# 코루틴 안전 가드: await 중 상태 전환되었으면 중단
+		if GameState.current_phase != GameState.Phase.PRE_ROLL:
+			_is_animating = false
+			return
 		game_root.dice_manager.animate_single_to_active(i)
 		await game_root.get_tree().create_timer(0.08).timeout
 	_is_animating = false
@@ -156,16 +160,6 @@ func _on_active_dice_clicked(active_index: int) -> void:
 #endregion
 
 
-#region 버리기 처리 (드래그 앤 드롭으로 트리거)
-func _on_dice_discarded(hand_index: int) -> void:
-	if _is_animating or GameState.is_transitioning:
-		return
-	GameState.deck.discard_from_hand(hand_index)
-	_update_draw_ui()
-	_try_auto_activate()
-#endregion
-
-
 #region 수동 드로우
 func _on_draw_pressed() -> void:
 	if _is_animating or GameState.is_transitioning:
@@ -188,25 +182,23 @@ func _on_draw_pressed() -> void:
 func _on_roll_pressed() -> void:
 	if _is_animating or GameState.is_transitioning:
 		return
+	if GameState.active_dice.size() != GameState.DICE_COUNT:
+		return
 	game_root.dice_manager.roll_dice_spin_all()
 	transitioned.emit(self, "RollingState")
 #endregion
 
 
-#region Ornament Passives
-func _apply_ornament_passives() -> void:
-	var active: Array[OrnamentInstance] = []
-	for effect in MetaState.ornament_grid.get_all_passive_effects():
+#region Gear Passives
+func _apply_gear_passives() -> void:
+	for effect in MetaState.gear_grid.get_all_passive_effects():
 		match effect["type"]:
 			"reroll_bonus":
 				GameState.rerolls_remaining += int(effect["delta"])
 			"draw_bonus":
 				GameState.draws_remaining += int(effect["delta"])
 
-	# 패시브 보유 오너먼트 하이라이트
-	for ornament in MetaState.ornament_grid.placed_ornaments:
-		if not ornament.type.passive_effects.is_empty():
-			active.append(ornament)
-	if not active.is_empty():
-		game_root.ornament_mini_grid.highlight_ornaments(active)
+	# 패시브 보유 기어 하이라이트
+	_highlight_gears(func(g: GearInstance) -> bool:
+		return not g.type.passive_effects.is_empty())
 #endregion

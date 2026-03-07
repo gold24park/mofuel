@@ -36,7 +36,9 @@
       "Bash(done)",
       "mcp__godot__get_uid",
       "Bash(grep -rn \"func.*->.*:\" /Users/jieunpark/GodotProjects/mofuel --include=\"*.gd\" --exclude-dir=.history 2>/dev/null | grep -v \" -> \" | head -20)",
-      "Bash(wc -l /Users/jieunpark/GodotProjects/mofuel/globals/state_machine/states/*.gd | sort -n)"
+      "Bash(wc -l /Users/jieunpark/GodotProjects/mofuel/globals/state_machine/states/*.gd | sort -n)",
+      "Bash(find .godot/editor -name '*table*' -o -name '*dice_stats*' -o -name '*category_breakdown*' -o -name '*energy_wall*' -o -name '*discard_zone*' | xargs rm -f)",
+      "Bash(git -C /Users/jieunpark/GodotProjects/mofuel status ui/ --short)"
     ]
   },
   "enableAllProjectMcpServers": true,

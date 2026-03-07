@@ -32,6 +32,7 @@ func _init(config: Dictionary = {}) -> void:
 	assert(config.has("action"), "ActionEffect: missing 'action'")
 
 	target = config["target"]
+	target_group = config.get("target_group", "")
 	self.action = config["action"]
 	self.delta = config.get("delta", 0)
 	self.params = config.get("params", {})

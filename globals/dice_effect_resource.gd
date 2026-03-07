@@ -36,10 +36,26 @@ enum CompareOp {
 
 
 var target: Target = Target.SELF
+var target_group: String = ""  ## MATCHING_GROUP용 그룹 태그
 var comparisons: Array[Dictionary] = []
 var effect_name: String = ""
 var anim: String = ""
 var sound: String = ""
+
+
+#region Factory
+## Dictionary 데이터에서 DiceEffectResource 서브클래스 생성
+static func create_from_data(data: Dictionary) -> DiceEffectResource:
+	var type_name: String = data.get("type", "")
+	match type_name:
+		"ModifierEffect":
+			return ModifierEffect.new(data)
+		"ActionEffect":
+			return ActionEffect.new(data)
+		_:
+			assert(false, "DiceEffectResource: Unknown effect type: %s" % type_name)
+			return null
+#endregion
 
 
 #region Core Methods
@@ -63,9 +79,9 @@ func get_target_indices(context) -> Array[int]:
 	return filtered
 
 
-## MATCHING_GROUP용 - 서브클래스에서 오버라이드
+## MATCHING_GROUP용 — target_group 필드에서 직접 반환
 func get_target_group() -> String:
-	return ""
+	return target_group
 #endregion
 
 

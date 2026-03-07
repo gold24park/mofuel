@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://lr0x4isq68al"]
+
+[ext_resource type="Script" uid="uid://idgl6s0advvg" path="res://components/interacting_component.gd" id="1_ymcw1"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jo1hm"]
+radius = 18.0
+
+[node name="InteractingComponent" type="Node2D" unique_id=145700561]
+script = ExtResource("1_ymcw1")
+
+[node name="InteractRange" type="Area2D" parent="." unique_id=2084071763]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractRange" unique_id=957624205]
+shape = SubResource("CircleShape2D_jo1hm")
+
+[connection signal="area_entered" from="InteractRange" to="." method="_on_interact_range_area_entered"]
+[connection signal="area_exited" from="InteractRange" to="." method="_on_interact_range_area_exited"]

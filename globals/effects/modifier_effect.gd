@@ -34,6 +34,7 @@ func _init(config: Dictionary = {}) -> void:
 	assert(config.has("delta"), "ModifierEffect: missing 'delta'")
 
 	target = config["target"]
+	target_group = config.get("target_group", "")
 	self.modify_target = config["modify_target"]
 	self.delta = config["delta"]
 	effect_name = config.get("effect_name", "")

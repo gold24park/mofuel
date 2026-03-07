@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HandRankResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://globals/hand_rank_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "full_house"
+display_name = "풀하우스"
+description = "3개 + 2개 조합의 합"
+hand_rank_type = 5
+base_multiplier = 5.0
+max_multiplier = 3.0
+base_chips = 8
+multiplier_upgrade_step = 0.5

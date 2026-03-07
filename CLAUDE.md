@@ -33,62 +33,59 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
 ```
 /mofuel/
   /globals/           # Autoload singletons and shared classes
-    game_state.gd     # Match state management (inventory + deck 소유)
-    meta_state.gd     # Between-match state (upgrades)
-    inventory.gd      # Inventory — 영구 주사위 컬렉션 (class_name Inventory)
-    deck.gd              # Deck — 스테이지 로컬 덱
-    dice_registry.gd  # Dice type loader
-    category_registry.gd  # Category loader
-    scoring.gd        # Score calculation
-    dice_*.gd         # Dice type/instance classes
-    category_*.gd     # Category/upgrade classes
-    ornament_resource.gd  # 기어(Gear) 타입 정의 (shape, effects)
-    ornament_instance.gd  # 기어 배치 상태 인스턴스
-    ornament_grid.gd      # 트렁크(Trunk) 그리드 순수 로직
-    ornament_types.gd     # 기어 데이터 정의 (DiceTypes 패턴)
-    ornament_registry.gd  # 기어 로더 (Autoload)
-    effect_context.gd     # 효과 실행 컨텍스트
-    effect_result.gd      # 효과 결과 (시각적 피드백 포함)
-    effect_processor.gd   # 수집→적용 파이프라인
-    /state_machine/       # Game state machine
-      game_state_machine.gd   # State machine controller
-      game_state_base.gd      # Base state class
-      /states/
-        setup_state.gd        # 게임 초기화 (은행 선택 후)
-        pre_roll_state.gd     # 주사위 드로우 + 5개 선택 (타이머 정지)
-        rolling_state.gd      # 주사위 스핀 애니메이션 (타이머 정지)
-        post_roll_state.gd    # 굴린 후 (Stand/Reroll/DD) (점수연출 중 정지 → ActionBar 표시 후 진행)
-        conversion_state.gd   # 점수→거리/시간 치환 선택
-        game_over_state.gd    # 도주 성공/체포 결과
-    /effects/             # Dice effect subclasses
-      modifier_effect.gd           # 범용 점수 수정 (Data-driven)
-      action_effect.gd             # 게임 상태 변경 (드로우/파괴/변환)
+	game_state.gd     # Match state management (inventory + deck 소유)
+	meta_state.gd     # Between-match state (upgrades)
+	inventory.gd      # Inventory — 영구 주사위 컬렉션 (class_name Inventory)
+	deck.gd              # Deck — 스테이지 로컬 덱
+	dice_registry.gd  # Dice type loader
+	hand_rank_registry.gd # Hand Rank loader
+	scoring.gd        # Score calculation
+	dice_*.gd         # Dice type/instance classes
+	hand_rank_*.gd    # Hand Rank/upgrade classes
+	gear_resource.gd      # 기어(Gear) 타입 정의 (shape, effects)
+	gear_instance.gd      # 기어 배치 상태 인스턴스
+	gear_grid.gd          # 트렁크(Trunk) 그리드 순수 로직
+	gear_types.gd         # 기어 데이터 정의 (DiceTypes 패턴)
+	gear_registry.gd      # 기어 로더 (Autoload)
+	effect_context.gd     # 효과 실행 컨텍스트
+	effect_result.gd      # 효과 결과 (시각적 피드백 포함)
+	effect_processor.gd   # 수집→적용 파이프라인
+	/state_machine/       # Game state machine
+	  game_state_machine.gd   # State machine controller
+	  game_state_base.gd      # Base state class
+	  /states/
+		setup_state.gd        # 게임 초기화 (은행 선택 후)
+		pre_roll_state.gd     # 주사위 드로우 + 5개 선택 (타이머 정지)
+		rolling_state.gd      # 주사위 스핀 애니메이션 (타이머 정지)
+		post_roll_state.gd    # 굴린 후 (Stand/Reroll/DD) (점수연출 중 정지 → ActionBar 표시 후 진행)
+		conversion_state.gd   # 점수→거리/시간 치환 선택
+		game_over_state.gd    # 도주 성공/체포 결과
+	/effects/             # Dice effect subclasses
+	  modifier_effect.gd           # 범용 점수 수정 (Data-driven)
+	  action_effect.gd             # 게임 상태 변경 (드로우/파괴/변환)
 
   /entities/          # Reusable game entities
-    /dice/            # 3D dice with physics
-    /dice_manager/    # Manages 5 dice for game
-    /table/           # Play surface with walls
+	/dice/            # 3D dice with physics
+	/dice_manager/    # Manages 5 dice for game
 
   /scenes/            # Game scenes
-    /game/            # Main game scene
-      /components/    # Reusable scene components (SwipeDetector, etc.)
-    /world/           # Legacy single-dice demo
+	/game/            # Main game scene
+	  /components/    # Reusable scene components (SwipeDetector, etc.)
 
   /ui/                # UI components
-    /hud/             # 화면 최상단: 타이머 바 + 남은 거리 시각화
-    /hand_display/    # 화면 하단: Hand bar (고정 10슬롯 + DiscardSlot + RedrawButton)
-    /score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
-    /category_breakdown/  # POST_ROLL 족보 현황 패널 (전체 족보 + 최고 하이라이트)
-    /action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down + 리롤 모드: Back/Roll)
-    /conversion_ui/   # 점수 치환 선택 UI (거리 환산/시간 확보)
-    /game_over/       # 도주 성공/체포 화면
-    /upgrade_screen/  # Category upgrade UI
-    /ornament_grid/   # 트렁크(Trunk) UI — 기어 테트리스 배치 + 로드아웃
-    /chase_bg/        # 도주 배경 (차량 + 경찰차, 타이머 연동 멈춤/채도)
+	/hud/             # 화면 최상단: 타이머 바 + 남은 거리 시각화
+	/hand_display/    # 화면 하단: Hand bar (고정 8슬롯 + DrawButton)
+	/score_display/   # 발라트로 스타일 점수 표시 (chips × mult)
+	/action_bar/      # POST_ROLL 액션 (Stand/Reroll/Double Down + 리롤 모드: Back/Roll)
+	/conversion_ui/   # 점수 치환 선택 UI (거리 환산/시간 확보)
+	/game_over/       # 도주 성공/체포 화면
+	/upgrade_screen/  # Hand Rank upgrade UI
+	/gear_grid/       # 트렁크(Trunk) UI — 기어 테트리스 배치 + 로드아웃
+	/chase_bg/        # 도주 배경 (차량 + 경찰차, 타이머 연동 멈춤/채도)
 
   /resources/         # Data definitions
-    /dice_types/      # (비어있음 — 데이터는 globals/dice_types.gd)
-    /categories/      # Category .tres files
+	/dice_types/      # (비어있음 — 데이터는 globals/dice_types.gd)
+	/hand_ranks/      # Hand Rank .tres files
 ```
 
 ### Game Flow
@@ -101,20 +98,18 @@ godot --headless --export-debug "Android" ./build/mofuel.apk
    - Hand == 5 & Active == 0 → **자동 활성화** (순차 애니메이션)
    - Hand > 5 → Hand UI에서 주사위 클릭 → Active로 올라감 (애니메이션)
    - Active 주사위 클릭 → Hand로 내려감
-   - **Discard**: Hand 주사위를 DiscardSlot(빨간 X)으로 드래그 앤 드롭 (hand > 5일 때만)
    - **리드로우**: 게임당 2회, Hand 전체를 새로 8개로 교체 (Draw 버튼과 별도)
    - 5개 선택 완료 시 Roll 버튼 활성화
 4. **ROLLING** (타이머 **정지**): 5개 주사위 제자리 스핀 (Tween 기반, 물리 없음). 입력 차단.
 5. **POST_ROLL** (점수 연출 중 타이머 **정지** → ActionBar 표시 후 **진행**):
    - **자동 정렬**: 굴림 완료 후 주사위 눈 오름차순으로 자동 정렬 (물리적 위치 이동)
    - **효과 발동**: 정렬된 순서(인접 관계)에 따라 ON_ROLL, ON_ADJACENT_ROLL 효과 적용
-   - **ScoreDisplay**: 발라트로 스타일 점수 연출 (카테고리명 → chips × mult → 최종 점수)
-   - **자동 족보 선택**: 시스템이 최고 점수 카테고리 자동 선택 (수동 선택 없음)
-   - **CategoryBreakdown**: 좌측 패널에 전체 족보 현황 표시 (매칭된 족보 + 최고 하이라이트)
+   - **ScoreDisplay**: 발라트로 스타일 점수 연출 (Hand Rank명 → chips × mult → 최종 점수)
+   - **자동 족보 선택**: 시스템이 최고 점수 Hand Rank 자동 선택 (수동 선택 없음)
    - **ActionBar**: Stand / Reroll / Double Down 버튼
-     - **Stand**: 현재 최고 족보로 점수 확정 → ConversionState로
-     - **Reroll**: 리롤 모드 진입 (타이머 정지) → 주사위 선택 → Roll 확정 (리롤 1개 소모, 게임당 3회)
-     - **Double Down**: 리롤 2개 소모, 전체 리롤, 점수 ×2 (1회 제한)
+	 - **Stand**: 현재 최고 족보로 점수 확정 → ConversionState로
+	 - **Reroll**: 리롤 모드 진입 (타이머 정지) → 주사위 선택 → Roll 확정 (리롤 1개 소모, 게임당 3회)
+	 - **Double Down**: 리롤 2개 소모, 전체 리롤, 점수 ×2 (1회 제한)
    - 리롤 불가 시 자동 Stand (점수 연출만 보여주고 종료)
 6. **CONVERSION** (타이머 **정지**): 점수를 어떻게 사용할지 선택
    - **거리 환산**: 점수를 소모해 남은 거리를 줄인다
@@ -135,7 +130,7 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER }
 | Phase | 설명 | 타이머 | 허용 액션 |
 |-------|------|--------|-----------|
 | `SETUP` | 게임 초기화 (1회성) | 정지 | - |
-| `PRE_ROLL` | 주사위 드로우 + 5개 선택 | **정지** | Hand→Active 선택, Discard, Redraw, Roll |
+| `PRE_ROLL` | 주사위 드로우 + 5개 선택 | **정지** | Hand→Active 선택, Redraw, Roll |
 | `ROLLING` | 주사위 스핀 애니메이션 | **정지** | 입력 차단 |
 | `POST_ROLL` | 굴린 후 (ScoreDisplay + ActionBar) | 연출 중 **정지** → ActionBar 후 **진행** | Stand, Reroll, Double Down |
 | `CONVERSION` | 점수→거리/시간 치환 선택 | **정지** | 거리 환산, 시간 확보 |
@@ -144,18 +139,18 @@ enum Phase { SETUP, PRE_ROLL, ROLLING, POST_ROLL, CONVERSION, GAME_OVER }
 **상태 전환 흐름:**
 ```
 SetupState → PreRollState → RollingState → PostRollState
-                 ↑              ↑               │
-                 │              ├───(reroll)────┤
-                 │              └──(dbl down)───┤
-                 │                              │ (stand / auto)
-                 │                              ↓
-                 │                      ConversionState
-                 │                              │
-                 │              ┌───────────────┤
-                 │              │               │
-                 │              ↓ (거리 미달     ↓ (거리 달성 OR
-                 │              & 시간 남음)      시간 초과)
-                 └──────────────┘          GameOverState
+				 ↑              ↑               │
+				 │              ├───(reroll)────┤
+				 │              └──(dbl down)───┤
+				 │                              │ (stand / auto)
+				 │                              ↓
+				 │                      ConversionState
+				 │                              │
+				 │              ┌───────────────┤
+				 │              │               │
+				 │              ↓ (거리 미달     ↓ (거리 달성 OR
+				 │              & 시간 남음)      시간 초과)
+				 └──────────────┘          GameOverState
 ```
 
 **핵심 클래스:**
@@ -168,8 +163,8 @@ SetupState → PreRollState → RollingState → PostRollState
   - Double Down: `is_double_down`, `can_double_down()`, `DOUBLE_DOWN_MULTIPLIER = 2.0`
   - 치환: `convert_to_distance(score)`, `convert_to_time(score)`
 - **MetaState**: Autoload singleton for upgrades + gear (persists between matches)
-  - `ornament_grid`: OrnamentGrid — 트렁크(Trunk) 적재 그리드 (4x4 기본)
-  - `owned_ornaments`: Array[OrnamentInstance] — 보유 기어(Gear) 목록
+  - `gear_grid`: GearGrid — 트렁크(Trunk) 적재 그리드 (6x6 기본)
+  - `owned_gears`: Array[GearInstance] — 보유 기어(Gear) 목록
 - **Inventory**: 영구 주사위 컬렉션 (RefCounted, `GameState.inventory`)
 - **Deck**: 스테이지 로컬 덱 — pool/hand/active_dice (RefCounted, `GameState.deck`)
 
@@ -181,7 +176,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - Comparisons(조건부 필터)는 베이스 클래스(DiceEffectResource)에서 공유
 - Extensible via `DiceTypes.ALL` in `globals/dice_types.gd`
 
-### Category System (9 카테고리)
+### Hand Rank System (9 Hand Ranks)
 - **하이다이스** (HIGH_DICE): base_chips 0 + 가장 높은 주사위 1개
 - **원 페어** (ONE_PAIR): base_chips 2 + 같은 눈 2개의 합
 - **투 페어** (TWO_PAIR): base_chips 4 + 서로 다른 페어 2쌍의 합
@@ -191,12 +186,11 @@ SetupState → PreRollState → RollingState → PostRollState
 - **라지 스트레이트** (LARGE_STRAIGHT): base_chips 12 + 패턴값의 합
 - **포카드** (FOUR_CARD): base_chips 12 + 전체 합
 - **파이브카드** (FIVE_CARD): base_chips 15 + 전체 합
-- `base_chips`: 카테고리 고유 기본 점수. 족보 계층 보장 (높은 족보 = 높은 base_chips)
+- `base_chips`: Hand Rank 고유 기본 점수. 족보 계층 보장 (높은 족보 = 높은 base_chips)
 - `NO_MATCH` 센티널 (`-1`): 패턴 미매칭 시 반환, bonus_pool 적용 방지
-- 모든 카테고리 무제한 사용 가능
+- 모든 Hand Rank 무제한 사용 가능
 - Multiplier upgrade: Increase score multiplier (MetaState 경유)
-- **Burst**: 유효 족보 없을 때 자동 0점 (category_id: "burst"). CategoryRegistry 미등록
-- **CategoryBreakdown** (`ui/category_breakdown/`): POST_ROLL에서 전체 족보 현황 표시, 최고 족보 금색 하이라이트
+- **Burst**: 유효 족보 없을 때 자동 0점 (hand_rank_id: "burst"). HandRankRegistry 미등록
 
 ### Inventory / Deck System
 - **`Inventory`** (`globals/inventory.gd`): 플레이어의 영구 주사위 컬렉션. 스테이지를 넘어 유지. 상점에서 매매 가능.
@@ -206,7 +200,6 @@ SetupState → PreRollState → RollingState → PostRollState
 - **`Deck`** (`globals/deck.gd`): 스테이지 로컬 덱. pool(draw pile) + hand + active_dice 관리.
   - `init_from_inventory(inv)`: Inventory에서 deep-copy하여 덱 초기화
   - `HAND_MAX = 10`: hand + active 합계 기준
-  - `discard_from_hand()`: hand에서 영구 제거 (최소 DICE_COUNT개 유지)
   - 파괴된 주사위는 Deck에서만 사라짐 (Inventory 원본 무사)
 - **`DiceInstance.clone_for_stage()`**: 영구 보너스 유지, 스테이지 로컬 상태 초기화
 - **`GameState.inventory`**: Inventory 인스턴스 (영구)
@@ -220,29 +213,27 @@ SetupState → PreRollState → RollingState → PostRollState
 
 **용어 정리:**
 - **기어(Gear)**: 개별 아이템. 발라트로의 조커카드 역할. 고유한 패시브 효과 보유.
-- **트렁크(Trunk)**: 기어를 배치하는 적재 공간. 4x4(기본) 테트리스 그리드.
+- **트렁크(Trunk)**: 기어를 배치하는 적재 공간. 6x6(기본) 테트리스 그리드.
 - **로드아웃(Loadout)**: 트렁크에 어떤 기어를 실을지 전략적으로 선택하는 행위/화면.
 
-> 코드에서는 아직 `Ornament*` 네이밍 유지 (리팩토링 시 `Gear*`/`Trunk*`로 변경 예정)
-
 - **접근 시점**: 베이스 캠프 (도주 성공 후 정비 단계)
-- **`OrnamentResource`** (`globals/ornament_resource.gd`): 기어 타입 정의 (shape, color, effects)
+- **`GearResource`** (`globals/gear_resource.gd`): 기어 타입 정의 (shape, color, effects)
   - `shape`: `Array[Vector2i]` 오프셋 (앵커 = (0,0))
   - `passive_effects`: 글로벌 패시브 `[{"type": "reroll_bonus"/"draw_bonus", "delta": N}]`
   - `dice_effects`: `Array[DiceEffectResource]` — EffectProcessor에 주입
   - `rotate_shape()`: static, `(x,y) → (y,-x)` + normalize
-- **`OrnamentInstance`** (`globals/ornament_instance.gd`): 기어 배치 상태 (RefCounted)
+- **`GearInstance`** (`globals/gear_instance.gd`): 기어 배치 상태 (RefCounted)
   - `grid_position`, `rotation` (0~3), `is_placed`, `get_occupied_cells()`
-- **`OrnamentGrid`** (`globals/ornament_grid.gd`): 트렁크 그리드 순수 로직 (RefCounted)
+- **`GearGrid`** (`globals/gear_grid.gd`): 트렁크 그리드 순수 로직 (RefCounted)
   - `can_place()` / `place()` / `remove()` / `get_cell()`
   - `get_all_passive_effects()` / `get_all_dice_effects()`
-- **`OrnamentTypes`** (`globals/ornament_types.gd`): DiceTypes 패턴, `const ALL` + `STARTING_ORNAMENTS`
-- **`OrnamentRegistry`** (Autoload): 파싱 + `create_instance(id)`
-- **패시브 적용**: `PreRollState._apply_ornament_passives()` — rerolls/draws 보너스
+- **`GearTypes`** (`globals/gear_types.gd`): DiceTypes 패턴, `const ALL` + `STARTING_GEARS`
+- **`GearRegistry`** (Autoload): 파싱 + `create_instance(id)`
+- **패시브 적용**: `PreRollState._apply_gear_passives()` — rerolls/draws 보너스
 - **주사위 효과**: `EffectProcessor.process_effects()` — 기어의 dice_effects 자동 주입
   - `EffectContext.create_global()`: source_dice=null, source_index=-1 (글로벌 효과용)
   - 기어 효과는 `ALL_DICE` 타겟만 사용 (SELF/ADJACENT 무의미)
-- **UI**: `ui/ornament_grid/ornament_grid_ui.tscn` — click-to-place, 회전, 제거
+- **UI**: `ui/gear_grid/gear_grid_ui.tscn` — click-to-place, 회전, 제거
 
 ## Godot 4.6 Conventions
 
@@ -251,7 +242,7 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Resources:** `.tres` (text-based resource format)
 - **3D assets:** GLB format (binary glTF 2.0)
 - **Rendering:** Mobile renderer configured
-- **Autoloads:** DiceRegistry, CategoryRegistry, OrnamentRegistry(=GearRegistry), MetaState, GameState (load order matters)
+- **Autoloads:** DiceRegistry, HandRankRegistry, GearRegistry, MetaState, GameState (load order matters)
 
 ## Coding Guidelines
 
@@ -268,17 +259,17 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Typed arrays/dictionaries**: Use `Array[int]`, `Dictionary[String, Resource]` instead of untyped collections
   ```gdscript
   # Good - type-safe
-  var categories: Dictionary[String, CategoryResource] = {}
-  func get_all() -> Array[CategoryResource]:
+  var hand_ranks: Dictionary[String, HandRankResource] = {}
+  func get_all() -> Array[HandRankResource]:
 
   # Avoid - no type safety
-  var categories: Dictionary = {}
+  var hand_ranks: Dictionary = {}
   func get_all() -> Array:
   ```
 - **Typed local variables**: Use `:=` for type inference
   ```gdscript
-  var upgrade := CategoryUpgrade.new()
-  var cat := CategoryRegistry.get_category(id)
+  var upgrade := HandRankUpgrade.new()
+  var hr := HandRankRegistry.get_hand_rank(id)
   ```
 - **@export variables**: Use for Inspector-tunable values instead of hardcoded constants
   ```gdscript
@@ -294,18 +285,18 @@ SetupState → PreRollState → RollingState → PostRollState
   ```gdscript
   # Good
   func _init(bias_values: Array[int] = []) -> void:
-      self.bias_values = bias_values
+	  self.bias_values = bias_values
 
   # Avoid
   func _init(p_bias_values: Array[int] = []) -> void:
-      bias_values = p_bias_values
+	  bias_values = p_bias_values
   ```
 - **Helper functions**: Extract repeated logic into private helper functions
   ```gdscript
   func _keep_all_dice() -> void:
-      for i in GameState.DICE_COUNT:
-          if i not in dice_manager.get_kept_indices():
-              dice_manager.keep_dice(i)
+	  for i in GameState.DICE_COUNT:
+		  if i not in dice_manager.get_kept_indices():
+			  dice_manager.keep_dice(i)
   ```
 - **Region blocks**: Use `#region` / `#endregion` to organize code sections
 - **class_name**: Add `class_name` to classes that are referenced by other scripts for type safety
@@ -313,38 +304,38 @@ SetupState → PreRollState → RollingState → PostRollState
   ```gdscript
   # Pattern guard — 같은 enum을 조건별로 분기
   match op:
-      CompareOp.EQ when actual is Array:
-          return expected in actual
-      CompareOp.EQ:
-          return actual == expected
+	  CompareOp.EQ when actual is Array:
+		  return expected in actual
+	  CompareOp.EQ:
+		  return actual == expected
 
   # Array pattern — 구조적 매칭 (정렬된 배열에 적합)
   var freq = counts.values()
   freq.sort()
   match freq:
-      [2, 3], [5]:    # full house or five-of-a-kind
-          return true
-      _:
-          return false
+	  [2, 3], [5]:    # full house or five-of-a-kind
+		  return true
+	  _:
+		  return false
 
   # Dictionary pattern + var binding — 키 존재 확인 + 구조분해
   match data:
-      {"material": var mat_path, ..} when mat_path != "":
-          dt.material = load(mat_path)
+	  {"material": var mat_path, ..} when mat_path != "":
+		  dt.material = load(mat_path)
 
   # Avoid — match arm 안에 중첩 if/return
   match op:
-      CompareOp.EQ:
-          if actual is Array:      # 이렇게 하지 말 것
-              return expected in actual
-          return actual == expected
+	  CompareOp.EQ:
+		  if actual is Array:      # 이렇게 하지 말 것
+			  return expected in actual
+		  return actual == expected
   ```
 
 ### Type Safety & Null Handling
 - **Return types**: Always specify return types for public functions
   ```gdscript
   # Good
-  func get_upgrade(id: String) -> CategoryUpgrade:
+  func get_upgrade(id: String) -> HandRankUpgrade:
 
   # Avoid
   func get_upgrade(id: String):
@@ -352,8 +343,8 @@ SetupState → PreRollState → RollingState → PostRollState
 - **Assert for invariants**: Use `assert()` for conditions that must always be true
   ```gdscript
   func get_total_multiplier() -> float:
-      assert(category != null, "CategoryUpgrade not initialized")
-      return category.base_multiplier + extra_multiplier
+	  assert(hand_rank != null, "HandRankUpgrade not initialized")
+	  return hand_rank.base_multiplier + extra_multiplier
   ```
 - **Avoid magic numbers**: Use `GameState` constants for game-wide values
   ```gdscript
@@ -380,35 +371,35 @@ SetupState → PreRollState → RollingState → PostRollState
   ```gdscript
   # Good - 생성 시 한 번만
   static func create(index: int, all_dice: Array) -> Context:
-      assert(index >= 0 and index < all_dice.size(),
-          "index out of bounds")
-      # ...
+	  assert(index >= 0 and index < all_dice.size(),
+		  "index out of bounds")
+	  # ...
 
   # Avoid - 매번 사용할 때
   func process() -> void:
-      if index >= 0 and index < all_dice.size():  # 불필요한 반복 검사
-          do_something()
+	  if index >= 0 and index < all_dice.size():  # 불필요한 반복 검사
+		  do_something()
   ```
 - **불변성은 assert + 세터**: 구조적으로 보장되는 조건 (배열 크기, 범위 등)
   ```gdscript
   # @export 변수에 세터로 검증 (.tres 로딩 시에도 동작)
   @export var face_map: Array[int] = [0, 1, 2, 3, 4, 5, 6]:
-      set(value):
-          face_map = value
-          assert(face_map.size() == 7, "face_map must have exactly 7 elements")
-          for i in range(1, 7):
-              assert(face_map[i] >= 1 and face_map[i] <= 6,
-                  "face_map[%d] must be 1-6" % i)
+	  set(value):
+		  face_map = value
+		  assert(face_map.size() == 7, "face_map must have exactly 7 elements")
+		  for i in range(1, 7):
+			  assert(face_map[i] >= 1 and face_map[i] <= 6,
+				  "face_map[%d] must be 1-6" % i)
   ```
 - **외부 입력은 Guard.verify**: UI, 파일, API에서 오는 데이터
   ```gdscript
   # 외부에서 호출되는 API
   func start_breathing(indices: Array) -> void:
-      for i in indices:
-          if not Guard.verify(i >= 0 and i < dice_nodes.size(),
-                  "Invalid index %d" % i):
-              continue
-          dice_nodes[i].start_breathing()
+	  for i in indices:
+		  if not Guard.verify(i >= 0 and i < dice_nodes.size(),
+				  "Invalid index %d" % i):
+			  continue
+		  dice_nodes[i].start_breathing()
   ```
 - **데이터 계약 문서화**: 불변성을 주석으로 명시
   ```gdscript
@@ -419,27 +410,27 @@ SetupState → PreRollState → RollingState → PostRollState
 ### DRY (Don't Repeat Yourself)
 - **Generic filter functions**: Use Callable for filtering logic
   ```gdscript
-  func _filter_categories(predicate: Callable) -> Array[CategoryResource]:
-      var result: Array[CategoryResource] = []
-      for cat in categories.values():
-          if predicate.call(cat):
-              result.append(cat)
+  func _filter_hand_ranks(predicate: Callable) -> Array[HandRankResource]:
+      var result: Array[HandRankResource] = []
+      for hr in hand_ranks.values():
+          if predicate.call(hr):
+              result.append(hr)
       return result
 
-  func get_number_categories() -> Array[CategoryResource]:
-      return _filter_categories(func(cat): return cat.is_number_category())
+  func get_number_hand_ranks() -> Array[HandRankResource]:
+      return _filter_hand_ranks(func(hr): return hr.is_number_hand_rank())
   ```
 - **Helper methods on Resources**: Add query methods to Resource classes
   ```gdscript
-  # In CategoryResource
-  func is_number_category() -> bool:
-      return category_type <= CategoryType.SIXES
+  # In HandRankResource
+  func is_number_hand_rank() -> bool:
+      return hand_rank_type <= HandRankType.SIXES
   ```
 - **Factory helpers**: Extract object creation into private functions
   ```gdscript
-  func _create_upgrade(cat: CategoryResource) -> CategoryUpgrade:
-      var upgrade := CategoryUpgrade.new()
-      return upgrade.init_with_category(cat)
+  func _create_upgrade(hr: HandRankResource) -> HandRankUpgrade:
+      var upgrade := HandRankUpgrade.new()
+      return upgrade.init_with_hand_rank(hr)
   ```
 
 ### Mobile Considerations
@@ -513,20 +504,20 @@ JSON 예시:
 모든 주사위가 bonus/multiplier로 기여하는 풀 기반 점수 계산:
 
 ```
-final_score = (base_chips + pattern_value + Σ value_bonus) × (1 + Σ extra_mult) × category_mult × (DD ? 2 : 1)
+final_score = (base_chips + pattern_value + Σ value_bonus) × (1 + Σ extra_mult) × hand_rank_mult × (DD ? 2 : 1)
 ```
 
-- **base_chips**: 카테고리 고유 기본 점수 (족보 계층 보장용)
+- **base_chips**: Hand Rank 고유 기본 점수 (족보 계층 보장용)
 - **pattern_value**: 패턴 매칭된 주사위의 raw value 합
 - **Σ value_bonus**: 모든 활성 주사위의 value_bonus 합산
 - **Σ extra_mult**: 모든 활성 주사위의 (value_multiplier - 1) 합산
   - 기본 배수 1.0을 빼서 합산 → 효과 없는 주사위(×1)는 0 기여
-- **category_mult**: 카테고리 업그레이드 배수 (MetaState 경유)
+- **hand_rank_mult**: Hand Rank 업그레이드 배수 (MetaState 경유)
 - **DD**: Double Down 시 ×2
 
 | 풀 | 구성 | 설명 |
 |-----|------|------|
-| `base` | `base_chips + pattern_value` | 카테고리 기본점수 + 패턴 매칭된 주사위의 합. NO_MATCH(-1)이면 0점 |
+| `base` | `base_chips + pattern_value` | Hand Rank 기본점수 + 패턴 매칭된 주사위의 합. NO_MATCH(-1)이면 0점 |
 | `value_bonus` | 모든 주사위 | 효과에 의한 가산 (양수/음수 모두 가능) |
 | `extra_mult` | 모든 주사위 | value_multiplier - 1 (×3 주사위 → +2 기여) |
 
@@ -579,12 +570,12 @@ func has_group(group: String) -> bool:
 3. Set `face_values` for custom face mapping (0 = wildcard)
 4. Add effects array (enum 직접 참조: `T.ADJACENT`, `M.VALUE_BONUS` 등)
 
-### New Category
-1. Create `.tres` in `/resources/categories/`
-2. Set `category_type` to one of 9 types (HIGH_DICE ~ FIVE_CARD)
+### New Hand Rank
+1. Create `.tres` in `/resources/hand_ranks/`
+2. Set `hand_rank_type` to one of 9 types (HIGH_DICE ~ FIVE_CARD)
 3. Set `base_chips` for hierarchy positioning (높은 족보일수록 높은 값)
 4. Configure `base_multiplier`, `max_multiplier`, `multiplier_upgrade_step`
-5. Add scoring logic in `scoring.gd` if new CategoryType added
+5. Add scoring logic in `scoring.gd` if new HandRankType added
 
 ### New Effect
 
@@ -616,7 +607,7 @@ func has_group(group: String) -> bool:
 Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_id"}`)
 
 ### New Gear (기어)
-1. Add entry in `globals/ornament_types.gd` → `OrnamentTypes.ALL`
+1. Add entry in `globals/gear_types.gd` → `GearTypes.ALL`
 2. Set `id`, `display_name`, `description`, `color` (Array[float] RGB)
 3. Set `shape` as `Array[Vector2i]` offsets (anchor = (0,0)) — 트렁크에 배치할 테트리스 모양
 4. Add `passive_effects` for global bonuses (reroll_bonus, draw_bonus)
@@ -645,15 +636,14 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 2. `hand.size() == GameState.DICE_COUNT`
 3. `active_dice.size() == 0`
 
-호출 시점: PRE_ROLL 진입 후, Discard 완료 후, Draw 완료 후
+호출 시점: PRE_ROLL 진입 후, Draw 완료 후
 
 ### Hand/Active 용량 체크
 - `can_draw()`: `hand.size() + active_dice.size() < HAND_MAX` (active 포함!)
 - Draw 시 active를 hand로 되돌리지 않음 — active 상태 유지가 자연스러운 UX
-- Discard: Hand 주사위를 DiscardSlot으로 드래그 앤 드롭, `hand + active > DICE_COUNT`일 때만 가능
 
-### Burst 카테고리
-- CategoryRegistry에 등록되지 않은 특수 ID ("burst")
+### Burst Hand Rank
+- HandRankRegistry에 등록되지 않은 특수 ID ("burst")
 - 유효 족보 없을 때 PostRollState에서 자동 0점 처리
 - burst 시 ConversionState에서 선택 없이 즉시 다음 PRE_ROLL로 (치환 UI 표시 안 함)
 
@@ -754,6 +744,6 @@ Actions: `A.ADD_DRAWS`, `A.DESTROY_SELF`, `A.TRANSFORM` (params: `{"to": "type_i
 
 도주 성공 후 베이스 캠프에서 다음 습격을 준비:
 - **상점**: 주사위 및 기어 구매/판매
-- **트렁크 (적재 공간)**: 4x4(기본) 그리드에 기어를 테트리스 배치 (기존 OrnamentGridUI)
+- **트렁크 (적재 공간)**: 6x6(기본) 그리드에 기어를 테트리스 배치 (기존 GearGridUI)
 - **로드아웃**: 트렁크에 어떤 기어를 실을지 전략적으로 선택
 - **특별 NPC**: 무작위 이벤트로 주사위/족보 업그레이드 기회, 트렁크 확장 등

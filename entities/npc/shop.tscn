@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://4hego47k2fo3"]
+
+[ext_resource type="Texture2D" uid="uid://cqcetojtwayor" path="res://assets/character2.png" id="1_dsvh4"]
+[ext_resource type="Script" uid="uid://ddxcd0pd1urix" path="res://entities/npc/shop.gd" id="1_odd1e"]
+[ext_resource type="PackedScene" uid="uid://bfp2nca8a2tv" path="res://components/interactable.tscn" id="2_odd1e"]
+[ext_resource type="Texture2D" uid="uid://cmwb67sutvk71" path="res://assets/ui/Keyboard Black.png" id="4_avuoy"]
+[ext_resource type="Shader" uid="uid://d33o77wx434h7" path="res://shaders/sprite_outline.gdshader" id="5_outline"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
+shader = ExtResource("5_outline")
+shader_parameter/outline_color = Color(1, 1, 1, 1)
+shader_parameter/outline_width = 1.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_avuoy"]
+size = Vector2(42, 49)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wd2tt"]
+atlas = ExtResource("4_avuoy")
+region = Rect2(80, 32, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j17ka"]
+atlas = ExtResource("4_avuoy")
+region = Rect2(80, 128, 16, 16)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_43qt4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wd2tt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j17ka")
+}],
+"loop": true,
+"name": &"default",
+"speed": 2.0
+}]
+
+[node name="Shop" type="Node2D" unique_id=1636694636]
+script = ExtResource("1_odd1e")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=608947818]
+material = SubResource("ShaderMaterial_outline")
+texture = ExtResource("1_dsvh4")
+flip_h = true
+
+[node name="Interactable" parent="." unique_id=696543450 instance=ExtResource("2_odd1e")]
+interact_name = "Shop"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Interactable" unique_id=1867019962]
+position = Vector2(0, 3.5)
+shape = SubResource("RectangleShape2D_avuoy")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1631733613]
+position = Vector2(0, -36)
+sprite_frames = SubResource("SpriteFrames_43qt4")
+autoplay = "default"
+frame_progress = 0.9939957

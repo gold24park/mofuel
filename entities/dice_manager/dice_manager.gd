@@ -98,7 +98,7 @@ func roll_dice_spin_all() -> void:
 		indices.append(i)
 	_rolling_indices = indices.duplicate()
 	_pending_results.clear()
-	_reset_state()
+	reset_state()
 	# 순차 스핀 시작 (타-타-탕!)
 	for i in indices.size():
 		if i > 0:
@@ -114,7 +114,7 @@ func reroll_spin_in_place() -> void:
 		return
 	_rolling_indices = indices.duplicate()
 	_pending_results.clear()
-	_reset_state()
+	reset_state()
 	# 순차 스핀 시작 (타-타-탕!)
 	for i in indices.size():
 		if i > 0:
@@ -391,7 +391,8 @@ func _set_dice_selection(index: int, selected: bool) -> void:
 
 
 #region 상태 관리
-func _reset_state() -> void:
+## 선택/스포트라이트/디스플레이 위치를 초기 상태로 리셋
+func reset_state() -> void:
 	exit_spotlight_mode()
 	_reset_all_to_display()
 	_selected_indices.clear()

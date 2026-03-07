@@ -5,7 +5,6 @@
 [ext_resource type="Texture2D" uid="uid://qxysxvkpkn7x" path="res://assets/ui/panel_center.png" id="3_b7t58"]
 [ext_resource type="Texture2D" uid="uid://enut3typvta4" path="res://assets/ui/panel_left.png" id="4_onjrf"]
 [ext_resource type="Texture2D" uid="uid://cb8yeb2v0h0xa" path="res://assets/ui/panel_right.png" id="5_d1ci2"]
-[ext_resource type="PackedScene" uid="uid://nmqddcgms0fg" path="res://ui/hand_display/discard_zone.tscn" id="6_discard"]
 [ext_resource type="PackedScene" uid="uid://rytbhxerp4xy" path="res://ui/hand_display/draw_button.tscn" id="7_nwbli"]
 
 [node name="HandDisplay" type="Control" unique_id=43907696]
@@ -77,13 +76,6 @@ offset_right = 384.0
 offset_bottom = 40.0
 texture = ExtResource("5_d1ci2")
 stretch_mode = 2
-
-[node name="DiscardZone" parent="." unique_id=1940833564 instance=ExtResource("6_discard")]
-layout_mode = 0
-offset_left = 64.0
-offset_top = 2.0
-offset_right = 104.0
-offset_bottom = 22.0
 
 [node name="DrawButton" parent="." unique_id=1942580834 instance=ExtResource("7_nwbli")]
 layout_mode = 1

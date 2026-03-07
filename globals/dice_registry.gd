@@ -48,24 +48,12 @@ func _parse_dice_type(data: Dictionary) -> DiceTypeResource:
 	# Effects (enum 값이 이미 들어있으므로 직접 전달)
 	var effects: Array[DiceEffectResource] = []
 	for effect_data: Dictionary in data.get("effects", []):
-		var effect := _parse_dice_effect(effect_data)
+		var effect := DiceEffectResource.create_from_data(effect_data)
 		if effect:
 			effects.append(effect)
 	dt.effects = effects
 
 	return dt
-
-
-func _parse_dice_effect(data: Dictionary) -> DiceEffectResource:
-	var type_name: String = data.get("type", "")
-	match type_name:
-		"ModifierEffect":
-			return ModifierEffect.new(data)
-		"ActionEffect":
-			return ActionEffect.new(data)
-		_:
-			assert(false, "DiceRegistry: Unknown effect type: %s" % type_name)
-			return null
 
 
 func get_dice_type(id: String) -> DiceTypeResource:

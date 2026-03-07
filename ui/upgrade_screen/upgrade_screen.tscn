@@ -42,7 +42,7 @@ anchor_right = 1.0
 offset_bottom = 17.0
 grow_horizontal = 2
 theme_override_fonts/font = ExtResource("2_title_font")
-text = "Upgrade Categories"
+text = "Upgrade Hand Ranks"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -56,7 +56,7 @@ offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="CategoryContainer" type="VBoxContainer" parent="Panel/ScrollContainer"]
+[node name="HandRankContainer" type="VBoxContainer" parent="Panel/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 3

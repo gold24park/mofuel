@@ -22,10 +22,10 @@ const HIGHWAY_SPEED := 400.0
 ## 차량 기본
 const CAR_FPS := 20.0
 const CAR_SCALE := 0.5
-const CAR_Y := 164.0
+const CAR_Y := 156.0
 
 ## 플레이어 차 X 범위 (거리 진행률 기반)
-const PLAYER_X_START := 130.0    ## 출발 (거리 0% 진행)
+const PLAYER_X_START := 60.0     ## 출발 (거리 0% 진행, 화면 좌측 ~16%)
 const PLAYER_X_END := 300.0      ## 도착 직전 (거리 100% 진행)
 
 ## 차량 바운스 (서스펜션 흔들림 — 속력 비례)
@@ -42,9 +42,12 @@ const IDLE_PLAYER_FREQ_2 := 0.83   ## 플레이어 고주파 Hz (불규칙감)
 const IDLE_POLICE_FREQ_1 := 0.47   ## 경찰차 저주파 Hz (비동기)
 const IDLE_POLICE_FREQ_2 := 1.1    ## 경찰차 고주파 Hz (비동기)
 
-## 경찰차 X 범위 (확대: 화면 밖 → 바로 뒤)
-const POLICE_X_FAR := -20.0       ## 시간 충분 (화면 밖, 위협 낮음)
-const POLICE_X_NEAR := 78.0       ## 시간 임박 (앞범퍼 맞닿음)
+## 범퍼 충돌 간격 (경찰 앞범퍼 ↔ 플레이어 뒷범퍼 = 1 car render width)
+## centered=false이므로 position.x = 왼쪽 끝(뒷범퍼), 앞범퍼 = x + width
+const CAR_BUMPER_GAP := 184.0 * CAR_SCALE  ## 184px sprite × 0.5 scale = 92px
+
+## 시간 비례 추가 간격 (총 간격 = CAR_BUMPER_GAP + MAX_POLICE_GAP × eased)
+const MAX_POLICE_GAP := 68.0
 
 ## 경찰차 시각 차별화
 const POLICE_TINT := Color(0.5, 0.6, 1.0)   ## 파란 틴트
@@ -81,7 +84,7 @@ const MODULATE_LERP_SPEED := 3.0
 
 ## 게임오버 연출
 const ESCAPE_ACCEL := 500.0           ## 탈출 가속도 (px/s²)
-const BUST_POLICE_TARGET_X := 220.0   ## 체포 시 경찰차 목표 X (플레이어 앞)
+const BUST_POLICE_OVERSHOOT := 30.0   ## 체포 시 경찰차가 플레이어 앞으로 돌진하는 거리 (px)
 const GAMEOVER_DECEL := 0.7           ## 체포 시 스크롤 감속 비율
 
 ## 속도선 (부스트 시)
@@ -96,8 +99,10 @@ const EXHAUST_Y_OFFSET := 25.0       ## 차 상단으로부터의 Y 오프셋
 
 
 #region State
-## 패럴랙스 레이어: {speed: float, sprites: Array[Sprite2D], scaled_width: float}
-var _layers: Array[Dictionary] = []
+## 패럴랙스 레이어 (typed cache)
+var _layer_speeds: Array[float] = []
+var _layer_sprites: Array[Array] = []  ## Array[Array[Sprite2D]]
+var _layer_widths: Array[float] = []
 
 var _player_car: Sprite2D
 var _police_car: Sprite2D
@@ -105,10 +110,12 @@ var _car_frames: Array[Texture2D] = []
 var _car_frame_index := 0
 var _car_frame_timer := 0.0
 
-## 경찰차 위치 (부드러운 보간)
-var _police_target_x := POLICE_X_FAR       ## 실제 목표 (시간 기반)
-var _police_display_target_x := POLICE_X_FAR  ## 표시용 목표 (오버슈트 포함)
-var _police_current_x := POLICE_X_FAR
+## 경찰차 위치 (플레이어 상대 — gap 기반)
+## 총 간격 = CAR_BUMPER_GAP + MAX_POLICE_GAP × eased (시간 0 → 범퍼 접촉)
+var _police_time_gap := CAR_BUMPER_GAP + MAX_POLICE_GAP
+var _police_target_x := PLAYER_X_START - CAR_BUMPER_GAP - MAX_POLICE_GAP
+var _police_display_target_x := PLAYER_X_START - CAR_BUMPER_GAP - MAX_POLICE_GAP
+var _police_current_x := PLAYER_X_START - CAR_BUMPER_GAP - MAX_POLICE_GAP
 
 ## 플레이어 차 위치 (거리 기반 보간)
 var _player_target_x := PLAYER_X_START
@@ -171,7 +178,8 @@ func _process(delta: float) -> void:
 	_scroll_layers(delta)
 	_animate_cars(delta)
 	_update_exhaust(delta)
-	queue_redraw()
+	if _boost_amount > 0.01 or not _exhaust_particles.is_empty():
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -193,6 +201,10 @@ func _process_gameplay(delta: float) -> void:
 	_player_current_x = lerp(_player_current_x, _player_target_x, _player_lerp_weight * delta)
 	# 플레이어 부스트 X 복귀
 	_player_boost_x = move_toward(_player_boost_x, 0.0, PLAYER_BOOST_RETURN * delta)
+
+	# 경찰차 목표: 플레이어의 "현재" 위치 추적 (target이 아닌 current)
+	# → 플레이어가 먼저 치고 나가고, 경찰이 뒤따라오는 시차 발생
+	_police_target_x = _player_current_x - _police_time_gap
 
 	# 경찰차 스워브 감쇠
 	_police_swerve = move_toward(_police_swerve, 0.0, POLICE_SWERVE_DECAY * delta)
@@ -222,25 +234,23 @@ func _process_gameplay(delta: float) -> void:
 func _on_time_changed(time: float) -> void:
 	if _game_over_active:
 		return
-	var ratio := maxf(time / GameState.BASE_TIME, 0.0)  ## 상한 없음 — 7초 초과 시 화면 밖으로
+	var old_gap := _police_time_gap
+	var ratio := maxf(time / GameState.BASE_TIME, 0.0)  ## 상한 없음 — 7초 초과 시 간격 더 벌어짐
 	var eased := ratio * ratio
-	var new_target := lerpf(POLICE_X_NEAR, POLICE_X_FAR, eased)
+	_police_time_gap = CAR_BUMPER_GAP + MAX_POLICE_GAP * eased
 
-	# 시간 추가 시 (경찰차가 뒤로 밀릴 때) 리액션 발동
-	if new_target < _police_target_x:
-		var push_dist := _police_target_x - new_target
-		var push_strength := clampf(push_dist / absf(POLICE_X_NEAR - POLICE_X_FAR), 0.0, 1.0)
+	# 시간 추가 시 (간격 증가 = 경찰 뒤로 밀림) 리액션 발동
+	if _police_time_gap > old_gap:
+		var push_dist := _police_time_gap - old_gap
+		var push_strength := clampf(push_dist / (CAR_BUMPER_GAP + MAX_POLICE_GAP), 0.0, 1.0)
 		# 스워브: 핸들 흔들리며 뒤로 밀림
 		_police_swerve = clampf(_police_swerve + 0.6 + push_strength * 0.4, 0.0, 1.0)
 		_police_swerve_timer = 0.0
-		# 오버슈트: 표시 목표를 실제보다 더 뒤로 (급격히 밀렸다가 복귀)
-		_police_display_target_x = new_target - POLICE_OVERSHOOT * push_strength
+		# 오버슈트: 표시 목표를 더 뒤로 밀기 (복귀는 _process_gameplay에서)
+		_police_display_target_x -= POLICE_OVERSHOOT * push_strength
 		# ease-in 리셋: 느리게 시작 → 점점 빨라짐
 		_police_lerp_weight = MOVE_START_LERP
-	else:
-		_police_display_target_x = new_target
 
-	_police_target_x = new_target
 	_is_urgent = time > 0.0 and time <= URGENCY_THRESHOLD
 
 
@@ -252,6 +262,7 @@ func _on_distance_changed(distance: float) -> void:
 	_player_target_x = lerpf(PLAYER_X_START, PLAYER_X_END, progress)
 	# ease-in 리셋: 느리게 시작 → 점점 빨라짐
 	_player_lerp_weight = MOVE_START_LERP
+	# 경찰차는 _process_gameplay에서 player_current 추적 → 자연스러운 시차 발생
 	# 배경 부스트 (스크롤 가속 + 속도선 + 배기)
 	_boost_amount = 1.0
 	_boost_holding = true
@@ -307,8 +318,10 @@ func _start_game_over() -> void:
 	if _game_over_won:
 		_escape_speed = 0.0
 	else:
-		_police_target_x = BUST_POLICE_TARGET_X
-		_police_display_target_x = BUST_POLICE_TARGET_X
+		# 체포: 경찰차가 플레이어 앞까지 돌진 (플레이어 현재 X + 오버슈트)
+		var bust_x := _player_current_x + BUST_POLICE_OVERSHOOT
+		_police_target_x = bust_x
+		_police_display_target_x = bust_x
 
 
 func _process_game_over(delta: float) -> void:
@@ -337,9 +350,11 @@ func _reset() -> void:
 	_player_boost_x = 0.0
 	_is_urgent = false
 	_siren_timer = 0.0
-	_police_target_x = POLICE_X_FAR
-	_police_display_target_x = POLICE_X_FAR
-	_police_current_x = POLICE_X_FAR
+	_police_time_gap = CAR_BUMPER_GAP + MAX_POLICE_GAP
+	var init_police_x := PLAYER_X_START - _police_time_gap
+	_police_target_x = init_police_x
+	_police_display_target_x = init_police_x
+	_police_current_x = init_police_x
 	_police_swerve = 0.0
 	_police_swerve_timer = 0.0
 	_player_lerp_weight = MOVE_MAX_LERP
@@ -347,7 +362,7 @@ func _reset() -> void:
 	_player_target_x = PLAYER_X_START
 	_player_current_x = PLAYER_X_START
 	_player_car.position.x = PLAYER_X_START
-	_police_car.position.x = POLICE_X_FAR
+	_police_car.position.x = init_police_x
 	_police_car.modulate = POLICE_TINT
 	_target_modulate = Color.WHITE
 	modulate = Color.WHITE
@@ -391,11 +406,9 @@ func _build_layers() -> void:
 			container.add_child(spr)
 			sprites.append(spr)
 
-		_layers.append({
-			"speed": def["speed"] as float,
-			"sprites": sprites,
-			"scaled_width": scaled_width,
-		})
+		_layer_speeds.append(def["speed"] as float)
+		_layer_sprites.append(sprites)
+		_layer_widths.append(scaled_width)
 
 
 func _build_cars() -> void:
@@ -414,7 +427,7 @@ func _build_cars() -> void:
 	_police_car.texture = _car_frames[0]
 	_police_car.centered = false
 	_police_car.scale = Vector2(CAR_SCALE, CAR_SCALE)
-	_police_car.position = Vector2(POLICE_X_FAR, CAR_Y)
+	_police_car.position = Vector2(PLAYER_X_START - CAR_BUMPER_GAP - MAX_POLICE_GAP, CAR_Y)
 	_police_car.modulate = POLICE_TINT
 	add_child(_police_car)
 
@@ -472,19 +485,18 @@ func _scroll_layers(delta: float) -> void:
 	if _game_over_active:
 		speed_mult *= _gameover_scroll_mult
 
-	for layer in _layers:
-		var speed: float = layer["speed"] * speed_mult
-		var sprites: Array[Sprite2D] = []
-		sprites.assign(layer["sprites"])
-		var sw: float = layer["scaled_width"]
+	for i in _layer_speeds.size():
+		var speed: float = _layer_speeds[i] * speed_mult
+		var sprites: Array = _layer_sprites[i]
+		var sw: float = _layer_widths[i]
 
 		var rightmost_end := -999999.0
-		for spr in sprites:
+		for spr: Sprite2D in sprites:
 			var spr_end := spr.position.x + sw
 			if spr_end > rightmost_end:
 				rightmost_end = spr_end
 
-		for spr in sprites:
+		for spr: Sprite2D in sprites:
 			spr.position.x -= speed * delta
 			if spr.position.x + sw <= 0:
 				spr.position.x = rightmost_end - speed * delta
@@ -542,8 +554,14 @@ func _update_exhaust(delta: float) -> void:
 		p["alpha"] -= 1.5 * delta
 		p["size"] += 1.0 * delta
 
-	# 소멸된 파티클 제거
-	_exhaust_particles = _exhaust_particles.filter(func(p: Dictionary) -> bool: return p["alpha"] > 0.01)
+	# 소멸된 파티클 제거 (in-place compaction — 배열 재할당 없음)
+	var write_idx := 0
+	for read_idx in _exhaust_particles.size():
+		if _exhaust_particles[read_idx]["alpha"] > 0.01:
+			if write_idx != read_idx:
+				_exhaust_particles[write_idx] = _exhaust_particles[read_idx]
+			write_idx += 1
+	_exhaust_particles.resize(write_idx)
 
 
 func _spawn_exhaust(x: float, y: float) -> void:

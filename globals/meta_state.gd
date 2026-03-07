@@ -1,76 +1,76 @@
 extends Node
 
-signal upgrade_changed(category_id: String)
+signal upgrade_changed(hand_rank_id: String)
 
-var category_upgrades: Dictionary[String, CategoryUpgrade] = {}
-var ornament_grid := OrnamentGrid.new()
-var owned_ornaments: Array[OrnamentInstance] = []
+var hand_rank_upgrades: Dictionary[String, HandRankUpgrade] = {}
+var gear_grid := GearGrid.new()
+var owned_gears: Array[GearInstance] = []
 
 
 func _ready() -> void:
 	_init_upgrades()
-	_init_ornaments()
+	_init_gears()
 
 
 func _init_upgrades() -> void:
-	# CategoryRegistry가 먼저 로드된 후 호출됨
+	# HandRankRegistry가 먼저 로드된 후 호출됨
 	await get_tree().process_frame
-	for cat in CategoryRegistry.get_all_categories():
-		category_upgrades[cat.id] = _create_upgrade(cat)
+	for hr in HandRankRegistry.get_all_hand_ranks():
+		hand_rank_upgrades[hr.id] = _create_upgrade(hr)
 
 
-func _create_upgrade(cat: CategoryResource) -> CategoryUpgrade:
-	var upgrade := CategoryUpgrade.new()
-	return upgrade.init_with_category(cat)
+func _create_upgrade(hr: HandRankResource) -> HandRankUpgrade:
+	var upgrade := HandRankUpgrade.new()
+	return upgrade.init_with_hand_rank(hr)
 
 
-func get_upgrade(category_id: String) -> CategoryUpgrade:
-	if category_upgrades.has(category_id):
-		return category_upgrades[category_id]
+func get_upgrade(hand_rank_id: String) -> HandRankUpgrade:
+	if hand_rank_upgrades.has(hand_rank_id):
+		return hand_rank_upgrades[hand_rank_id]
 
 	# 아직 초기화되지 않은 경우
-	var cat := CategoryRegistry.get_category(category_id)
-	if cat:
-		category_upgrades[category_id] = _create_upgrade(cat)
-		return category_upgrades[category_id]
+	var hr := HandRankRegistry.get_hand_rank(hand_rank_id)
+	if hr:
+		hand_rank_upgrades[hand_rank_id] = _create_upgrade(hr)
+		return hand_rank_upgrades[hand_rank_id]
 
 	return null
 
 
-func upgrade_multiplier(category_id: String) -> bool:
-	var upgrade := get_upgrade(category_id)
+func upgrade_multiplier(hand_rank_id: String) -> bool:
+	var upgrade := get_upgrade(hand_rank_id)
 	if upgrade and upgrade.upgrade_multiplier():
-		upgrade_changed.emit(category_id)
+		upgrade_changed.emit(hand_rank_id)
 		return true
 	return false
 
 
-func get_all_upgrades() -> Array[CategoryUpgrade]:
-	var result: Array[CategoryUpgrade] = []
-	result.assign(category_upgrades.values())
+func get_all_upgrades() -> Array[HandRankUpgrade]:
+	var result: Array[HandRankUpgrade] = []
+	result.assign(hand_rank_upgrades.values())
 	return result
 
 
-#region Ornaments
-func _init_ornaments() -> void:
+#region Gears
+func _init_gears() -> void:
 	await get_tree().process_frame
-	for ornament_id in OrnamentTypes.STARTING_ORNAMENTS:
-		var instance := OrnamentRegistry.create_instance(ornament_id)
+	for gear_id in GearTypes.STARTING_GEARS:
+		var instance := GearRegistry.create_instance(gear_id)
 		if instance:
-			owned_ornaments.append(instance)
+			owned_gears.append(instance)
 
 
-func get_unplaced_ornaments() -> Array[OrnamentInstance]:
-	var result: Array[OrnamentInstance] = []
-	for ornament in owned_ornaments:
-		if not ornament.is_placed:
-			result.append(ornament)
+func get_unplaced_gears() -> Array[GearInstance]:
+	var result: Array[GearInstance] = []
+	for gear in owned_gears:
+		if not gear.is_placed:
+			result.append(gear)
 	return result
 
 
-func add_ornament(id: String) -> OrnamentInstance:
-	var instance := OrnamentRegistry.create_instance(id)
+func add_gear(id: String) -> GearInstance:
+	var instance := GearRegistry.create_instance(id)
 	if instance:
-		owned_ornaments.append(instance)
+		owned_gears.append(instance)
 	return instance
 #endregion

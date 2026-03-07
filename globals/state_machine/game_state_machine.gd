@@ -32,7 +32,8 @@ func init(root_node: Control) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if current_state:
-		current_state.handle_input(event)
+		if current_state.handle_input(event):
+			get_viewport().set_input_as_handled()
 
 
 func on_child_transitioned(state: GameStateBase, new_state_name: String) -> void:

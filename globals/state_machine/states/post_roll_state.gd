@@ -10,11 +10,14 @@ var _pattern_indices: Array[int] = [] ## 패턴 하이라이트 복원용
 var _reroll_mode: bool = false
 
 
+func get_phase() -> GameState.Phase:
+	return GameState.Phase.POST_ROLL
+
+
 func enter() -> void:
+	super.enter()
 	_reroll_mode = false
 	_connect_signals()
-	GameState.current_phase = GameState.Phase.POST_ROLL
-	GameState.phase_changed.emit(GameState.current_phase)
 
 	# 주사위 선택 비활성화 (리롤 모드 진입 전까지)
 	game_root.dice_manager.set_selection_enabled(false)
@@ -25,18 +28,18 @@ func enter() -> void:
 	# 이전 라운드 하이라이트 잔존 방지 (방어적 클리어)
 	game_root.dice_manager.unhighlight_all()
 
-	# 최고 족보 확인 + ScoreDisplay 초기 표시 (base 점수 + 카테고리 배수)
+	# 최고 족보 확인 + ScoreDisplay 초기 표시 (base 점수 + Hand Rank 배수)
 	_pattern_indices = []
-	var best := Scoring.get_best_category(GameState.active_dice)
+	var best := Scoring.get_best_hand_rank(GameState.active_dice)
 	if not best.is_empty():
-		var category = best["category"]
-		var base := Scoring.get_score_breakdown(category, GameState.active_dice)["base"] as int
-		var upgrade := MetaState.get_upgrade(category.id)
-		var cat_mult := upgrade.get_total_multiplier() if upgrade else 1.0
-		game_root.score_display.show_initial(category.display_name, base, cat_mult)
+		var hand_rank = best["hand_rank"]
+		var base := Scoring.get_score_breakdown(hand_rank, GameState.active_dice)["base"] as int
+		var upgrade := MetaState.get_upgrade(hand_rank.id)
+		var hr_mult := upgrade.get_total_multiplier() if upgrade else 1.0
+		game_root.score_display.show_initial(hand_rank.display_name, base, hr_mult)
 
 		# 패턴을 이루는 주사위 하이라이트 (윤곽선)
-		_pattern_indices = Scoring.get_pattern_indices(category, GameState.active_dice)
+		_pattern_indices = Scoring.get_pattern_indices(hand_rank, GameState.active_dice)
 		game_root.dice_manager.highlight_dice(_pattern_indices)
 
 	# 효과 1회 계산 → 효과 애니메이션
@@ -61,14 +64,22 @@ func enter() -> void:
 			game_root.juice_fx.freeze(0.03, 0.1)
 	)
 
-	# 오너먼트 dice_effects 발동 하이라이트
-	_highlight_ornament_effects()
+	# 코루틴 안전 가드: await 동안 상태가 바뀌었으면 중단
+	if GameState.current_phase != GameState.Phase.POST_ROLL:
+		return
+
+	# 기어 dice_effects 발동 하이라이트
+	_highlight_gear_effects()
 
 	# 최종 점수 라인 표시 (또는 Burst)
 	if best.is_empty():
 		await game_root.score_display.show_no_score()
 	else:
 		await game_root.score_display.show_final(GameState.is_double_down)
+
+	# 코루틴 안전 가드: 두 번째 await 후에도 체크
+	if GameState.current_phase != GameState.Phase.POST_ROLL:
+		return
 
 	GameState.is_transitioning = false
 
@@ -129,7 +140,6 @@ func _do_time_expired() -> void:
 	game_root.score_display.hide_display()
 	game_root.dice_manager.exit_spotlight_mode()
 	# 시간 초과 → 점수 없이 직접 GameOverState로 (ConversionState 우회)
-	GameState.set_pending_score("burst", 0)
 	transitioned.emit(self, "GameOverState")
 #endregion
 
@@ -141,11 +151,11 @@ func _on_stand_pressed() -> void:
 
 func _do_stand() -> void:
 	game_root.dice_manager.exit_spotlight_mode()
-	var best := Scoring.get_best_category(GameState.active_dice)
+	var best := Scoring.get_best_hand_rank(GameState.active_dice)
 	if best.is_empty():
 		GameState.set_pending_score("burst", 0)
 	else:
-		GameState.set_pending_score(best["category_id"], best["score"])
+		GameState.set_pending_score(best["hand_rank_id"], best["score"])
 	game_root.score_display.hide_display()
 	transitioned.emit(self, "ConversionState")
 #endregion
@@ -174,7 +184,7 @@ func _on_reroll_confirmed() -> void:
 	_reroll_mode = false
 	# NOTE: set_selection_enabled(false) / exit_spotlight_mode()를 여기서 호출하면
 	# _selected_indices가 비워져 reroll_spin_in_place()가 빈 배열을 읽는 버그 발생.
-	# 둘 다 reroll_spin_in_place() 내부의 _reset_state()에서 처리됨.
+	# 둘 다 reroll_spin_in_place() 내부의 reset_state()에서 처리됨.
 	GameState.rerolls_remaining -= 1
 	GameState.rerolls_changed.emit(GameState.rerolls_remaining)
 
@@ -204,14 +214,10 @@ func _on_double_down_pressed() -> void:
 #endregion
 
 
-#region Ornament Highlight
-func _highlight_ornament_effects() -> void:
-	var active: Array[OrnamentInstance] = []
-	for ornament in MetaState.ornament_grid.placed_ornaments:
-		if not ornament.type.dice_effects.is_empty():
-			active.append(ornament)
-	if not active.is_empty():
-		game_root.ornament_mini_grid.highlight_ornaments(active)
+#region Gear Highlight
+func _highlight_gear_effects() -> void:
+	_highlight_gears(func(g: GearInstance) -> bool:
+		return not g.type.dice_effects.is_empty())
 #endregion
 
 

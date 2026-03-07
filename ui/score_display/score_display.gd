@@ -1,12 +1,12 @@
 extends Control
 ## 발라트로 스타일 오도미터(계기판) 점수 표시
-## 1. show_initial(): 카테고리명 + base chips × x1 표시
+## 1. show_initial(): Hand Rank명 + base chips × x1 표시
 ## 2. add_contribution(): 효과 발동 시 chips/mult 오도미터 증분 업데이트
 ## 3. show_final(): 최종 점수 라인 오도미터 표시
 
 signal score_display_finished
 
-@onready var category_label: Label = $PanelContainer/VBoxContainer/CategoryLabel
+@onready var hand_rank_label: Label = $PanelContainer/VBoxContainer/HandRankLabel
 @onready var chips_container: HBoxContainer = $PanelContainer/VBoxContainer/ScoreLine/ChipsContainer
 @onready var mult_container: HBoxContainer = $PanelContainer/VBoxContainer/ScoreLine/MultContainer
 @onready var final_line: HBoxContainer = $PanelContainer/VBoxContainer/FinalLine
@@ -26,7 +26,7 @@ var _gen: int = 0 ## 전체 세대 카운터 (hide/새 show 시 모든 coroutine
 var _container_gen: Dictionary = {} ## container별 세대 (증분 업데이트 시 해당 container cycle만 종료)
 var _current_chips: int = 0
 var _dice_mult: float = 1.0      ## 주사위 효과 배수 풀 (가산: 1.0 + Σ(dice_mult - 1))
-var _category_mult: float = 1.0  ## 카테고리 기본 배수 (곱산: base_multiplier + extra)
+var _hand_rank_mult: float = 1.0  ## Hand Rank 기본 배수 (곱산: base_multiplier + extra)
 
 
 func _ready() -> void:
@@ -35,18 +35,18 @@ func _ready() -> void:
 
 #region Public API — 3단계 점수 표시
 
-## 1단계: 카테고리명 + 기본 점수 표시 (효과 적용 전)
-## cat_mult: 카테고리 배수 (upgrade.get_total_multiplier())
-func show_initial(category_name: String, base: int, cat_mult: float = 1.0) -> void:
+## 1단계: Hand Rank명 + 기본 점수 표시 (효과 적용 전)
+## hr_mult: Hand Rank 배수 (upgrade.get_total_multiplier())
+func show_initial(hand_rank_name: String, base: int, hr_mult: float = 1.0) -> void:
 	_gen += 1
 	visible = true
 	final_line.visible = false
 	_clear_all()
 
-	category_label.text = category_name
+	hand_rank_label.text = hand_rank_name
 	_current_chips = base
 	_dice_mult = 1.0
-	_category_mult = cat_mult
+	_hand_rank_mult = hr_mult
 	_set_static(chips_container, str(_current_chips), CHIPS_COLOR)
 	_set_static(mult_container, _format_mult(_get_display_mult()), MULT_COLOR)
 
@@ -85,7 +85,7 @@ func show_no_score() -> void:
 	_gen += 1
 	var gen := _gen
 	visible = true
-	category_label.text = "Burst"
+	hand_rank_label.text = "Burst"
 	_set_static(chips_container, "0", CHIPS_COLOR)
 	_set_static(mult_container, "x1", MULT_COLOR)
 	final_line.visible = true
@@ -214,7 +214,7 @@ func _make_char_label(color: Color) -> Label:
 
 ## 표시용 통합 배수: dice_mult × category_mult
 func _get_display_mult() -> float:
-	return _dice_mult * _category_mult
+	return _dice_mult * _hand_rank_mult
 
 
 func _format_mult(mult: float) -> String:

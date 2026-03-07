@@ -27,6 +27,9 @@ const MAX_REDRAWS: int = 2 ## 게임당 리드로우 횟수
 const HAND_DRAW_COUNT: int = 8 ## PRE_ROLL에서 Hand로 드로우하는 수
 const DISTANCE_FACTOR: float = 1.0 ## 점수→거리 환산 비율
 const TIME_FACTOR: float = 0.05 ## 점수→시간 환산 비율
+const MAX_TIME_MULTIPLIER: float = 1.5 ## 시간 상한 = BASE_TIME × 이 값
+const POLICE_BUMPER_GAP: float = 0.02 ## Chase Bar 범퍼 접촉 간격 (트랙 비율)
+const POLICE_GAP: float = 0.18 ## Chase Bar 시간 비례 추가 간격 (총 = BUMPER + GAP × eased)
 
 var inventory := Inventory.new()
 var deck := Deck.new()
@@ -47,7 +50,7 @@ var timer_running: bool = false
 
 # 거리
 var remaining_distance: float = 100.0
-var target_distance: float = 100.0
+var target_distance: float = 300.0
 
 # 리드로우
 var redraws_remaining: int = MAX_REDRAWS
@@ -95,7 +98,7 @@ func convert_to_distance(score: int) -> void:
 
 
 func convert_to_time(score: int) -> void:
-	remaining_time += score * TIME_FACTOR
+	remaining_time = minf(remaining_time + score * TIME_FACTOR, BASE_TIME * MAX_TIME_MULTIPLIER)
 	time_changed.emit(remaining_time)
 
 
@@ -105,6 +108,21 @@ func is_game_won() -> bool:
 
 func is_time_up() -> bool:
 	return remaining_time <= 0
+#endregion
+
+
+#region Progress
+func get_player_progress() -> float:
+	return (target_distance - remaining_distance) / maxf(target_distance, 0.01)
+
+
+## 경찰 진행도 — 플레이어와의 간격이 남은 시간에 비례
+## 시간 0 → 범퍼 접촉 (POLICE_BUMPER_GAP만큼 뒤), 시간 가득 → gap 최대
+func get_police_progress() -> float:
+	var time_ratio := maxf(remaining_time / maxf(BASE_TIME, 0.01), 0.0)
+	var eased := time_ratio * time_ratio
+	var gap := POLICE_BUMPER_GAP + POLICE_GAP * eased
+	return get_player_progress() - gap
 #endregion
 
 
@@ -166,17 +184,17 @@ func can_double_down() -> bool:
 
 #region Pending Score (PostRollState → ConversionState 전달용)
 class PendingScore:
-	var category_id: String
+	var hand_rank_id: String
 	var score: int
 
-	func _init(cat_id: String, s: int) -> void:
-		category_id = cat_id
+	func _init(hr_id: String, s: int) -> void:
+		hand_rank_id = hr_id
 		score = s
 
 var _pending_score: PendingScore = null
 
-func set_pending_score(category_id: String, score: int) -> void:
-	_pending_score = PendingScore.new(category_id, score)
+func set_pending_score(hand_rank_id: String, score: int) -> void:
+	_pending_score = PendingScore.new(hand_rank_id, score)
 
 func consume_pending_score() -> PendingScore:
 	var result := _pending_score
